@@ -18,9 +18,9 @@ async def to_code(config):
         config[CONF_ID],
     )
     await cg.register_component(var, config)
-    
-    if CORE.is_esp32:
-        cg.add_build_flag("-DHARDWARE_SERIAL_WITH_PINS")
 
-    if CORE.is_esp8266:
-        cg.add_build_flag("-DHARDWARE_SERIAL")
+    #if CORE.is_esp32:
+    #    cg.add_build_flag("-D...")
+
+    #if CORE.is_esp8266:
+    #    cg.add_build_flag("-D...")

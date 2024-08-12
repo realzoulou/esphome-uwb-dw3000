@@ -3,6 +3,7 @@
 #include "esphome.h"
 #include "esphome/core/component.h"
 
+#include "Dw3000Device.h"
 /*
 #ifdef USE_ESP32
 #include <WiFi.h>
@@ -25,5 +26,6 @@ public:
     void loop();
 
 private:
-     const char* TAG = "uwb";
+    const char* TAG = "uwb";
+    Dw3000Device* mDevice = nullptr;
 };
