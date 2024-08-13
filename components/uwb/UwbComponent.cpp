@@ -2,14 +2,16 @@
 
 #include "UwbComponent.h"
 
-using namespace esphome;
+namespace esphome {
+namespace uwb {
 
 UwbComponent::UwbComponent() {
-
+    mDevice = new Dw3000Device();
 }
 
 void UwbComponent::setup() {
-    ESP_LOGI(TAG, "setup");
+    ESP_LOGD(TAG, "setup");
+    mDevice->setup();
 }
 
 void UwbComponent::dump_config() {
@@ -17,5 +19,8 @@ void UwbComponent::dump_config() {
 }
 
 void UwbComponent::loop() {
-
+    mDevice->loop();
 }
+
+}  // namespace uwb
+}  // namespace esphome
