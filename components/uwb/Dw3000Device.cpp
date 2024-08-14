@@ -56,9 +56,7 @@ static dwt_config_t config = {
 };
 
 
-Dw3000Device::Dw3000Device() {
-    ESP_LOGD(TAG, "constructor");
-}
+Dw3000Device::Dw3000Device() {}
 
 void Dw3000Device::setup() {
     ESP_LOGD(TAG, "setup");

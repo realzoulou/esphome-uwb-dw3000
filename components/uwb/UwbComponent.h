@@ -7,17 +7,28 @@
 namespace esphome {
 namespace uwb {
 
+typedef enum eUwbRole {
+    UWB_ROLE_UNKNOWN = 0,
+    UWB_ROLE_ANCHOR_CONTROLLER = 0x10,
+    UWB_ROLE_ANCHOR_PERIPHERAL = 0x11,
+    UWB_ROLE_TAG = 0x20,
+} eUwbRole;
+
 class UwbComponent : public esphome::Component {
+
 public:
     UwbComponent();
     void setup();
     void dump_config();
     void loop();
     float get_setup_priority() const override { return setup_priority::DATA; }
+    void setRole(const eUwbRole role) { mRole = role; };
+    std::string roleToString(const eUwbRole role);
 
 protected:
     const char* TAG = "uwb";
-    Dw3000Device* mDevice;
+    eUwbRole mRole{UWB_ROLE_UNKNOWN};
+    Dw3000Device* mDevice{nullptr};
 };
 
 }  // namespace uwb

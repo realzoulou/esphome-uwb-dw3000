@@ -1,17 +1,19 @@
 #pragma once
 
+#include "Dw3000Device.h"
+
 namespace esphome {
 namespace uwb {
 
-class Dw3000Device {
+class UwbTagDevice : public Dw3000Device {
 public:
-    Dw3000Device();
+    UwbTagDevice();
 
     virtual void setup();
     virtual void loop();
 
 protected:
-    const char* TAG = "Dw3000Device";
+    const char* TAG = "tag";
 };
 
 }  // namespace uwb
