@@ -60,6 +60,7 @@ decaIrqStatus_t decamutexon(void)
     }
     return s ;   // return state before disable, value is used to re-enable in decamutexoff call
     */
+    return 0;
 }
 
 /*! ------------------------------------------------------------------------------------------------------------------

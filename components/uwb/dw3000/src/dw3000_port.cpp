@@ -529,11 +529,11 @@ void port_set_dw_ic_spi_fastrate(uint8_t irq, uint8_t rst, uint8_t ss) {
 }
 
 uint32_t port_GetEXT_IRQStatus(void) {
-
+    return 0;
 }
 
 uint32_t port_CheckEXT_IRQ(void) {
-
+    return 0;
 }
 
 void port_DisableEXT_IRQ(void) {

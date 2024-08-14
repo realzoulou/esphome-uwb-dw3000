@@ -12,12 +12,12 @@ void UART_init(void)
   Serial.begin(115200);
 }
 
-void UART_putc(char data)
+void UART_putc(const char data)
 {
   Serial.print(data);
 }
 
-void UART_puts(char* s)
+void UART_puts(const char* s)
 {
   Serial.print(s);
 }
