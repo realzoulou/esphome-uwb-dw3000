@@ -3,6 +3,8 @@
 namespace esphome {
 namespace uwb {
 
+const char* UwbAnchorControllerDevice::TAG = "anchorC";
+
 UwbAnchorControllerDevice::UwbAnchorControllerDevice() {}
 
 void UwbAnchorControllerDevice::setup() {

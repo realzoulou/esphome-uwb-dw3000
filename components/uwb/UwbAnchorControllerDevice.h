@@ -13,7 +13,7 @@ public:
     virtual void loop();
 
 protected:
-    const char* TAG = "anchorC";
+    static const char* TAG;
 };
 
 }  // namespace uwb

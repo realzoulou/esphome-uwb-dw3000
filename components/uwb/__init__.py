@@ -5,7 +5,7 @@ from esphome.const import (
 )
 from enum import IntEnum, Enum
 
-DEPENDENCIES = ["logger"]
+DEPENDENCIES = ["logger", "spi"]
 
 uwb_ns = cg.esphome_ns.namespace("uwb")
 
@@ -34,4 +34,15 @@ async def to_code(config):
         config[CONF_ID],
     )
     cg.add(var.setRole(config[CONF_UWB_ROLE]))
+
+    # treat warnings as error, abort compilation on the first error, check printf format and arguments
+    cg.add_build_flag("-Werror -Wfatal-errors -Wformat=2")
+
+    # optimize for speed
+    cg.add_build_flag("-O2")
+
+    # src/esphome/core/time.cpp: In member function 'size_t esphome::ESPTime::strftime(char*, size_t, const char*)':
+    # src/esphome/core/time.cpp:20:54: error: format not a string literal, format string not checked [-Werror=format-nonliteral]
+    cg.add_build_flag("-Wno-format-nonliteral")
+
     await cg.register_component(var, config)

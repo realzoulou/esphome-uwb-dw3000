@@ -26,7 +26,7 @@ public:
     std::string roleToString(const eUwbRole role);
 
 protected:
-    const char* TAG = "uwb";
+    static const char* TAG;
     eUwbRole mRole{UWB_ROLE_UNKNOWN};
     Dw3000Device* mDevice{nullptr};
 };

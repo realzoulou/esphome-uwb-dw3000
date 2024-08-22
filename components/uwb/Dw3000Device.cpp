@@ -14,6 +14,8 @@ extern SPISettings _fastSPI; // from dw3000_port.cpp
 namespace esphome {
 namespace uwb {
 
+const char* Dw3000Device::TAG = "Dw3000Device";
+
 #define SPI_SPEED_HZ 16000000
 #define PIN_RST 27  // ----> DWM3120 RST
 #define PIN_IRQ 34  // ----> DWM3120 IRQ
@@ -55,11 +57,11 @@ static dwt_config_t config = {
     DWT_PDOA_M0       /* PDOA mode off */
 };
 
+uint8_t Dw3000Device::txSequenceNumber = 0x00;
 
 Dw3000Device::Dw3000Device() {}
 
 void Dw3000Device::setup() {
-    ESP_LOGD(TAG, "setup");
 
     /* Configure SPI rate, DW3000 supports up to 36 MHz */
     _fastSPI = SPISettings(SPI_SPEED_HZ, MSBFIRST, SPI_MODE0);
@@ -73,17 +75,12 @@ void Dw3000Device::setup() {
 
     if (dwt_initialise(DWT_DW_INIT) == DWT_ERROR) {
         ESP_LOGE(TAG, "dwt_initialise FAIL");
-    } else {
-        ESP_LOGD(TAG, "dwt_initialise OK");
     }
 
     /* Configure DW IC */
     /* if the dwt_configure returns DWT_ERROR either the PLL or RX calibration has failed the host should reset the device */
     if (dwt_configure(&config) == DWT_ERROR) {
         ESP_LOGE(TAG, "dwt_configure FAIL");
-    }
-     else {
-        ESP_LOGD(TAG, "dwt_configure OK");
     }
 
     /* Configure the TX spectrum parameters (power, PG delay and PG count) */
@@ -94,11 +91,22 @@ void Dw3000Device::setup() {
     dwt_settxantennadelay(TX_ANT_DLY);
     dwt_setrxantennadelay(RX_ANT_DLY);
 
-    ESP_LOGD(TAG, "setup done");
+    /* Enable GPIO for external LNA or PA functionality. TX and RX GPIOs are handy to monitor DW3000's IC activity. */
+    dwt_setlnapamode(DWT_LNA_ENABLE | DWT_PA_ENABLE);
+
+    /* Enabling LEDs here for debug so that for each TX the D1 LED will flash on DW3000 red eval-shield boards. */
+    // TODO make configurable as this increases power consumption
+    dwt_setleds(DWT_LEDS_ENABLE | DWT_LEDS_INIT_BLINK);
 }
 
 void Dw3000Device::loop() {
 
+}
+
+uint8_t Dw3000Device::getNextTxSequenceNumberAndIncrease() {
+    const uint8_t res = txSequenceNumber;
+    txSequenceNumber++; // wraps around to 0 when 256
+    return res;
 }
 
 }  // namespace uwb

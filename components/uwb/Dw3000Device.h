@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace esphome {
 namespace uwb {
 
@@ -10,8 +12,16 @@ public:
     virtual void setup();
     virtual void loop();
 
+    static uint8_t getNextTxSequenceNumberAndIncrease();
+
 protected:
-    const char* TAG = "Dw3000Device";
+    static const char* TAG;
+
+    /* Total amount of TX errors.*/
+    uint32_t mTxErrorCount{0};
+
+private:
+    static uint8_t txSequenceNumber;
 };
 
 }  // namespace uwb

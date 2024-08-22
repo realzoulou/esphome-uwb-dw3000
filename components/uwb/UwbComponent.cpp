@@ -8,11 +8,11 @@
 namespace esphome {
 namespace uwb {
 
-UwbComponent::UwbComponent() {
-}
+const char* UwbComponent::TAG = "uwb";
+
+UwbComponent::UwbComponent() {}
 
 void UwbComponent::setup() {
-    ESP_LOGD(TAG, "setup");
     switch (mRole) {
         case UWB_ROLE_ANCHOR_CONTROLLER:
             mDevice = new UwbAnchorControllerDevice();
