@@ -36,18 +36,6 @@ void UwbAnchorDevice::loop() {
     do_ranging();
 }
 
-double UwbAnchorDevice::getLastDistanceToTag(uint32_t* timeMillis) const {
-    if (timeMillis != nullptr) {
-        *timeMillis = mLastDistanceToTagUpdatedMs;
-    }
-    return mLastDistanceToTag;
-}
-
-void UwbAnchorDevice::setLastDistanceToTag(const double distance) {
-    mLastDistanceToTag = distance;
-    mLastDistanceToTagUpdatedMs = millis();
-}
-
 void UwbAnchorDevice::setMyState(const eMyState newState) {
     if (currState != newState) {
         // update state
@@ -102,11 +90,11 @@ void UwbAnchorDevice::do_ranging() {
         case MYSTATE_RECVD_FRAME_INITIAL:          recvdFrameInitial(); break;
         case MYSTATE_RECVD_FRAME_VALID_INITIAL:    recvdFrameValidInitial(); break; // should not occur because direct call
         case MYSTATE_RECVD_FRAME_INVALID_INITIAL:  recvdFrameInvalidInitial(); break;
-        case MYSTATE_SENT_RESPONSE:                sentResponse(); break;
+        case MYSTATE_SENT_RESPONSE:                sentResponse(); break; // should not occur because direct call
         case MYSTATE_SEND_ERROR:                   sendError(); break;
         case MYSTATE_WAIT_RECV_FINAL:              waitRecvFinal(); break;
         case MYSTATE_RECVD_FRAME_FINAL:            recvdFrameFinal(); break;
-        case MYSTATE_RECVD_FRAME_VALID_FINAL:      recvdFrameValidFinal(); break;
+        case MYSTATE_RECVD_FRAME_VALID_FINAL:      recvdFrameValidFinal(); break; // should not occur because direct call
         case MYSTATE_RECVD_FRAME_INVALID_FINAL:    recvdFrameInvalidFinal(); break;
         default:
             ESP_LOGE(TAG, "unhandled state %d", currState);
@@ -167,7 +155,7 @@ void UwbAnchorDevice::recvdFrameInitial() {
     if (frame_len <= RX_BUF_LEN) {
         dwt_readrxdata(rx_buffer, frame_len, 0);
     } else {
-        ESP_LOGW(TAG, "recvd frame bytes %u exceeds RX_BUF_LEN %u", frame_len, RX_BUF_LEN);
+        ESP_LOGW(TAG, "recvd frame bytes %" PRIu16 " exceeds RX_BUF_LEN %zu", frame_len, RX_BUF_LEN);
         setMyState(MYSTATE_RECVD_FRAME_INVALID_INITIAL);
         return;
     }
@@ -192,12 +180,12 @@ void UwbAnchorDevice::recvdFrameInitial() {
         mResponseFrame.resetToDefault();
         mResponseFrame.setSequenceNumber(Dw3000Device::getNextTxSequenceNumberAndIncrease());
         /* Add the previously calculated distance in cm, 16-bit BigEndian */
-        const uint16_t prev_dist_cm = (uint16_t) (getLastDistanceToTag(nullptr) * 100.0);
+        const uint16_t prev_dist_cm = (uint16_t) (getLastDistance(nullptr) * 100.0);
         uint8_t respMsgData[2];
         respMsgData[0] = (uint8_t) ((prev_dist_cm & 0xFF00) >> 8);
         respMsgData[1] = (uint8_t) (prev_dist_cm & 0x00FF);
         mResponseFrame.setFunctionCodeAndData(ResponseMsg::RESPONSE_FCT_CODE_RANGING, respMsgData, 2);
-        // don't check isValid() in order to save processing time
+        // don't check mResponseFrame.isValid() in order to save processing time
         uint8_t* txbuffer = mResponseFrame.getBytes().data();
         const std::size_t txBufferSize = ResponseMsg::FRAME_SIZE;
         dwt_writetxdata(txBufferSize, txbuffer, 0);                   /* Zero offset in TX buffer. */
@@ -213,7 +201,7 @@ void UwbAnchorDevice::recvdFrameInitial() {
         /* If dwt_starttx() returns an error, abandon this ranging exchange and proceed to the next one. */
         if (dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED) == DWT_ERROR) {
             mTxErrorCount++;
-            ESP_LOGE(TAG, "TX_DELAYED failed (total %ux)", mTxErrorCount);
+            ESP_LOGE(TAG, "TX_DELAYED failed (total %" PRIu32 "x)", mTxErrorCount);
             setMyState(MYSTATE_SEND_ERROR);
         } else {
             setMyState(MYSTATE_SENT_RESPONSE);
@@ -231,7 +219,7 @@ void UwbAnchorDevice::waitRecvFinal() {
     const uint64_t startedPollLoopMicros = micros();
     if (startedPollLoopMicros - mEnteredWaitRecvFinalMicros >= (WAIT_FINAL_RX_TIMEOUT_MS * 1000U)) {
         /* Abort this ranging attempt */
-        ESP_LOGW(TAG, "Timeout awaiting Final after %u ms", WAIT_FINAL_RX_TIMEOUT_MS);
+        ESP_LOGW(TAG, "Timeout awaiting Final after %" PRIu32 " ms", WAIT_FINAL_RX_TIMEOUT_MS);
         setMyState(MYSTATE_PREPARE_WAIT_RECV_INITIAL);
         return;
     }
@@ -288,7 +276,7 @@ void UwbAnchorDevice::recvdFrameFinal() {
 
         /* Display computed distance. */
         ESP_LOGI(TAG, "DIST: %.2f m", distance);
-        setLastDistanceToTag(distance);
+        setLastDistance(distance);
 
         /* Next ranging cycle. */
         setMyState(MYSTATE_PREPARE_WAIT_RECV_INITIAL);

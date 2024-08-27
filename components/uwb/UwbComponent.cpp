@@ -1,8 +1,9 @@
+#include <inttypes.h>
+
 #include "esphome/core/log.h"
 
 #include "UwbComponent.h"
-#include "UwbAnchorControllerDevice.h"
-#include "UwbAnchorPeripheralDevice.h"
+#include "UwbAnchorDevice.h"
 #include "UwbTagDevice.h"
 
 namespace esphome {
@@ -14,11 +15,8 @@ UwbComponent::UwbComponent() {}
 
 void UwbComponent::setup() {
     switch (mRole) {
-        case UWB_ROLE_ANCHOR_CONTROLLER:
-            mDevice = new UwbAnchorControllerDevice();
-            break;
-        case UWB_ROLE_ANCHOR_PERIPHERAL:
-            mDevice = new UwbAnchorPeripheralDevice();
+        case UWB_ROLE_ANCHOR:
+            mDevice = new UwbAnchorDevice();
             break;
         case UWB_ROLE_TAG:
             mDevice = new UwbTagDevice();
@@ -28,6 +26,7 @@ void UwbComponent::setup() {
             break;
     }
     if (mDevice != nullptr) {
+        mDevice->setListener(this);
         mDevice->setup();
     }
 }
@@ -41,12 +40,16 @@ void UwbComponent::loop() {
     mDevice->loop();
 }
 
+void UwbComponent::onDistanceUpdated(double distanceMeters, uint32_t updateMillis) {
+    if (mDistanceSensor != nullptr) {
+        mDistanceSensor->publish_state(distanceMeters);
+    }
+}
+
 std::string UwbComponent::roleToString(const eUwbRole role) {
     switch(role) {
-        case UWB_ROLE_ANCHOR_CONTROLLER:
-            return "anchor_controller";
-        case UWB_ROLE_ANCHOR_PERIPHERAL:
-            return "anchor_peripheral";
+        case UWB_ROLE_ANCHOR:
+            return "anchor";
         case UWB_ROLE_TAG:
             return "tag";
         case UWB_ROLE_UNKNOWN:

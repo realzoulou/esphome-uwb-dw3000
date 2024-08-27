@@ -60,8 +60,6 @@ public:
 
     virtual void setup();
     virtual void loop();
-    virtual double getLastDistanceToTag(uint32_t* timeMillis) const; // distance in [m]
-    virtual void setLastDistanceToTag(const double distance); // distance in [m]
 
 protected:
     virtual void setMyState(const eMyState state);
@@ -96,10 +94,6 @@ protected:
 
     /* Current Response frame. */
     ResponseMsg mResponseFrame;
-
-    /* Last distance to tag */
-    double mLastDistanceToTag{0.0};
-    uint32_t mLastDistanceToTagUpdatedMs{0};
 
     /* micros() of when entered MYSTATE_WAIT_RECV_FINAL */
     uint64_t mEnteredWaitRecvFinalMicros{0};

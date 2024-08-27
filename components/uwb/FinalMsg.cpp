@@ -42,7 +42,7 @@ FinalMsg::FinalMsg(const uint8_t* bytes, const size_t sizeBytes)
 
 bool FinalMsg::isValid() const {
     // check size
-    const auto bytes = getBytes();
+    const auto & bytes = mBytes;
     if (bytes.size() != FinalMsg::FRAME_SIZE) {
         return false;
     }

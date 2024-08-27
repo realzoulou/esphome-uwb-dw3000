@@ -28,9 +28,8 @@ void UwbTagDevice::setup() {
 
     /* Set expected Response's delay and timeout. Can be set here once for all. */
     dwt_setrxaftertxdelay(INITIAL_TX_TO_RESP_RX_DLY_UUS);
-    
+
     dwt_setrxtimeout(RESP_RX_TIMEOUT_UUS);
-    //set_resp_rx_timeout(RESP_RX_TIMEOUT_UUS, getConfig());
 
     dwt_setpreambledetecttimeout(PRE_TIMEOUT);
 
@@ -128,7 +127,7 @@ void UwbTagDevice::prepareSendInitial() {
     /* Write frame data to DW IC and prepare transmission. */
     if (dwt_writetxdata(InitialMsg::FRAME_SIZE, tx_buffer, 0 /*zero offset*/) != DWT_SUCCESS) {
         mTxErrorCount++;
-        ESP_LOGE(TAG, "Write TX failed (total TX errors %ux)", mTxErrorCount);
+        ESP_LOGE(TAG, "Write TX failed (total TX errors %" PRIu32 "x)", mTxErrorCount);
         setMyState(MYSTATE_SEND_ERROR_INITIAL);
         return;
     }
@@ -141,7 +140,7 @@ void UwbTagDevice::prepareSendInitial() {
         setMyState(MYSTATE_SENT_INITIAL);
     } else {
         mTxErrorCount++;
-        ESP_LOGE(TAG, "TX_IMMEDIATE failed (total TX errors %ux)", mTxErrorCount);
+        ESP_LOGE(TAG, "TX_IMMEDIATE failed (total TX errors %" PRIu32 "x)", mTxErrorCount);
         setMyState(MYSTATE_SEND_ERROR_INITIAL);
     }
 }
@@ -190,11 +189,11 @@ void UwbTagDevice::waitRecvResponse() {
 
         const uint32_t waitMicros = micros() - mEnteredWaitRecvResponseMicros;
         if (status_reg & SYS_STATUS_ALL_RX_TO) {
-            ESP_LOGI(TAG, "waitRecvResponse RX timeout after %" PRIu32 " us", waitMicros);
+            ESP_LOGW(TAG, "waitRecvResponse RX timeout after %" PRIu32 " us", waitMicros);
         } else if (status_reg & SYS_STATUS_ALL_RX_ERR) {
-            ESP_LOGI(TAG, "waitRecvResponse RX error after %" PRIu32 " us", waitMicros);
+            ESP_LOGW(TAG, "waitRecvResponse RX error after %" PRIu32 " us", waitMicros);
         } else {
-            ESP_LOGI(TAG, "waitRecvResponse status_reg=0x%08x after %" PRIu32 " us", status_reg, waitMicros);
+            ESP_LOGW(TAG, "waitRecvResponse status_reg=0x%08x after %" PRIu32 " us", status_reg, waitMicros);
         }
     }
 }
@@ -205,13 +204,13 @@ void UwbTagDevice::recvdFrameResponse() {
     if (frame_len <= RX_BUF_LEN) {
         dwt_readrxdata(rx_buffer, frame_len, 0);
     } else {
-        ESP_LOGW(TAG, "recvd frame bytes %u exceeds RX_BUF_LEN %u", frame_len, RX_BUF_LEN);
+        ESP_LOGW(TAG, "recvd frame bytes %" PRIu16 " exceeds RX_BUF_LEN %zu", frame_len, RX_BUF_LEN);
         setMyState(MYSTATE_PREPARE_SEND_INITIAL);
         return;
     }
     /* Check that the frame is the expected Response */
-    //const auto responseMsg = std::make_shared<ResponseMsg>(rx_buffer, frame_len); // TODO
-    if (true /*responseMsg->isValid()*/) {
+    const auto responseMsg = std::make_shared<ResponseMsg>(rx_buffer, frame_len);
+    if (responseMsg->isValid()) {
         setMyState(MYSTATE_RECVD_VALID_RESPONSE);
 
         /* Retrieve reception timestamp of this incoming frame. */
@@ -220,9 +219,8 @@ void UwbTagDevice::recvdFrameResponse() {
         /* Compute final message transmission time. */
         const uint64_t final_tx_time =
             ((response_rx_ts + ((uint64_t)RESP_RX_TO_FINAL_TX_DLY_UUS * UUS_TO_DWT_TIME))  & 0x00FFFFFFFFFFFFFFUL) >> 8;
-        
+
         dwt_setdelayedtrxtime((uint32_t)final_tx_time);
-        //set_delayed_rx_time((uint32_t)final_tx_time, getConfig());
 
         /* Final TX timestamp is the transmission time we programmed plus the TX antenna delay. */
         const uint64_t final_tx_ts = (((uint64_t)(final_tx_time & 0xFFFFFFFEUL)) << 8) + TX_ANT_DLY;
@@ -230,32 +228,32 @@ void UwbTagDevice::recvdFrameResponse() {
         /* Write all timestamps in the Final message. */
         mFinalFrame.resetToDefault();
         mFinalFrame.setSequenceNumber(Dw3000Device::getNextTxSequenceNumberAndIncrease());
-        mFinalFrame.setTimestamps((uint32_t)mInitial_tx_ts, 
+        mFinalFrame.setTimestamps((uint32_t)mInitial_tx_ts,
                                   (uint32_t)response_rx_ts,
                                   (uint32_t)final_tx_ts);
         /* Write and send Final message. */
-        // don't check isValid() in order to save processing time
+        // don't check mFinalFrame.isValid() in order to save processing time
         uint8_t* txbuffer = mFinalFrame.getBytes().data();
         const std::size_t txBufferSize = FinalMsg::FRAME_SIZE;
         if (dwt_writetxdata(txBufferSize, txbuffer, 0 /*zero offset*/) != DWT_SUCCESS) {
             mTxErrorCount++;
-            ESP_LOGE(TAG, "Write TX failed (total TX errors %ux)", mTxErrorCount);
+            ESP_LOGE(TAG, "Write TX failed (total TX errors %" PRIu32 "x)", mTxErrorCount);
             setMyState(MYSTATE_SEND_ERROR_FINAL);
             return;
         }
         dwt_writetxfctrl(txBufferSize, 0 /*zero offset*/, 1 /*=ranging */);
-        
+
         const uint32_t systime = dwt_readsystimestamphi32();
         const int32_t diff = (uint32_t)final_tx_time - systime; // diff should be positive in good case
 
         /* If dwt_starttx() returns an error, abandon this ranging exchange and proceed to the next one. */
         if (dwt_starttx(DWT_START_TX_DELAYED) == DWT_SUCCESS) {
             setMyState(MYSTATE_SENT_FINAL);
-            ESP_LOGV(TAG, "Final sent Ok: systime=%" PRIu32 ", final_tx_time=%" PRIu64 ", diff=%" PRId32 , 
+            ESP_LOGV(TAG, "Final sent Ok: systime=%" PRIu32 ", final_tx_time=%" PRIu64 ", diff=%" PRId32 ,
                     systime, final_tx_time, diff);
         } else {
             mTxErrorCount++;
-            ESP_LOGE(TAG, "TX_DELAYED failed (total TX errors %ux)", mTxErrorCount);
+            ESP_LOGE(TAG, "TX_DELAYED failed (total TX errors %" PRIu32 "x)", mTxErrorCount);
             if (diff < 0) {
                 // if diff is negative then dwt_starttx(DWT_START_TX_DELAYED) likely failed due to SYS_STATUS HPDWARN bit
                 const uint64_t response_rx_time = (response_rx_ts & 0x00FFFFFFFFFFFFFFUL) >> 8;
@@ -265,13 +263,31 @@ void UwbTagDevice::recvdFrameResponse() {
             }
             setMyState(MYSTATE_SEND_ERROR_FINAL);
         }
+
+        /* after(!) trying to send Final frame, read function code and data from Response frame
+           and update the last distance
+        */
+        uint8_t data[ResponseMsg::RESPONSE_DATA_SIZE];
+        std::size_t actualdataSize;
+        uint8_t fctCode;
+        if (responseMsg->getFunctionCodeAndData(&fctCode, data, ResponseMsg::RESPONSE_DATA_SIZE, &actualdataSize)) {
+            if (fctCode == ResponseMsg::RESPONSE_FCT_CODE_RANGING) {
+                const uint16_t prev_dist_cm = (uint16_t)(data[0] << 8) + (uint16_t) data[1];
+                /* update the last distance from anchor known to this tag. */
+                setLastDistance((double)prev_dist_cm / 100.0);
+            } else {
+                ESP_LOGE(TAG, "getFunctionCodeAndData from Response frame failed");
+            }
+        } else {
+            ESP_LOGE(TAG, "getFunctionCodeAndData from Response frame failed");
+        }
     } else {
         setMyState(MYSTATE_RECVD_INVALID_RESPONSE);
     }
 }
 void UwbTagDevice::recvdValidResponse() {
     // should not come here
-    ESP_LOGW(TAG, "entered recvdValidResponse() unexpectedly");
+    ESP_LOGE(TAG, "entered recvdValidResponse() unexpectedly");
     // reset statemachine
     setMyState(MYSTATE_PREPARE_SEND_INITIAL);
 }

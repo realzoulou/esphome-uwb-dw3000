@@ -40,9 +40,9 @@ InitialMsg::InitialMsg(const uint8_t* bytes, const size_t sizeBytes)
 
 bool InitialMsg::isValid() const {
     // check size
-    const auto bytes = getBytes();
+    const auto & bytes = mBytes;
     if (bytes.size() != InitialMsg::FRAME_SIZE) {
-        ESP_LOGW(TAG, "recvd bytes %u != %u", bytes.size(), InitialMsg::FRAME_SIZE);
+        ESP_LOGW(TAG, "recvd bytes %zu != %zu", bytes.size(), InitialMsg::FRAME_SIZE);
         ESP_LOG_BUFFER_HEXDUMP(TAG, bytes.data(), bytes.size(), ESP_LOG_ERROR);
         return false;
     }

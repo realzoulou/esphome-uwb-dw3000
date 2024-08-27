@@ -99,8 +99,25 @@ void Dw3000Device::setup() {
     dwt_setleds(DWT_LEDS_ENABLE | DWT_LEDS_INIT_BLINK);
 }
 
-void Dw3000Device::loop() {
+void Dw3000Device::loop() {}
 
+double Dw3000Device::getLastDistance(uint32_t* timeMillis) const {
+    if (timeMillis != nullptr) {
+        *timeMillis = mLastDistanceUpdatedMs;
+    }
+    return mLastDistance;
+}
+
+void Dw3000Device::setLastDistance(const double distance) {
+    /* Is this new distance really different to old one ? threshold is 1 cm. */
+    if (std::fabs(distance - mLastDistance) > 0.01) {
+        mLastDistance = distance;
+        mLastDistanceUpdatedMs = millis();
+
+        if (mListener != nullptr) {
+            mListener->onDistanceUpdated(mLastDistance, mLastDistanceUpdatedMs);
+        }
+    }
 }
 
 uint8_t Dw3000Device::getNextTxSequenceNumberAndIncrease() {

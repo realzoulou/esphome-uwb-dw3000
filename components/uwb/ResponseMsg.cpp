@@ -41,11 +41,11 @@ ResponseMsg::ResponseMsg(const uint8_t* bytes, const size_t sizeBytes)
 
 bool ResponseMsg::isValid() const {
     // check size
-    const auto bytes = getBytes();
+    const auto & bytes = mBytes;
     if (bytes.size() != ResponseMsg::FRAME_SIZE) {
         return false;
     }
-    const auto frame = reinterpret_cast<ResponseMsg::sResponseFrame*>(getBytes().data());
+    const auto frame = reinterpret_cast<const ResponseMsg::sResponseFrame*>(bytes.data());
     // check PAN-ID
     if (frame->mhr.panId_lsb != UwbMessage::PAN_ID_LSB) {
         return false;
@@ -77,14 +77,30 @@ void ResponseMsg::resetToDefault() {
     mBytes.assign((uint8_t*)&DEFAULT_RESPONSE_FRAME, (uint8_t*)&DEFAULT_RESPONSE_FRAME + ResponseMsg::FRAME_SIZE);
 }
 
-bool ResponseMsg::setFunctionCodeAndData(const uint8_t fctCode, const uint8_t* data, const size_t dataSize) {
-    if (dataSize != RESPONSE_DATA_SIZE) {
-        ESP_LOGE(TAG, "setFunctionCodeAndData invalid dataSize %zu", dataSize);
+bool ResponseMsg::setFunctionCodeAndData(const uint8_t fctCode, const uint8_t* data, const std::size_t dataSize) {
+    if (data == nullptr || dataSize != RESPONSE_DATA_SIZE) {
+        ESP_LOGE(TAG, "setFunctionCodeAndData null or invalid dataSize %zu (exp %zu)", dataSize, RESPONSE_DATA_SIZE);
         return false;
     }
     const auto frame = reinterpret_cast<ResponseMsg::sResponseFrame*>(mBytes.data());
     frame->functionCode = fctCode;
     std::memcpy(frame->functionData, data, dataSize);
+    return true;
+}
+
+bool ResponseMsg::getFunctionCodeAndData(uint8_t* fctCode, uint8_t* data, const std::size_t dataSize, std::size_t *actualDataSize) const {
+    if (fctCode == nullptr || data == nullptr || actualDataSize == nullptr || dataSize < RESPONSE_DATA_SIZE) {
+        ESP_LOGE(TAG, "getFunctionCodeAndData null's or invalid dataSize %zu (exp %zu)", dataSize, RESPONSE_DATA_SIZE);
+        return false;
+    }
+    const auto frame = reinterpret_cast<const ResponseMsg::sResponseFrame*>(mBytes.data());
+    if (frame->functionDataLen > RESPONSE_DATA_SIZE) {
+        ESP_LOGE(TAG, "getFunctionCodeAndData frame's data len %zu exceeds %zu)", frame->functionDataLen, RESPONSE_DATA_SIZE);
+        return false;
+    }
+    *fctCode = frame->functionCode;
+    *actualDataSize = (std::size_t)frame->functionDataLen;
+    std::memcpy(data, frame->functionData, frame->functionDataLen);
     return true;
 }
 
