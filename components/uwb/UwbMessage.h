@@ -28,13 +28,19 @@ public:
         uint8_t panId_lsb;
         uint8_t panId_msb;
     } __attribute__((packed)) sMacHeader;
+    static const std::size_t MHR_SEQUENCE_NO_IDX = offsetof(UwbMessage::sMacHeader, sequenceNumber);
     static_assert(sizeof(sMacHeader) == MHR_SIZE, "sMacHeader: size mismatch");
     // Common payload start bytes
     static const std::size_t COMMON_PAYLOAD_START_SIZE = 4;
+    static const std::size_t COMMON_PAYLOAD_RESERVED_SIZE = 2;
     typedef struct {
-        uint8_t commonStart[4];
+        uint8_t targetId; // ID of targeted device
+        uint8_t sourceId; // ID of source device
+        uint8_t reserved[COMMON_PAYLOAD_RESERVED_SIZE];
     } __attribute__((packed)) sPayloadCommon;
     static_assert(sizeof(sPayloadCommon) == COMMON_PAYLOAD_START_SIZE, "sPayloadCommon: size mismatch");
+    static const std::size_t COMMON_PAYLOAD_TARGET_ID_IDX = sizeof(sMacHeader) + offsetof(UwbMessage::sPayloadCommon, targetId);
+    static const std::size_t COMMON_PAYLOAD_SOURCE_ID_IDX = sizeof(sMacHeader) + offsetof(UwbMessage::sPayloadCommon, sourceId);
     static const std::size_t MFR_SIZE = 2;
     typedef struct {
         // Frame Checking Sequence (FCS) = CRC filled by the DW IC, no need to fill it in SW, but reserve the 2 bytes!
@@ -74,8 +80,12 @@ public:
     virtual void resetToDefault() = 0;
 
     virtual inline UwbMessageDirection getDirection() const { return mDirection; }
-    inline std::vector<uint8_t> getBytes() const { return std::vector<uint8_t>(mBytes); }
-    virtual bool setSequenceNumber(const uint8_t seqNo);
+    inline std::vector<uint8_t> & getBytes() { return mBytes; }
+    virtual void setSequenceNumber(const uint8_t seqNo);
+    virtual void setTargetId(const uint8_t id);
+    virtual uint8_t getTargetId() const;
+    virtual void setSourceId(const uint8_t id);
+    virtual uint8_t getSourceId() const;
 
 protected:
     static const char* TAG;

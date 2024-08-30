@@ -9,7 +9,7 @@ namespace uwb {
 
 const char* ResponseMsg::TAG = "ResponseMsg";
 
-#define COMMON_PAYLOAD_START_BYTES {'V', 'E', 'W', 'A'}
+#define COMMON_PAYLOAD_START_BYTES_RESERVED {'R', 'P'}
 
 static const ResponseMsg::sResponseFrame DEFAULT_RESPONSE_FRAME = {
     .mhr = {
@@ -20,7 +20,9 @@ static const ResponseMsg::sResponseFrame DEFAULT_RESPONSE_FRAME = {
         .panId_msb = UwbMessage::PAN_ID_MSB,
     },
     .payloadCommon = {
-        .commonStart = COMMON_PAYLOAD_START_BYTES,
+        .targetId = 0x00,
+        .sourceId = 0x00,
+        .reserved = COMMON_PAYLOAD_START_BYTES_RESERVED,
     },
     .functionCode = ResponseMsg::RESPONSE_FCT_CODE_RANGING,
     .functionDataLen = 0x02,
@@ -58,11 +60,11 @@ bool ResponseMsg::isValid() const {
         return false;
     }
     // check payload start
-    const uint8_t expectedCommonPayloadStart[] = COMMON_PAYLOAD_START_BYTES;
-    static_assert(UwbMessage::COMMON_PAYLOAD_START_SIZE == sizeof(expectedCommonPayloadStart), "COMMON_PAYLOAD_START_BYTES: size mismatch");
+    const uint8_t expectedCommonPayloadStart[] = COMMON_PAYLOAD_START_BYTES_RESERVED;
+    static_assert(UwbMessage::COMMON_PAYLOAD_RESERVED_SIZE == sizeof(expectedCommonPayloadStart), "COMMON_PAYLOAD_START_BYTES_RESERVED: size mismatch");
     if (std::memcmp(expectedCommonPayloadStart,
-                    frame->payloadCommon.commonStart,
-                    UwbMessage::COMMON_PAYLOAD_START_SIZE) != 0) {
+                    frame->payloadCommon.reserved,
+                    UwbMessage::COMMON_PAYLOAD_RESERVED_SIZE) != 0) {
         return false;
     }
     // check data size

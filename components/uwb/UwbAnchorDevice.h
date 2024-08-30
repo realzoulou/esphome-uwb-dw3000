@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include "Dw3000Device.h"
 #include "ResponseMsg.h"
 
@@ -39,7 +41,7 @@ public:
 
     /* This is the delay used in dwt_setrxaftertxdelay() from the end of the frame transmission to the enable of the receiver,
        as programmed for the DW IC's wait for response feature. */
-    static const uint32_t RESP_TX_TO_FINAL_RX_DLY_UUS = 500;
+    static const uint32_t RESP_TX_TO_FINAL_RX_DLY_UUS = 525;
 
     /* Receive Final message timeout. This is the delay used in dwt_setrxtimeout().
        The time parameter used here is in 1.0256 us (UWB microseconds, i.e. 512/499.2 MHz) units.
@@ -61,6 +63,11 @@ public:
     virtual void setup();
     virtual void loop();
 
+    /* get last distance in [m] and time in [ms] when last updated */
+    virtual double getLastDistance(uint32_t* timeMillis) const;
+    /* set last distance in [m] */
+    virtual void setLastDistance(const double distance);
+
 protected:
     virtual void setMyState(const eMyState state);
 
@@ -81,6 +88,13 @@ protected:
 protected:
     static const char* TAG;
     static const char* STATE_TAG;
+
+    int mCurrentTagId{-1};
+
+    /* Last measured distance. */
+    double mLastDistance{0.0};
+    /* millis() of when last distance was updated. */
+    uint32_t mLastDistanceUpdatedMs{0};
 
     eMyState prevState{MYSTATE_UNKNOWN};
     eMyState currState{MYSTATE_UNKNOWN};

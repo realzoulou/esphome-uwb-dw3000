@@ -8,7 +8,6 @@ from esphome.const import (
 )
 from . import UWB_COMPONENT, CONF_UWB_ID
 
-#DEPENDENCIES = [ "uwb" ]
 AUTO_LOAD = ["uwb"]
 
 CONFIG_SCHEMA = cv.Schema(

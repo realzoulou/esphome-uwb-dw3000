@@ -57,7 +57,7 @@ void UwbAnchorDevice::setMyState(const eMyState newState) {
             case MYSTATE_WAIT_RECV_INITIAL:               newStateStr = "WAIT_RECV_INITIAL"; logLvl = ESPHOME_LOG_LEVEL_INFO; break;
             case MYSTATE_RECVD_FRAME_INITIAL:             newStateStr = "RECVD_FRAME_INITIAL"; logLvl = ESPHOME_LOG_LEVEL_INFO; break;
             case MYSTATE_RECVD_FRAME_VALID_INITIAL:       newStateStr = "RECVD_FRAME_VALID_INITIAL"; logLvl = ESPHOME_LOG_LEVEL_INFO; break;
-            case MYSTATE_RECVD_FRAME_INVALID_INITIAL:     newStateStr = "RECVD_FRAME_INVALID_INITIAL"; logLvl = ESPHOME_LOG_LEVEL_WARN; break;
+            case MYSTATE_RECVD_FRAME_INVALID_INITIAL:     newStateStr = "RECVD_FRAME_INVALID_INITIAL"; logLvl = ESPHOME_LOG_LEVEL_INFO; break;
             case MYSTATE_SENT_RESPONSE:                   newStateStr = "SENT_RESPONSE"; logLvl = ESPHOME_LOG_LEVEL_INFO; break;
             case MYSTATE_SEND_ERROR:                      newStateStr = "SEND_ERROR"; logLvl = ESPHOME_LOG_LEVEL_WARN; break;
             case MYSTATE_WAIT_RECV_FINAL:                 newStateStr = "WAIT_RECV_FINAL"; logLvl = ESPHOME_LOG_LEVEL_INFO; break;
@@ -159,16 +159,29 @@ void UwbAnchorDevice::recvdFrameInitial() {
         setMyState(MYSTATE_RECVD_FRAME_INVALID_INITIAL);
         return;
     }
-    /* Check that the frame is a poll sent by initiator tag. */
+    /* Check that the frame is an Initial frame and targeted to this device. */
     const auto initialMsg = std::make_shared<InitialMsg>(rx_buffer, frame_len);
-    if (initialMsg->isValid()) {
+    bool proceed = initialMsg->isValid();
+    if (proceed) {
+        const uint8_t targetId = initialMsg->getTargetId();
+        if (targetId != getDeviceId()) {
+            // silently ignore
+            proceed = false;
+            setMyState(MYSTATE_PREPARE_WAIT_RECV_INITIAL);
+            return;
+        } else {
+            // remember the source ID as the tag's device ID
+            mCurrentTagId = initialMsg->getSourceId();
+        }
+    }
+    if (proceed) {
         /* Yes, it is the frame we are expecting. */
         setMyState(MYSTATE_RECVD_FRAME_VALID_INITIAL);
 
         /* Set send time for response. */
-        const uint64_t resp_tx_time =
+        const uint64_t response_tx_time =
             ((mInitial_rx_ts + (POLL_RX_TO_RESP_TX_DLY_UUS * UUS_TO_DWT_TIME)) & 0x00FFFFFFFFFFFFFFUL) >> 8;
-        dwt_setdelayedtrxtime((uint32_t)resp_tx_time);
+        dwt_setdelayedtrxtime((uint32_t)response_tx_time);
 
         /* Set expected delay and timeout for final message reception. */
         dwt_setrxaftertxdelay(RESP_TX_TO_FINAL_RX_DLY_UUS);
@@ -179,29 +192,34 @@ void UwbAnchorDevice::recvdFrameInitial() {
         /* Write and send the response message. */
         mResponseFrame.resetToDefault();
         mResponseFrame.setSequenceNumber(Dw3000Device::getNextTxSequenceNumberAndIncrease());
+        mResponseFrame.setTargetId(mCurrentTagId);
+        mResponseFrame.setSourceId(getDeviceId());
         /* Add the previously calculated distance in cm, 16-bit BigEndian */
+        /* TODO support for >1 tag */
         const uint16_t prev_dist_cm = (uint16_t) (getLastDistance(nullptr) * 100.0);
         uint8_t respMsgData[2];
         respMsgData[0] = (uint8_t) ((prev_dist_cm & 0xFF00) >> 8);
         respMsgData[1] = (uint8_t) (prev_dist_cm & 0x00FF);
-        mResponseFrame.setFunctionCodeAndData(ResponseMsg::RESPONSE_FCT_CODE_RANGING, respMsgData, 2);
-        // don't check mResponseFrame.isValid() in order to save processing time
+        if (!mResponseFrame.setFunctionCodeAndData(ResponseMsg::RESPONSE_FCT_CODE_RANGING, respMsgData, 2)) {
+            ESP_LOGE(TAG, "setFunctionCodeAndData failed");
+            setMyState(MYSTATE_SEND_ERROR);
+            return;
+        }
+        // not checking mResponseFrame.isValid() in order to save processing time
         uint8_t* txbuffer = mResponseFrame.getBytes().data();
         const std::size_t txBufferSize = ResponseMsg::FRAME_SIZE;
         dwt_writetxdata(txBufferSize, txbuffer, 0);                   /* Zero offset in TX buffer. */
         dwt_writetxfctrl(txBufferSize, 0, 1 /* 1=ranging */);         /* Zero offset in TX buffer, ranging. */
 
         const uint32_t systime = (uint64_t) dwt_readsystimestamphi32();
-        const int32_t diff = (uint32_t)resp_tx_time - systime; // diff should be positive in good case
-        if (diff < 0) {
-            // if diff is negative then dwt_starttx(DWT_START_TX_DELAYED) will likely fail due to SYS_STATUS HPDWARN bit
-            ESP_LOGW(TAG, "Slow processing! systime=%" PRIu32 ", resp_tx_time=%" PRIu64 ", diff=%" PRId32 ,
-                systime, resp_tx_time, diff);
-        }
         /* If dwt_starttx() returns an error, abandon this ranging exchange and proceed to the next one. */
         if (dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED) == DWT_ERROR) {
             mTxErrorCount++;
-            ESP_LOGE(TAG, "TX_DELAYED failed (total %" PRIu32 "x)", mTxErrorCount);
+            ESP_LOGE(TAG, "Response TX_DELAYED failed (total %" PRIu32 "x)", mTxErrorCount);
+            // dwt_starttx(DWT_START_TX_DELAYED) likely failed due to SYS_STATUS HPDWARN bit
+            const int32_t diff = (uint32_t)response_tx_time - systime; // diff should be positive in good case
+            ESP_LOGW(TAG, "systime=%" PRIu32 ", response_tx_time=%" PRIu64 ", diff=%" PRId32 ,
+                systime, response_tx_time, diff);
             setMyState(MYSTATE_SEND_ERROR);
         } else {
             setMyState(MYSTATE_SENT_RESPONSE);
@@ -251,9 +269,19 @@ void UwbAnchorDevice::recvdFrameFinal() {
     if (frame_len <= RX_BUF_LEN) {
         dwt_readrxdata(rx_buffer, frame_len, 0);
     }
-    /* Check that the frame is a final message sent by inititator tag. */
+    /* Check that the frame is a Final message sent by inititating tag device and targeted to this device. */
     const auto finalMsg = std::make_shared<FinalMsg>(rx_buffer, frame_len);
-    if (finalMsg->isValid()) {
+    bool proceed = finalMsg->isValid();
+    if (proceed) {
+        const uint8_t targetId = finalMsg->getTargetId();
+        if (targetId != getDeviceId()) {
+            // silently ignore
+            proceed = false;
+            setMyState(MYSTATE_WAIT_RECV_FINAL); // not MYSTATE_RECVD_FRAME_INVALID_FINAL
+            return;
+        }
+    }
+    if (proceed) {
 
         setMyState(MYSTATE_RECVD_FRAME_VALID_FINAL);
 
@@ -276,7 +304,7 @@ void UwbAnchorDevice::recvdFrameFinal() {
 
         /* Display computed distance. */
         ESP_LOGI(TAG, "DIST: %.2f m", distance);
-        setLastDistance(distance);
+        setLastDistance(distance); // TODO: support >1 tag
 
         /* Next ranging cycle. */
         setMyState(MYSTATE_PREPARE_WAIT_RECV_INITIAL);
@@ -317,6 +345,25 @@ void UwbAnchorDevice::recvdFrameValidFinal() {
 void UwbAnchorDevice::recvdFrameInvalidFinal() {
     // reset state machine
     setMyState(MYSTATE_PREPARE_WAIT_RECV_INITIAL);
+}
+
+double UwbAnchorDevice::getLastDistance(uint32_t* timeMillis) const {
+    if (timeMillis != nullptr) {
+        *timeMillis = mLastDistanceUpdatedMs;
+    }
+    return mLastDistance;
+}
+
+void UwbAnchorDevice::setLastDistance(const double distance) {
+    /* Is this new distance really different to old one ? threshold is 1 cm. */
+    if (std::fabs(distance - mLastDistance) > 0.01) {
+        mLastDistance = distance;
+        mLastDistanceUpdatedMs = millis();
+
+        if (mListener != nullptr) {
+            mListener->onDistanceUpdated(mLastDistance, mLastDistanceUpdatedMs);
+        }
+    }
 }
 
 }  // namespace uwb

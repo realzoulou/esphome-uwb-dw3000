@@ -14,10 +14,8 @@ public:
     virtual void setup();
     virtual void loop();
 
-    /* get last distance in [m] and time in [ms] when last updated */
-    virtual double getLastDistance(uint32_t* timeMillis) const;
-    /* set last distance in [m] */
-    virtual void setLastDistance(const double distance);
+    inline void setDeviceId(const uint8_t id) { mDeviceId = id; }
+    inline uint8_t getDeviceId() const { return mDeviceId; }
 
     inline void setListener(UwbListener* listener) { mListener = listener; }
 
@@ -26,18 +24,16 @@ public:
 protected:
     static const char* TAG;
 
+    /* ID of this device. */
+    uint8_t mDeviceId{0};
+
     /* Total amount of TX errors.*/
     uint32_t mTxErrorCount{0};
 
-    /* Last measured distance. */
-    double mLastDistance{0.0};
-    /* millis() of when last distance was updated. */
-    uint32_t mLastDistanceUpdatedMs{0};
+    UwbListener* mListener{nullptr};
 
 private:
     static uint8_t txSequenceNumber;
-
-    UwbListener* mListener{nullptr};
 };
 
 }  // namespace uwb

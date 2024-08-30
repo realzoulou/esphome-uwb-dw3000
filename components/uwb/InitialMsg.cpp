@@ -10,7 +10,7 @@ namespace uwb {
 
 const char* InitialMsg::TAG = "InitialMsg";
 
-#define COMMON_PAYLOAD_START_BYTES {'W', 'A', 'V', 'E'}
+#define COMMON_PAYLOAD_START_BYTES_RESERVED { 'I', 'N'}
 
 static const InitialMsg::sInitialFrame DEFAULT_INITIAL_FRAME = {
     .mhr = {
@@ -21,7 +21,9 @@ static const InitialMsg::sInitialFrame DEFAULT_INITIAL_FRAME = {
         .panId_msb = UwbMessage::PAN_ID_MSB,
     },
     .payloadCommon = {
-        .commonStart = COMMON_PAYLOAD_START_BYTES,
+        .targetId = 0x00,
+        .sourceId = 0x00,
+        .reserved = COMMON_PAYLOAD_START_BYTES_RESERVED,
     },
     .functionCode = InitialMsg::INITIAL_FCT_CODE_RANGING,
     .mfr = {
@@ -42,8 +44,9 @@ bool InitialMsg::isValid() const {
     // check size
     const auto & bytes = mBytes;
     if (bytes.size() != InitialMsg::FRAME_SIZE) {
-        ESP_LOGW(TAG, "recvd bytes %zu != %zu", bytes.size(), InitialMsg::FRAME_SIZE);
-        ESP_LOG_BUFFER_HEXDUMP(TAG, bytes.data(), bytes.size(), ESP_LOG_ERROR);
+        // likely a Final frame between other devices
+        ESP_LOGV(TAG, "recvd bytes %zu != %zu", bytes.size(), InitialMsg::FRAME_SIZE);
+        ESP_LOG_BUFFER_HEXDUMP(TAG, bytes.data(), bytes.size(), ESP_LOG_VERBOSE);
         return false;
     }
     const auto frame = reinterpret_cast<const InitialMsg::sInitialFrame*>(bytes.data());
@@ -62,14 +65,14 @@ bool InitialMsg::isValid() const {
         return false;
     }
     // check payload start
-    const uint8_t expectedCommonPayloadStart[] = COMMON_PAYLOAD_START_BYTES;
-    static_assert(UwbMessage::COMMON_PAYLOAD_START_SIZE == sizeof(expectedCommonPayloadStart), "COMMON_PAYLOAD_START_BYTES: size mismatch");
-    if (std::memcmp(expectedCommonPayloadStart,
-                    frame->payloadCommon.commonStart,
-                    UwbMessage::COMMON_PAYLOAD_START_SIZE) != 0) {
-        ESP_LOGW(TAG, "payloadCommon mismatch recvd vs. expected:");
-        ESP_LOG_BUFFER_HEXDUMP(TAG, frame->payloadCommon.commonStart, UwbMessage::COMMON_PAYLOAD_START_SIZE, ESP_LOG_ERROR);
-        ESP_LOG_BUFFER_HEXDUMP(TAG, expectedCommonPayloadStart, UwbMessage::COMMON_PAYLOAD_START_SIZE, ESP_LOG_ERROR);
+    const uint8_t expectedCommonPayloadReserved[] = COMMON_PAYLOAD_START_BYTES_RESERVED;
+    static_assert(UwbMessage::COMMON_PAYLOAD_RESERVED_SIZE == sizeof(expectedCommonPayloadReserved), "COMMON_PAYLOAD_START_BYTES_RESERVED: size mismatch");
+    if (std::memcmp(expectedCommonPayloadReserved,
+                    frame->payloadCommon.reserved,
+                    UwbMessage::COMMON_PAYLOAD_RESERVED_SIZE) != 0) {
+        ESP_LOGW(TAG, "payloadCommon.reserved mismatch recvd vs. expected:");
+        ESP_LOG_BUFFER_HEXDUMP(TAG, frame->payloadCommon.reserved, UwbMessage::COMMON_PAYLOAD_RESERVED_SIZE, ESP_LOG_ERROR);
+        ESP_LOG_BUFFER_HEXDUMP(TAG, expectedCommonPayloadReserved, UwbMessage::COMMON_PAYLOAD_RESERVED_SIZE, ESP_LOG_ERROR);
         return false;
     }
     return true;

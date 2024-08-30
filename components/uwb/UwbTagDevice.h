@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Dw3000Device.h"
+#include "UwbAnchorConfig.h"
 #include "InitialMsg.h"
 #include "FinalMsg.h"
 #include "ResponseMsg.h"
@@ -39,8 +40,9 @@ class UwbTagDevice : public Dw3000Device {
 
     /* This is the delay used in dwt_setdelayedtrxtime() from frame RX timestamp to TX reply timestamp used for calculating/setting the DW IC's delayed TX function.
        Adjusting this value lower and lower until dwt_starttx() starts returning DWT_ERROR status allows the user to tweak their system to calculate the
-       shortest turn-around time for messages. */
-    static const uint32_t RESP_RX_TO_FINAL_TX_DLY_UUS   = 720;
+       shortest turn-around time for messages.
+       If increasing this value, also the Anchor timeouts for receiving Final frame must be adjusted. */
+    static const uint32_t RESP_RX_TO_FINAL_TX_DLY_UUS   = 740;
 
     /* Receive response timeout. This is the delay used in dwt_setrxtimeout().
        The time parameter used here is in 1.0256 us (UWB microseconds, i.e. 512/499.2 MHz) units.
@@ -58,11 +60,16 @@ class UwbTagDevice : public Dw3000Device {
     static_assert(WAIT_RESPONSE_RX_TIMEOUT_MS < RANGING_INTERVAL_MS, "WAIT_RESPONSE_RX_TIMEOUT_MS must be < RANGING_INTERVAL_MS");
 
 public:
-    UwbTagDevice();
+    UwbTagDevice(const std::vector<std::shared_ptr<const UwbAnchorConfig>> & anchorConfigs);
     ~UwbTagDevice();
 
     virtual void setup();
     virtual void loop();
+
+    /* get last distance in [m] and time in [ms] when last updated */
+    virtual double getLastDistance(uint32_t* timeMillis) const;
+    /* set last distance in [m] */
+    virtual void setLastDistance(const double distance);
 
 protected:
     virtual void setMyState(const eMyState state);
@@ -82,6 +89,16 @@ protected:
 protected:
     static const char* TAG;
     static const char* STATE_TAG;
+
+    /* Array of all Anchors this tag shall do ranging. */
+    std::vector<std::shared_ptr<const UwbAnchorConfig>> mAnchorConfigs;
+    /* Index into mAnchorConfigs of current Anchor to do ranging with. -1 if there is no Anchor configured. */
+    int mCurrentAnchorIndex{-1};
+
+    /* Last measured distance. */
+    double mLastDistance{0.0};
+    /* millis() of when last distance was updated. */
+    uint32_t mLastDistanceUpdatedMs{0};
 
     eMyState prevState{MYSTATE_UNKNOWN};
     eMyState currState{MYSTATE_UNKNOWN};

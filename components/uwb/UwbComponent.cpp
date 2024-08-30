@@ -19,13 +19,15 @@ void UwbComponent::setup() {
             mDevice = new UwbAnchorDevice();
             break;
         case UWB_ROLE_TAG:
-            mDevice = new UwbTagDevice();
+            mDevice = new UwbTagDevice(mAnchorConfigs);
+            mAnchorConfigs.clear(); // no longer needed
             break;
         default:
             ESP_LOGE(TAG, "unknown role %i", mRole);
             break;
     }
     if (mDevice != nullptr) {
+        mDevice->setDeviceId(mDeviceId);
         mDevice->setListener(this);
         mDevice->setup();
     }
@@ -38,6 +40,11 @@ void UwbComponent::dump_config() {
 
 void UwbComponent::loop() {
     mDevice->loop();
+}
+
+void UwbComponent::addAnchor(const uint8_t id, const double latitude, const double longitude) {
+    const auto anchor = std::make_shared<const UwbAnchorConfig>(id, latitude, longitude);
+    mAnchorConfigs.push_back(anchor);
 }
 
 void UwbComponent::onDistanceUpdated(double distanceMeters, uint32_t updateMillis) {
