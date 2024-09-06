@@ -4,8 +4,17 @@
 
 #include "UwbListener.h"
 
+#include "dw3000_device_api.h"
+
 namespace esphome {
 namespace uwb {
+
+/* Default antenna delay values for 64 MHz PRF */
+#define TX_ANT_DLY  (16385) // Decawave default was confirmed to be good (by ranging with 8.0m distance)
+#define RX_ANT_DLY  TX_ANT_DLY // for simplicity: RX = TX antenna delay
+
+/* Enable Double-Sided Tw-Way-Ranging with 4 frames (synchronous). */
+#define USE_DS_TWR_SYNCRONOUS
 
 class Dw3000Device {
 public:
@@ -20,6 +29,7 @@ public:
     inline void setListener(UwbListener* listener) { mListener = listener; }
 
     static uint8_t getNextTxSequenceNumberAndIncrease();
+    static dwt_config_t* getConfig();
 
 protected:
     static const char* TAG;

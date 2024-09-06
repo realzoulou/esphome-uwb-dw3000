@@ -36,9 +36,6 @@ const char* Dw3000Device::TAG = "Dw3000Device";
 #define SHR_PWR  (0xFF) // bits 23-16, Synchronisation Header (SHR)
 #define STS_PWR  (0xFF) // bits 31-24, Scrambled Timestamp Sequence (STS)
 
-/* Default antenna delay values for 64 MHz PRF */
-#define TX_ANT_DLY  (16385) // Decawave default was confirmed to be good (by ranging with 8.0m distance)
-#define RX_ANT_DLY  TX_ANT_DLY // for simplicity: RX = TX antenna delay
 
 /* Default communication configuration. We use default non-STS DW mode. */
 static dwt_config_t config = {
@@ -60,6 +57,10 @@ static dwt_config_t config = {
 uint8_t Dw3000Device::txSequenceNumber = 0x00;
 
 Dw3000Device::Dw3000Device() {}
+
+dwt_config_t* Dw3000Device::getConfig() {
+    return &config;
+}
 
 void Dw3000Device::setup() {
 

@@ -15,18 +15,23 @@ class UwbTagDevice : public Dw3000Device {
 
     typedef enum {
         MYSTATE_UNKNOWN,
-        // Initial frame to anchor(s)
+        // Initial frame to anchor
         MYSTATE_PREPARE_SEND_INITIAL,
         MYSTATE_SENT_INITIAL,
         MYSTATE_SEND_ERROR_INITIAL,
-        // Response frame from an anchor
+        // Response frame from anchor
         MYSTATE_WAIT_RECV_RESPONSE,
-        MYSTATE_RECVD_FRAME,
+        MYSTATE_RECVD_FRAME_RESPONSE,
         MYSTATE_RECVD_VALID_RESPONSE,
         MYSTATE_RECVD_INVALID_RESPONSE,
-        // Final frame to responder
+        // Final frame to anchor
         MYSTATE_SENT_FINAL,
         MYSTATE_SEND_ERROR_FINAL,
+        // Final response frame from anchor
+        MYSTATE_WAIT_RECV_FINAL,
+        MYSTATE_RECVD_FRAME_FINAL,
+        MYSTATE_RECVD_VALID_FINAL,
+        MYSTATE_RECVD_INVALID_FINAL,
     } eMyState;
 
     /* Time in millis between two ranging Initial messages. */
@@ -34,20 +39,22 @@ class UwbTagDevice : public Dw3000Device {
 
     /* Delay between frames, in UWB microseconds.*/
 
-    /* This is the delay used in dwt_setrxaftertxdelay() from the end of the frame transmission to the enable of the receiver,
+    /* This is the delay used with dwt_setrxaftertxdelay() from the end of the frame transmission to the enable of the receiver,
        as programmed for the DW IC's wait for response feature. */
-    static const uint32_t INITIAL_TX_TO_RESP_RX_DLY_UUS = 700;
+    static const uint32_t INITIAL_TX_TO_RESP_RX_DLY_UUS         = 700;
+    static const uint32_t FINAL_TX_TO_FINAL_RESPONSE_RX_DLY_UUS = 700;
 
-    /* This is the delay used in dwt_setdelayedtrxtime() from frame RX timestamp to TX reply timestamp used for calculating/setting the DW IC's delayed TX function.
+    /* This is the delay used with dwt_setdelayedtrxtime() from frame RX timestamp to TX reply timestamp used for calculating/setting the DW IC's delayed TX function.
        Adjusting this value lower and lower until dwt_starttx() starts returning DWT_ERROR status allows the user to tweak their system to calculate the
        shortest turn-around time for messages.
        If increasing this value, also the Anchor timeouts for receiving Final frame must be adjusted. */
-    static const uint32_t RESP_RX_TO_FINAL_TX_DLY_UUS   = 810;
+    static const uint32_t RESP_RX_TO_FINAL_TX_DLY_UUS   = 830;
 
     /* Receive response timeout. This is the delay used in dwt_setrxtimeout().
        The time parameter used here is in 1.0256 us (UWB microseconds, i.e. 512/499.2 MHz) units.
        The maximum RX timeout is ~ 1.0754s. */
-    static const uint32_t RESP_RX_TIMEOUT_UUS           = 50000;
+    static const uint32_t RESP_RX_TIMEOUT_UUS           = 1000;
+    static const uint32_t FINAL_RESPONSE_RX_TIMEOUT_UUS = 1000;
 
     /* Preamble timeout, in multiple of PAC size. */
     static const uint32_t PRE_TIMEOUT                   = 0; // disable Preamble timeout
@@ -55,9 +62,9 @@ class UwbTagDevice : public Dw3000Device {
     /* Maximum duration in millis for blocking loop() doing polling for incoming frames. */
     static const uint32_t MAX_POLL_DURATION_MS = 25;
 
-    /*  How long to wait in MYSTATE_WAIT_RECV_RESPONSE */
-    static const uint32_t WAIT_RESPONSE_RX_TIMEOUT_MS = 100;
-    static_assert(WAIT_RESPONSE_RX_TIMEOUT_MS < RANGING_INTERVAL_MS, "WAIT_RESPONSE_RX_TIMEOUT_MS must be < RANGING_INTERVAL_MS");
+    /*  How long to wait in MYSTATE_WAIT_RECV_RESPONSE/FINAL */
+    static const uint32_t WAIT_RX_TIMEOUT_MS = 100;
+    static_assert(WAIT_RX_TIMEOUT_MS < RANGING_INTERVAL_MS, "WAIT_RX_TIMEOUT_MS must be < RANGING_INTERVAL_MS");
 
 public:
     UwbTagDevice(const std::vector<std::shared_ptr<const UwbAnchorConfig>> & anchorConfigs);
@@ -85,7 +92,10 @@ protected:
     virtual void recvdInvalidResponse();
     virtual void sentFinal();
     virtual void sendErrorFinal();
-
+    virtual void waitRecvFinal();
+    virtual void recvdFrameFinal();
+    virtual void recvdValidFinal();
+    virtual void recvdInvalidFinal();
 protected:
     static const char* TAG;
     static const char* STATE_TAG;
@@ -104,12 +114,15 @@ protected:
     eMyState currState{MYSTATE_UNKNOWN};
 
     /* Buffer to store received frames. */
-    static const std::size_t RX_BUF_LEN{ResponseMsg::FRAME_SIZE};
+    const std::size_t RX_BUF_LEN;
     uint8_t* rx_buffer{nullptr};
 
     /* Current Initial Frame. */
     InitialMsg mInitialFrame;
 
+    /* DW IC timestamp when Response frame received. */
+    uint64_t mResponse_rx_ts{0};
+    
     /* Current Final frame. */
     FinalMsg mFinalFrame;
 
@@ -118,6 +131,8 @@ protected:
 
     /* micros() of when entered waiting for Response. */
     uint32_t mEnteredWaitRecvResponseMicros{0};
+    /* micros() of when entered waiting for Final response. */
+    uint32_t mEnteredWaitRecvFinalMicros{0};
 
     /* DW IC SYS_TIME timestamp of when Initial frame was sent. */
     uint64_t mInitial_tx_ts{0};

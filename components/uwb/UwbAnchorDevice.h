@@ -4,6 +4,7 @@
 
 #include "Dw3000Device.h"
 #include "ResponseMsg.h"
+#include "FinalMsg.h"
 
 #include "esphome/core/helpers.h"
 
@@ -23,30 +24,35 @@ public:
         MYSTATE_RECVD_FRAME_INVALID_INITIAL,
         // Response message to tag
         MYSTATE_SENT_RESPONSE,
-        MYSTATE_SEND_ERROR,
+        MYSTATE_SEND_ERROR_RESPONSE,
         // Final message from tag for range calculation
         MYSTATE_WAIT_RECV_FINAL,
         MYSTATE_RECVD_FRAME_FINAL,
         MYSTATE_RECVD_FRAME_VALID_FINAL,
         MYSTATE_RECVD_FRAME_INVALID_FINAL,
+        // Final message to tag for its range calculation
+        MYSTATE_SENT_FINAL,
+        MYSTATE_SEND_ERROR_FINAL,
     } eMyState;
 
     /* Delays between frames, in UWB microseconds. */
 
-    /* This is the delay used in dwt_setdelayedtrxtime() from Frame RX timestamp to TX reply timestamp used for calculating/setting the DW IC's delayed TX function.
-       This includes the frame length of approximately 190 us with above configuration.
-       Adjusting this value lower and lower until dwt_starttx() starts returning DWT_ERROR status allows the user to tweak their system to calculate the
-       shortest turn-around time for messages. */
-    static const uint64_t POLL_RX_TO_RESP_TX_DLY_UUS = 870;
-
-    /* This is the delay used in dwt_setrxaftertxdelay() from the end of the frame transmission to the enable of the receiver,
+    /* This is the delay used with dwt_setrxaftertxdelay() from the end of the frame transmission to the enable of the receiver,
        as programmed for the DW IC's wait for response feature. */
-    static const uint32_t RESP_TX_TO_FINAL_RX_DLY_UUS = 500;
+    static const uint32_t RESP_TX_TO_FINAL_RX_DLY_UUS   = 700;
+
+    /* This is the delay used with dwt_setdelayedtrxtime() from Frame RX timestamp to TX reply timestamp used for calculating/setting the DW IC's delayed TX function.
+       This includes the frame length of approximately 190 us with current configuration.
+       Adjusting this value lower and lower until dwt_starttx() starts returning DWT_ERROR status allows the user to tweak their system to calculate the
+       shortest turn-around time for messages.
+       If increasing this value, also the Tag timeouts may need to be adjusted. */
+    static const uint32_t INITIAL_RX_TO_RESP_TX_DLY_UUS =  890;
+    static const uint32_t FINAL_RX_TO_FINAL_TX_DLY_UUS  = 1650;
 
     /* Receive Final message timeout. This is the delay used in dwt_setrxtimeout().
        The time parameter used here is in 1.0256 us (UWB microseconds, i.e. 512/499.2 MHz) units.
        The maximum RX timeout is ~ 1.0754s. */
-    static const uint32_t FINAL_RX_TIMEOUT_UUS = 50000;
+    static const uint32_t FINAL_RX_TIMEOUT_UUS          = 1000;
 
     /* Preamble timeout, in multiple of PAC size. */
     static const uint32_t PRE_TIMEOUT                   = 0; // disable Preamble timeout
@@ -80,17 +86,19 @@ protected:
     virtual void recvdFrameValidInitial();
     virtual void recvdFrameInvalidInitial();
     virtual void sentResponse();
-    virtual void sendError();
+    virtual void sendErrorResponse();
     virtual void waitRecvFinal();
     virtual void recvdFrameFinal();
     virtual void recvdFrameValidFinal();
     virtual void recvdFrameInvalidFinal();
+    virtual void sentFinal();
+    virtual void sendErrorFinal();
 
 protected:
     static const char* TAG;
     static const char* STATE_TAG;
 
-    int mCurrentTagId{-1};
+    uint8_t mCurrentTagId{0xFF};
 
     /* Last measured distance. */
     double mLastDistance{0.0};
@@ -109,6 +117,9 @@ protected:
 
     /* Current Response frame. */
     ResponseMsg mResponseFrame;
+
+    /* Current Final response frame. */
+    FinalMsg mFinalResponseFrame;
 
     /* micros() of when entered MYSTATE_WAIT_RECV_FINAL */
     uint64_t mEnteredWaitRecvFinalMicros{0};

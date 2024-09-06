@@ -69,14 +69,14 @@ def parse_latlon(value):
 
 TAG_ANCHORS_SCHEMA = cv.Schema(
     {
-        cv.Required(CONF_UWB_DEVICE_ID): cv.hex_int_range(min=0, max=255),
+        cv.Required(CONF_UWB_DEVICE_ID): cv.hex_int_range(min=0, max=254),
         cv.Required(CONF_LATITUDE): cv.All(parse_latlon, cv.float_range(min=-90, max=90)),
         cv.Required(CONF_LONGITUDE): cv.All(parse_latlon, cv.float_range(min=-180, max=180)),
     }
 )
 ANCHOR_TAGS_SCHEMA = cv.Schema(
     {
-        cv.Required(CONF_UWB_DEVICE_ID): cv.hex_int_range(min=0, max=255),
+        cv.Required(CONF_UWB_DEVICE_ID): cv.hex_int_range(min=0, max=254),
     }
 )
 
@@ -87,7 +87,7 @@ CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(): cv.declare_id(UWB_COMPONENT),
         cv.Required(CONF_UWB_ROLE): cv.enum(UWB_ROLE, lower=True),
-        cv.Required(CONF_UWB_DEVICE_ID): cv.hex_int_range(min=0, max=255),
+        cv.Required(CONF_UWB_DEVICE_ID): cv.hex_int_range(min=0, max=254),
         # options for role=tag
         cv.Optional(CONF_TAG_ANCHORS): cv.All(
             cv.ensure_list(TAG_ANCHORS_SCHEMA),
