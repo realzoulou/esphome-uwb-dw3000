@@ -291,7 +291,6 @@ void UwbTagDevice::recvdFrameResponse() {
             const uint64_t response_rx_time = (response_rx_ts & 0x00FFFFFFFFFFFFFFUL) >> 8;
             ESP_LOGW(TAG, "systime=%" PRIu32 ", final_tx_time=%" PRIu64 ", diff=%" PRId32 ,
                 systime, final_tx_time, diff);
-            ESP_LOGW(TAG, "response_rx_time=%" PRIu64 ", diff=%" PRId32, response_rx_time, ((uint32_t)response_rx_time - systime));
             setMyState(MYSTATE_SEND_ERROR_FINAL);
         }
 

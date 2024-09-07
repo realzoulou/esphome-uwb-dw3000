@@ -37,11 +37,11 @@ public:
        This includes the frame length of approximately 190 us with above configuration.
        Adjusting this value lower and lower until dwt_starttx() starts returning DWT_ERROR status allows the user to tweak their system to calculate the
        shortest turn-around time for messages. */
-    static const uint64_t POLL_RX_TO_RESP_TX_DLY_UUS = 940;
+    static const uint64_t POLL_RX_TO_RESP_TX_DLY_UUS = 870;
 
     /* This is the delay used in dwt_setrxaftertxdelay() from the end of the frame transmission to the enable of the receiver,
        as programmed for the DW IC's wait for response feature. */
-    static const uint32_t RESP_TX_TO_FINAL_RX_DLY_UUS = 525;
+    static const uint32_t RESP_TX_TO_FINAL_RX_DLY_UUS = 500;
 
     /* Receive Final message timeout. This is the delay used in dwt_setrxtimeout().
        The time parameter used here is in 1.0256 us (UWB microseconds, i.e. 512/499.2 MHz) units.
