@@ -146,6 +146,18 @@ void UwbAnchorDevice::waitRecvInitial() {
     }  else {
         /* Clear RX error/timeout events in the DW IC status register. */
         dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR);
+
+        const uint32_t waitMicros = micros() - startedPollLoopMicros;
+        if (status_reg & SYS_STATUS_ALL_RX_TO) {
+            if ((status_reg & SYS_STATUS_RXFTO_BIT_MASK) == SYS_STATUS_RXFTO_BIT_MASK)
+                ESP_LOGW(TAG, "waitRecvInitial RX Frame Wait timeout after %" PRIu32 " us", waitMicros);
+            if ((status_reg & SYS_STATUS_RXPTO_BIT_MASK) == SYS_STATUS_RXPTO_BIT_MASK)
+                ESP_LOGW(TAG, "waitRecvInitial RX Preamble Detection timeout after %" PRIu32 " us", waitMicros);
+        } else if (status_reg & SYS_STATUS_ALL_RX_ERR) {
+            ESP_LOGW(TAG, "waitRecvInitial RX error after %" PRIu32 " us", waitMicros);
+        } else {
+            ESP_LOGW(TAG, "waitRecvInitial status_reg=0x%08x after %" PRIu32 " us", status_reg, waitMicros);
+        }
     }
 }
 
@@ -237,7 +249,6 @@ void UwbAnchorDevice::waitRecvFinal() {
     const uint64_t startedPollLoopMicros = micros();
     if (startedPollLoopMicros - mEnteredWaitRecvFinalMicros >= (WAIT_FINAL_RX_TIMEOUT_MS * 1000U)) {
         /* Abort this ranging attempt */
-        ESP_LOGW(TAG, "Timeout awaiting Final after %" PRIu32 " ms", WAIT_FINAL_RX_TIMEOUT_MS);
         setMyState(MYSTATE_PREPARE_WAIT_RECV_INITIAL);
         return;
     }
@@ -260,6 +271,18 @@ void UwbAnchorDevice::waitRecvFinal() {
     }  else {
         /* Clear RX error/timeout events in the DW IC status register. */
         dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR);
+
+        const uint32_t waitMicros = micros() - mEnteredWaitRecvFinalMicros;
+        if (status_reg & SYS_STATUS_ALL_RX_TO) {
+            if ((status_reg & SYS_STATUS_RXFTO_BIT_MASK) == SYS_STATUS_RXFTO_BIT_MASK)
+                ESP_LOGW(TAG, "waitRecvFinal RX Frame Wait timeout after %" PRIu32 " us", waitMicros);
+            if ((status_reg & SYS_STATUS_RXPTO_BIT_MASK) == SYS_STATUS_RXPTO_BIT_MASK)
+                ESP_LOGW(TAG, "waitRecvFinal RX Preamble Detection timeout after %" PRIu32 " us", waitMicros);
+        } else if (status_reg & SYS_STATUS_ALL_RX_ERR) {
+            ESP_LOGW(TAG, "waitRecvFinal RX error after %" PRIu32 " us", waitMicros);
+        } else {
+            ESP_LOGW(TAG, "waitRecvFinal status_reg=0x%08x after %" PRIu32 " us", status_reg, waitMicros);
+        }
     }
 }
 

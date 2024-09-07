@@ -47,10 +47,10 @@ class UwbTagDevice : public Dw3000Device {
     /* Receive response timeout. This is the delay used in dwt_setrxtimeout().
        The time parameter used here is in 1.0256 us (UWB microseconds, i.e. 512/499.2 MHz) units.
        The maximum RX timeout is ~ 1.0754s. */
-    static const uint32_t RESP_RX_TIMEOUT_UUS           = 300;
+    static const uint32_t RESP_RX_TIMEOUT_UUS           = 50000;
 
     /* Preamble timeout, in multiple of PAC size. */
-    static const uint32_t PRE_TIMEOUT                   = 5;
+    static const uint32_t PRE_TIMEOUT                   = 0; // disable Preamble timeout
 
     /* Maximum duration in millis for blocking loop() doing polling for incoming frames. */
     static const uint32_t MAX_POLL_DURATION_MS = 25;

@@ -136,7 +136,7 @@ void UwbTagDevice::prepareSendInitial() {
     mInitialFrame.setSourceId(getDeviceId());
     if (mInitialFrame.isValid()) {
         ESP_LOGV(TAG, "Tag 0x%02X: Initiating to Anchor 0x%02X", getDeviceId(), anchorId);
-        
+
         uint8_t* tx_buffer = mInitialFrame.getBytes().data();
         /* Clear Transmit Frame Sent. */
         dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS_BIT_MASK);
@@ -208,7 +208,10 @@ void UwbTagDevice::waitRecvResponse() {
 
         const uint32_t waitMicros = micros() - mEnteredWaitRecvResponseMicros;
         if (status_reg & SYS_STATUS_ALL_RX_TO) {
-            ESP_LOGW(TAG, "waitRecvResponse RX timeout after %" PRIu32 " us", waitMicros);
+            if ((status_reg & SYS_STATUS_RXFTO_BIT_MASK) == SYS_STATUS_RXFTO_BIT_MASK)
+                ESP_LOGW(TAG, "waitRecvResponse RX Frame Wait timeout after %" PRIu32 " us", waitMicros);
+            if ((status_reg & SYS_STATUS_RXPTO_BIT_MASK) == SYS_STATUS_RXPTO_BIT_MASK)
+                ESP_LOGW(TAG, "waitRecvResponse RX Preamble Detection timeout after %" PRIu32 " us", waitMicros);
         } else if (status_reg & SYS_STATUS_ALL_RX_ERR) {
             ESP_LOGW(TAG, "waitRecvResponse RX error after %" PRIu32 " us", waitMicros);
         } else {
