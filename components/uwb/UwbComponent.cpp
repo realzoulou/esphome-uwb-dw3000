@@ -1,4 +1,4 @@
-#include <inttypes.h>
+#include <utility>
 
 #include "esphome/core/log.h"
 
@@ -19,8 +19,18 @@ void UwbComponent::setup() {
             mDevice = new UwbAnchorDevice();
             break;
         case UWB_ROLE_TAG:
-            mDevice = new UwbTagDevice(mAnchorConfigs);
-            mAnchorConfigs.clear(); // no longer needed
+            // assign distance sensor to Anchors, if configured in YAML
+            for (const auto sensor : mDistanceSensors) {
+                for (auto anchorConfig : mAnchors) {
+                    if (sensor.first /* target device ID */ == anchorConfig->getId()) {
+                        anchorConfig->setSensor(/* Sensor* */ sensor.second);
+                    }
+                }
+            }
+            mDevice = new UwbTagDevice(mAnchors);
+             // Anchors and Sensors no longer needed
+            mAnchors.clear();
+            mDistanceSensors.clear();
             break;
         default:
             ESP_LOGE(TAG, "unknown role %i", mRole);
@@ -28,7 +38,7 @@ void UwbComponent::setup() {
     }
     if (mDevice != nullptr) {
         mDevice->setDeviceId(mDeviceId);
-        mDevice->setListener(this);
+        
         mDevice->setup();
     }
 }
@@ -43,14 +53,13 @@ void UwbComponent::loop() {
 }
 
 void UwbComponent::addAnchor(const uint8_t id, const double latitude, const double longitude) {
-    const auto anchor = std::make_shared<const UwbAnchorConfig>(id, latitude, longitude);
-    mAnchorConfigs.push_back(anchor);
+    auto anchor = std::make_shared<UwbAnchorData>(id, latitude, longitude);
+    mAnchors.push_back(anchor);
 }
 
-void UwbComponent::onDistanceUpdated(double distanceMeters, uint32_t updateMillis) {
-    if (mDistanceSensor != nullptr) {
-        mDistanceSensor->publish_state(distanceMeters);
-    }
+void UwbComponent::addDistanceSensor(const uint8_t targetDeviceId, const sensor::Sensor* sensor) {
+    auto pair = std::make_pair(targetDeviceId, sensor);
+    mDistanceSensors.insert(pair);
 }
 
 std::string UwbComponent::roleToString(const eUwbRole role) {

@@ -1,11 +1,15 @@
 #pragma once
 
+#include <inttypes.h>
+#include <map>
+#include <utility>
+
 #include "esphome/core/component.h"
 #include "esphome/components/sensor/sensor.h"
 
 #include "Dw3000Device.h"
 
-#include "UwbAnchorConfig.h"
+#include "UwbAnchorData.h"
 #include "UwbListener.h"
 
 namespace esphome {
@@ -18,7 +22,7 @@ typedef enum eUwbRole {
 } eUwbRole;
 
 
-class UwbComponent : public esphome::Component, public UwbListener {
+class UwbComponent : public esphome::Component {
 
 public:
     UwbComponent();
@@ -32,21 +36,18 @@ public:
     // UwbComponent specific
     inline void setDeviceId(const uint8_t id) { mDeviceId = id; }
     inline void setRole(const eUwbRole role) { mRole = role; };
-    inline void setDistanceSensor(sensor::Sensor *distanceSensor) { mDistanceSensor = distanceSensor; }
     void addAnchor(const uint8_t id, const double latitude, const double longitude);
+    void addDistanceSensor(const uint8_t targetDeviceId, const sensor::Sensor* sensor);
 
 private:
-    // from UwbListener
-    void onDistanceUpdated(double distanceMeters, uint32_t updateMillis);
-
     static std::string roleToString(const eUwbRole role);
 
     static const char* TAG;
     eUwbRole mRole{UWB_ROLE_UNKNOWN};
     uint8_t mDeviceId{0};
-    std::vector<std::shared_ptr<const UwbAnchorConfig>> mAnchorConfigs;
+    std::vector<std::shared_ptr<UwbAnchorData>> mAnchors;
+    std::map<const uint8_t, const sensor::Sensor*> mDistanceSensors;
     Dw3000Device* mDevice{nullptr};
-    sensor::Sensor* mDistanceSensor{nullptr};
 };
 
 }  // namespace uwb

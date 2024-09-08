@@ -13,9 +13,9 @@ namespace uwb {
 const char* UwbTagDevice::TAG = "tag";
 const char* UwbTagDevice::STATE_TAG = "tag_STATE";
 
-UwbTagDevice::UwbTagDevice(const std::vector<std::shared_ptr<const UwbAnchorConfig>> & anchorConfigs)
+UwbTagDevice::UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & anchors)
 : RX_BUF_LEN(std::max(ResponseMsg::FRAME_SIZE, FinalMsg::FRAME_SIZE)) {
-    mAnchorConfigs = std::move(anchorConfigs);
+    mAnchors = std::move(anchors);
     rx_buffer = new uint8_t(RX_BUF_LEN);
 }
 
@@ -85,7 +85,7 @@ void UwbTagDevice::setMyState(const eMyState newState) {
 }
 
 void UwbTagDevice::do_ranging() {
-    if (mAnchorConfigs.empty()) {
+    if (mAnchors.empty()) {
         return; // no anchors configured, nothing to do
     }
 
@@ -122,7 +122,7 @@ void UwbTagDevice::prepareSendInitial() {
     }
 
     // find next anchor to do ranging with. There is at least 1 anchor, otherwise we would not be here
-    if (mCurrentAnchorIndex < (mAnchorConfigs.size() -1)) {
+    if (mCurrentAnchorIndex < (mAnchors.size() -1)) {
         mCurrentAnchorIndex++;
     } else {
         mCurrentAnchorIndex = 0;
@@ -136,7 +136,7 @@ void UwbTagDevice::prepareSendInitial() {
     /* Prepare Initial frame. */
     mInitialFrame.resetToDefault();
     mInitialFrame.setSequenceNumber(getNextTxSequenceNumberAndIncrease());
-    const uint8_t anchorId = mAnchorConfigs.at(mCurrentAnchorIndex)->getId();
+    const uint8_t anchorId = mAnchors.at(mCurrentAnchorIndex)->getId();
     mInitialFrame.setTargetId(anchorId);
     mInitialFrame.setSourceId(getDeviceId());
     if (mInitialFrame.isValid()) {
@@ -208,15 +208,18 @@ void UwbTagDevice::waitRecvResponse() {
         dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR);
 
         const uint32_t waitMicros = micros() - mEnteredWaitRecvResponseMicros;
+        const uint8_t anchorId = mAnchors.at(mCurrentAnchorIndex)->getId();
         if (status_reg & SYS_STATUS_ALL_RX_TO) {
             if ((status_reg & SYS_STATUS_RXFTO_BIT_MASK) == SYS_STATUS_RXFTO_BIT_MASK)
-                ESP_LOGW(TAG, "waitRecvResponse RX Frame Wait timeout after %" PRIu32 " us", waitMicros);
+                ESP_LOGW(TAG, "0x%02X: waitRecvResponse RX Frame Wait timeout after %" PRIu32 " us", anchorId, waitMicros);
             if ((status_reg & SYS_STATUS_RXPTO_BIT_MASK) == SYS_STATUS_RXPTO_BIT_MASK)
-                ESP_LOGW(TAG, "waitRecvResponse RX Preamble Detection timeout after %" PRIu32 " us", waitMicros);
+                ESP_LOGW(TAG, "0x%02X: waitRecvResponse RX Preamble Detection timeout after %" PRIu32 " us", anchorId, waitMicros);
         } else if (status_reg & SYS_STATUS_ALL_RX_ERR) {
-            ESP_LOGW(TAG, "waitRecvResponse RX error after %" PRIu32 " us", waitMicros);
+            ESP_LOGE(TAG, "0x%02X: waitRecvResponse RX error after %" PRIu32 " us", anchorId, waitMicros);
+            setMyState(MYSTATE_PREPARE_SEND_INITIAL);
         } else {
-            ESP_LOGW(TAG, "waitRecvResponse status_reg=0x%08x after %" PRIu32 " us", status_reg, waitMicros);
+            ESP_LOGE(TAG, "0x%02X: waitRecvResponse status_reg=0x%08x after %" PRIu32 " us", anchorId, status_reg, waitMicros);
+            setMyState(MYSTATE_PREPARE_SEND_INITIAL);
         }
     }
 }
@@ -227,7 +230,8 @@ void UwbTagDevice::recvdFrameResponse() {
     if (frame_len <= RX_BUF_LEN) {
         dwt_readrxdata(rx_buffer, frame_len, 0);
     } else {
-        ESP_LOGW(TAG, "recvdFrameResponse frame bytes %" PRIu16 " exceeds RX_BUF_LEN %zu", frame_len, RX_BUF_LEN);
+        const uint8_t anchorId = mAnchors.at(mCurrentAnchorIndex)->getId();
+        ESP_LOGW(TAG, "0x%02X: recvdFrameResponse frame bytes %" PRIu16 " exceeds RX_BUF_LEN %zu", anchorId, frame_len, RX_BUF_LEN);
         setMyState(MYSTATE_PREPARE_SEND_INITIAL);
         return;
     }
@@ -289,33 +293,33 @@ void UwbTagDevice::recvdFrameResponse() {
             ESP_LOGV(TAG, "Final sent Ok: systime=%" PRIu32 ", final_tx_time=%" PRIu64 ", diff=%" PRId32 ,
                     systime, final_tx_time, diff);
         } else {
+            const uint8_t anchorId = mAnchors.at(mCurrentAnchorIndex)->getId();
             mTxErrorCount++;
-            ESP_LOGE(TAG, "Final TX_DELAYED failed (total %" PRIu32 "x)", mTxErrorCount);
+            ESP_LOGE(TAG, "0x%02X: Final TX_DELAYED failed (total %" PRIu32 "x)", anchorId, mTxErrorCount);
             // dwt_starttx(DWT_START_TX_DELAYED) likely failed due to SYS_STATUS HPDWARN bit
             const int32_t diff = (uint32_t)final_tx_time - systime; // diff should be positive in good case
             const uint64_t response_rx_time = (response_rx_ts & 0x00FFFFFFFFFFFFFFUL) >> 8;
-            ESP_LOGW(TAG, "systime=%" PRIu32 ", final_tx_time=%" PRIu64 ", diff=%" PRId32 ,
+            ESP_LOGW(TAG, "  systime=%" PRIu32 ", final_tx_time=%" PRIu64 ", diff=%" PRId32 ,
                 systime, final_tx_time, diff);
             setMyState(MYSTATE_SEND_ERROR_FINAL);
         }
 
         /* after(!) trying to send Final frame, read function code and data from Response frame
-           and update the last distance
+           -- reserved for future use --
         */
         uint8_t data[ResponseMsg::RESPONSE_DATA_SIZE];
         std::size_t actualdataSize;
         uint8_t fctCode;
         if (responseMsg->getFunctionCodeAndData(&fctCode, data, ResponseMsg::RESPONSE_DATA_SIZE, &actualdataSize)) {
             if (fctCode == ResponseMsg::RESPONSE_FCT_CODE_RANGING) {
-                const uint16_t prev_dist_cm = (uint16_t)(data[0] << 8) + (uint16_t) data[1];
-                /* update the last distance from anchor known to this tag. */
-                ESP_LOGW(TAG, "prev DIST: %.2f m", prev_dist_cm / 100.0);
-                setLastDistance((double)prev_dist_cm / 100.0);
+                const uint16_t dummyData = (uint16_t)(data[0] << 8) + (uint16_t) data[1];
             } else {
-                ESP_LOGE(TAG, "getFunctionCodeAndData from Response frame failed");
+                const uint8_t anchorId = mAnchors.at(mCurrentAnchorIndex)->getId();
+                ESP_LOGE(TAG, "0x%02X: getFunctionCodeAndData from Response frame failed", anchorId);
             }
         } else {
-            ESP_LOGE(TAG, "getFunctionCodeAndData from Response frame failed");
+            const uint8_t anchorId = mAnchors.at(mCurrentAnchorIndex)->getId();
+            ESP_LOGE(TAG, "0x%02X: getFunctionCodeAndData from Response frame failed", anchorId);
         }
     } else {
         setMyState(MYSTATE_RECVD_INVALID_RESPONSE);
@@ -357,12 +361,18 @@ void UwbTagDevice::waitRecvFinal() {
         dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR);
 
         const uint32_t waitMicros = micros() - mEnteredWaitRecvFinalMicros;
+        const uint8_t anchorId = mAnchors.at(mCurrentAnchorIndex)->getId();
         if (status_reg & SYS_STATUS_ALL_RX_TO) {
-            ESP_LOGW(TAG, "waitRecvFinal RX timeout after %" PRIu32 " us", waitMicros);
+            if ((status_reg & SYS_STATUS_RXFTO_BIT_MASK) == SYS_STATUS_RXFTO_BIT_MASK)
+                ESP_LOGW(TAG, "0x%02X: waitRecvFinal RX Frame Wait timeout after %" PRIu32 " us", anchorId, waitMicros);
+            if ((status_reg & SYS_STATUS_RXPTO_BIT_MASK) == SYS_STATUS_RXPTO_BIT_MASK)
+                ESP_LOGW(TAG, "0x%02X: waitRecvFinal RX Preamble Detection timeout after %" PRIu32 " us", anchorId, waitMicros);
         } else if (status_reg & SYS_STATUS_ALL_RX_ERR) {
-            ESP_LOGW(TAG, "waitRecvFinal RX error after %" PRIu32 " us", waitMicros);
+            ESP_LOGE(TAG, "0x%02X: waitRecvFinal RX error after %" PRIu32 " us", anchorId, waitMicros);
+            setMyState(MYSTATE_PREPARE_SEND_INITIAL);
         } else {
-            ESP_LOGW(TAG, "waitRecvFinal status_reg=0x%08x after %" PRIu32 " us", status_reg, waitMicros);
+            ESP_LOGE(TAG, "0x%02X: waitRecvFinal status_reg=0x%08x after %" PRIu32 " us", anchorId, status_reg, waitMicros);
+            setMyState(MYSTATE_PREPARE_SEND_INITIAL);
         }
     }
 }
@@ -373,7 +383,8 @@ void UwbTagDevice::recvdFrameFinal() {
     if (frame_len <= RX_BUF_LEN) {
         dwt_readrxdata(rx_buffer, frame_len, 0);
     } else {
-        ESP_LOGW(TAG, "recvdFrameFinal frame bytes %" PRIu16 " exceeds RX_BUF_LEN %zu", frame_len, RX_BUF_LEN);
+        const uint8_t anchorId = mAnchors.at(mCurrentAnchorIndex)->getId();
+        ESP_LOGW(TAG, "0x%02X: recvdFrameFinal frame bytes %" PRIu16 " exceeds RX_BUF_LEN %zu", anchorId, frame_len, RX_BUF_LEN);
         setMyState(MYSTATE_PREPARE_SEND_INITIAL);
         return;
     }
@@ -381,9 +392,10 @@ void UwbTagDevice::recvdFrameFinal() {
     const auto finalMsg = std::make_shared<FinalMsg>(rx_buffer, frame_len);
     bool proceed = finalMsg->isValid();
     uint8_t anchorId;
+    const uint8_t myDeviceId = getDeviceId();
     if (proceed) {
         const uint8_t targetId = finalMsg->getTargetId();
-        if (targetId != getDeviceId()) {
+        if (targetId != myDeviceId) {
             proceed = false;
         }
         anchorId = finalMsg->getSourceId();
@@ -408,10 +420,15 @@ void UwbTagDevice::recvdFrameFinal() {
         const int64_t tof_dtu = (int64_t)((Ra * Rb - Da * Db) / (Ra + Rb + Da + Db));
         const double tof = tof_dtu * DWT_TIME_UNITS;
         const double distance = tof * SPEED_OF_LIGHT;
+        const uint32_t distanceUpdated = millis();
 
         /* Display computed distance. */
-        ESP_LOGW(TAG, "DIST: %.2f m", distance); // TODO >1 anchor
-        setLastDistance(distance);
+        ESP_LOGW(TAG, "DIST to anchor 0x%.2X: %.2f m", anchorId, distance);
+        if (mCurrentAnchorIndex > -1) {
+            (mAnchors[mCurrentAnchorIndex])->setDistance(distance);
+        } else {
+            ESP_LOGE(TAG, "mCurrentAnchorIndex=%i", mCurrentAnchorIndex);
+        }
 
         // next ranging loop
         setMyState(MYSTATE_PREPARE_SEND_INITIAL);
@@ -458,25 +475,6 @@ void UwbTagDevice::recvdValidFinal() {
 void UwbTagDevice::recvdInvalidFinal() {
     // reset statemachine
     setMyState(MYSTATE_PREPARE_SEND_INITIAL);
-}
-
-double UwbTagDevice::getLastDistance(uint32_t* timeMillis) const {
-    if (timeMillis != nullptr) {
-        *timeMillis = mLastDistanceUpdatedMs;
-    }
-    return mLastDistance;
-}
-
-void UwbTagDevice::setLastDistance(const double distance) {
-    /* Is this new distance really different to old one ? threshold is 1 cm. */
-    if (std::fabs(distance - mLastDistance) > 0.01) {
-        mLastDistance = distance;
-        mLastDistanceUpdatedMs = millis();
-
-        if (mListener != nullptr) {
-            mListener->onDistanceUpdated(mLastDistance, mLastDistanceUpdatedMs);
-        }
-    }
 }
 
 }  // namespace uwb

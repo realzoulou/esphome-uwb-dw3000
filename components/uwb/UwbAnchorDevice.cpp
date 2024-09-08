@@ -157,9 +157,11 @@ void UwbAnchorDevice::waitRecvInitial() {
             if ((status_reg & SYS_STATUS_RXPTO_BIT_MASK) == SYS_STATUS_RXPTO_BIT_MASK)
                 ESP_LOGW(TAG, "waitRecvInitial RX Preamble Detection timeout after %" PRIu32 " us", waitMicros);
         } else if (status_reg & SYS_STATUS_ALL_RX_ERR) {
-            ESP_LOGW(TAG, "waitRecvInitial RX error after %" PRIu32 " us", waitMicros);
+            ESP_LOGE(TAG, "waitRecvInitial RX error after %" PRIu32 " us", waitMicros);
+            setMyState(MYSTATE_PREPARE_WAIT_RECV_INITIAL);
         } else {
-            ESP_LOGW(TAG, "waitRecvInitial status_reg=0x%08x after %" PRIu32 " us", status_reg, waitMicros);
+            ESP_LOGE(TAG, "waitRecvInitial status_reg=0x%08x after %" PRIu32 " us", status_reg, waitMicros);
+            setMyState(MYSTATE_PREPARE_WAIT_RECV_INITIAL);
         }
     }
 }
@@ -209,17 +211,9 @@ void UwbAnchorDevice::recvdFrameInitial() {
         mResponseFrame.setSequenceNumber(Dw3000Device::getNextTxSequenceNumberAndIncrease());
         mResponseFrame.setTargetId(mCurrentTagId);
         mResponseFrame.setSourceId(getDeviceId());
-        /* Add the previously calculated distance in cm, 16-bit BigEndian */
-        /* TODO support for >1 tag */
-        const uint16_t prev_dist_cm = (uint16_t) (getLastDistance(nullptr) * 100.0);
-        uint8_t respMsgData[2];
-        respMsgData[0] = (uint8_t) ((prev_dist_cm & 0xFF00) >> 8);
-        respMsgData[1] = (uint8_t) (prev_dist_cm & 0x00FF);
-        if (!mResponseFrame.setFunctionCodeAndData(ResponseMsg::RESPONSE_FCT_CODE_RANGING, respMsgData, 2)) {
-            ESP_LOGE(TAG, "setFunctionCodeAndData failed");
-            setMyState(MYSTATE_SEND_ERROR_RESPONSE);
-            return;
-        }
+        /* Set function code and data (max 2 bytes)
+           -- reserved for future use --
+        */
         // not checking mResponseFrame.isValid() in order to save processing time
         uint8_t* txbuffer = mResponseFrame.getBytes().data();
         dwt_writetxdata(ResponseMsg::FRAME_SIZE, txbuffer, 0 /*zero offset*/);
@@ -281,9 +275,11 @@ void UwbAnchorDevice::waitRecvFinal() {
             if ((status_reg & SYS_STATUS_RXPTO_BIT_MASK) == SYS_STATUS_RXPTO_BIT_MASK)
                 ESP_LOGW(TAG, "waitRecvFinal RX Preamble Detection timeout after %" PRIu32 " us", waitMicros);
         } else if (status_reg & SYS_STATUS_ALL_RX_ERR) {
-            ESP_LOGW(TAG, "waitRecvFinal RX error after %" PRIu32 " us", waitMicros);
+            ESP_LOGE(TAG, "waitRecvFinal RX error after %" PRIu32 " us", waitMicros);
+            setMyState(MYSTATE_PREPARE_WAIT_RECV_INITIAL);
         } else {
-            ESP_LOGW(TAG, "waitRecvFinal status_reg=0x%08x after %" PRIu32 " us", status_reg, waitMicros);
+            ESP_LOGE(TAG, "waitRecvFinal status_reg=0x%08x after %" PRIu32 " us", status_reg, waitMicros);
+            setMyState(MYSTATE_PREPARE_WAIT_RECV_INITIAL);
         }
     }
 }
@@ -375,8 +371,7 @@ void UwbAnchorDevice::recvdFrameFinal() {
         const double distance = tof * SPEED_OF_LIGHT;
 
         /* Display computed distance. */
-        ESP_LOGW(TAG, "DIST: %.2f m", distance);
-        setLastDistance(distance); // TODO: support >1 tag
+        ESP_LOGW(TAG, "DIST to tag 0x%.2X: %.2f m", otherDeviceId, distance);
 
 #ifndef USE_DS_TWR_SYNCRONOUS
         /* Next ranging cycle. */
@@ -428,24 +423,6 @@ void UwbAnchorDevice::sentFinal() {
 void UwbAnchorDevice::sendErrorFinal() {
     // reset state machine
     setMyState(MYSTATE_PREPARE_WAIT_RECV_INITIAL);
-}
-double UwbAnchorDevice::getLastDistance(uint32_t* timeMillis) const {
-    if (timeMillis != nullptr) {
-        *timeMillis = mLastDistanceUpdatedMs;
-    }
-    return mLastDistance;
-}
-
-void UwbAnchorDevice::setLastDistance(const double distance) {
-    /* Is this new distance really different to old one ? threshold is 1 cm. */
-    if (std::fabs(distance - mLastDistance) > 0.01) {
-        mLastDistance = distance;
-        mLastDistanceUpdatedMs = millis();
-
-        if (mListener != nullptr) {
-            mListener->onDistanceUpdated(mLastDistance, mLastDistanceUpdatedMs);
-        }
-    }
 }
 
 }  // namespace uwb

@@ -26,8 +26,6 @@ public:
     inline void setDeviceId(const uint8_t id) { mDeviceId = id; }
     inline uint8_t getDeviceId() const { return mDeviceId; }
 
-    inline void setListener(UwbListener* listener) { mListener = listener; }
-
     static uint8_t getNextTxSequenceNumberAndIncrease();
     static dwt_config_t* getConfig();
 
@@ -39,8 +37,6 @@ protected:
 
     /* Total amount of TX errors.*/
     uint32_t mTxErrorCount{0};
-
-    UwbListener* mListener{nullptr};
 
 private:
     static uint8_t txSequenceNumber;

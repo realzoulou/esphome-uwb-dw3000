@@ -46,7 +46,7 @@ public:
        Adjusting this value lower and lower until dwt_starttx() starts returning DWT_ERROR status allows the user to tweak their system to calculate the
        shortest turn-around time for messages.
        If increasing this value, also the Tag timeouts may need to be adjusted. */
-    static const uint32_t INITIAL_RX_TO_RESP_TX_DLY_UUS =  890;
+    static const uint32_t INITIAL_RX_TO_RESP_TX_DLY_UUS =  970;
     static const uint32_t FINAL_RX_TO_FINAL_TX_DLY_UUS  = 1650;
 
     /* Receive Final message timeout. This is the delay used in dwt_setrxtimeout().
@@ -69,11 +69,6 @@ public:
 
     virtual void setup();
     virtual void loop();
-
-    /* get last distance in [m] and time in [ms] when last updated */
-    virtual double getLastDistance(uint32_t* timeMillis) const;
-    /* set last distance in [m] */
-    virtual void setLastDistance(const double distance);
 
 protected:
     virtual void setMyState(const eMyState state);

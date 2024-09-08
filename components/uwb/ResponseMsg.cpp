@@ -26,7 +26,7 @@ static const ResponseMsg::sResponseFrame DEFAULT_RESPONSE_FRAME = {
     },
     .functionCode = ResponseMsg::RESPONSE_FCT_CODE_RANGING,
     .functionDataLen = 0x02,
-    .functionData = {0,0},
+    .functionData = {0,0}, // reserved for future use
     .mfr = {
         .frameCheckingSequence = 0 // CRC will be filled by the DW IC
     }

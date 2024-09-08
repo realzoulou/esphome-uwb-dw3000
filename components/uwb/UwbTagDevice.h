@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Dw3000Device.h"
-#include "UwbAnchorConfig.h"
+#include "UwbAnchorData.h"
 #include "InitialMsg.h"
 #include "FinalMsg.h"
 #include "ResponseMsg.h"
@@ -67,16 +67,11 @@ class UwbTagDevice : public Dw3000Device {
     static_assert(WAIT_RX_TIMEOUT_MS < RANGING_INTERVAL_MS, "WAIT_RX_TIMEOUT_MS must be < RANGING_INTERVAL_MS");
 
 public:
-    UwbTagDevice(const std::vector<std::shared_ptr<const UwbAnchorConfig>> & anchorConfigs);
+    UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & anchors);
     ~UwbTagDevice();
 
     virtual void setup();
     virtual void loop();
-
-    /* get last distance in [m] and time in [ms] when last updated */
-    virtual double getLastDistance(uint32_t* timeMillis) const;
-    /* set last distance in [m] */
-    virtual void setLastDistance(const double distance);
 
 protected:
     virtual void setMyState(const eMyState state);
@@ -100,15 +95,10 @@ protected:
     static const char* TAG;
     static const char* STATE_TAG;
 
-    /* Array of all Anchors this tag shall do ranging. */
-    std::vector<std::shared_ptr<const UwbAnchorConfig>> mAnchorConfigs;
-    /* Index into mAnchorConfigs of current Anchor to do ranging with. -1 if there is no Anchor configured. */
+    /* Array of all Anchors that this tag shall do ranging with. */
+    std::vector<std::shared_ptr<UwbAnchorData>> mAnchors;
+    /* Index into mAnchors of current Anchor to do ranging with. -1 if there is no Anchor configured. */
     int mCurrentAnchorIndex{-1};
-
-    /* Last measured distance. */
-    double mLastDistance{0.0};
-    /* millis() of when last distance was updated. */
-    uint32_t mLastDistanceUpdatedMs{0};
 
     eMyState prevState{MYSTATE_UNKNOWN};
     eMyState currState{MYSTATE_UNKNOWN};
