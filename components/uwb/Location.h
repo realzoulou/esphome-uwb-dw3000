@@ -2,6 +2,8 @@
 
 #define _USE_MATH_DEFINES
 #include <cmath>
+#include <cstdint>
+#include <sstream>
 #include <vector>
 
 #ifndef __UT_TEST__
@@ -20,21 +22,23 @@ typedef struct sLatLong {
     double longitude; // degree
 } LatLong;
 
-inline bool operator==(const LatLong& lhs, const LatLong& rhs) {
+inline static bool operator==(const LatLong& lhs, const LatLong& rhs) {
     return lhs.latitude == rhs.latitude && lhs.longitude == rhs.longitude;
 }
-inline bool operator!=(const LatLong& lhs, const LatLong& rhs) {
+inline static bool operator!=(const LatLong& lhs, const LatLong& rhs) {
     return !(lhs==rhs);
 }
 typedef struct sAnchorPositionTagDistance{
+    uint8_t anchorId;
     LatLong anchorPosition;
     double tagDistance;
 } AnchorPositionTagDistance;
 
-inline bool operator==(const AnchorPositionTagDistance& lhs, const AnchorPositionTagDistance& rhs) {
-    return lhs.anchorPosition == rhs.anchorPosition && lhs.tagDistance == rhs.tagDistance;
+inline static bool operator==(const AnchorPositionTagDistance& lhs, const AnchorPositionTagDistance& rhs) {
+    return lhs.anchorId == rhs.anchorId &&
+           lhs.anchorPosition == rhs.anchorPosition && lhs.tagDistance == rhs.tagDistance;
 }
-inline bool operator!=(const AnchorPositionTagDistance& lhs, const AnchorPositionTagDistance& rhs) {
+inline static bool operator!=(const AnchorPositionTagDistance& lhs, const AnchorPositionTagDistance& rhs) {
     return !(lhs==rhs);
 }
 
@@ -56,11 +60,20 @@ inline bool operator!=(const BoundingRect& lhs, const BoundingRect& rhs) {
     return !(lhs==rhs);
 }
 
+typedef enum eCalcResult {
+    CALC_OK = 0,
+    CALC_F_ANCHOR_COMBINATIONS = 10,
+    CALC_F_NO_CANDIDATES = 20,
+    CALC_F_BOUNDING_BOX = 30
+} CalcResult;
+
 class Location {
 
 public:
-    static bool calculatePosition(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
+    static CalcResult calculatePosition(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
                                   LatLong & outputTagPosition, double & outputTagPositionErrorEstimate);
+    static bool isValid(const AnchorPositionTagDistance & a);
+    static void LOG_ANCHOR_TO_STREAM(std::ostringstream & ostream, const AnchorPositionTagDistance & anchor);
 
 UT_VISIBILITY_PRIVATE:
     /* get squerical distance between 2 points on earth in [m] */
@@ -78,6 +91,8 @@ UT_VISIBILITY_PRIVATE:
                                             const AnchorPositionTagDistance a2t,
                                             LatLong & t, LatLong & t_prime);
     static double METER_TO_DEGREE(const double latitude);
+
+    static const char* TAG;
 };
 
 }  // namespace uwb

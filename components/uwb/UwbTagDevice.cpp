@@ -1,11 +1,21 @@
 #include "UwbTagDevice.h"
+
+#include <iomanip>
+#include <sstream>
+
 #include "InitialMsg.h"
 #include "ResponseMsg.h"
 #include "FinalMsg.h"
+#include "Location.h"
 
 #include "esphome/core/log.h"
 
 #include "dw3000.h"
+
+#define LOG_ANCHORDATA_TO_STREAM(ostream, /*UwbAnchorData*/ anchor) \
+    ostream << std::hex << +anchor->getId() << std::dec << "("; \
+    ostream << std::setprecision(10); \
+    ostream << +anchor->getLatitude() << "," << +anchor->getLongitude() << ")"
 
 namespace esphome {
 namespace uwb {
@@ -13,8 +23,11 @@ namespace uwb {
 const char* UwbTagDevice::TAG = "tag";
 const char* UwbTagDevice::STATE_TAG = "tag_STATE";
 
-UwbTagDevice::UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & anchors)
-: RX_BUF_LEN(std::max(ResponseMsg::FRAME_SIZE, FinalMsg::FRAME_SIZE)) {
+UwbTagDevice::UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & anchors,
+                           const uint32_t rangingIntervalMs)
+: RX_BUF_LEN(std::max(ResponseMsg::FRAME_SIZE, FinalMsg::FRAME_SIZE)),
+  RANGING_INTERVAL_MS(rangingIntervalMs)
+{
     mAnchors = std::move(anchors);
     rx_buffer = new uint8_t(RX_BUF_LEN);
 }
@@ -65,6 +78,8 @@ void UwbTagDevice::setMyState(const eMyState newState) {
             case MYSTATE_RECVD_FRAME_FINAL:         newStateStr = "RECVD_FRAME_FINAL"; logLvl = ESPHOME_LOG_LEVEL_INFO; break;
             case MYSTATE_RECVD_VALID_FINAL:         newStateStr = "RECVD_VALID_FINAL"; logLvl = ESPHOME_LOG_LEVEL_INFO; break;
             case MYSTATE_RECVD_INVALID_FINAL:       newStateStr = "RECVD_INVALID_FINAL"; logLvl = ESPHOME_LOG_LEVEL_WARN; break;
+            case MYSTATE_RANGING_DONE:              newStateStr = "RANGING_DONE"; logLvl = ESPHOME_LOG_LEVEL_INFO; break;
+            case MYSTATE_CALCULATE_LOCATION:        newStateStr = "CALCULATE_LOCATION"; logLvl = ESPHOME_LOG_LEVEL_INFO; break;
             default:                                newStateStr = "?!?"; logLvl = ESPHOME_LOG_LEVEL_ERROR; break;
         }
         switch (logLvl) {
@@ -103,6 +118,8 @@ void UwbTagDevice::do_ranging() {
         case MYSTATE_RECVD_FRAME_FINAL:          recvdFrameFinal(); break;
         case MYSTATE_RECVD_VALID_FINAL:          recvdValidFinal(); break; // should not occur because direct call
         case MYSTATE_RECVD_INVALID_FINAL:        recvdInvalidFinal(); break;
+        case MYSTATE_RANGING_DONE:               rangingDone(false); break; // // should not occur because direct call
+        case MYSTATE_CALCULATE_LOCATION:         calculateLocation(); break;
         default:
             ESP_LOGE(TAG, "unhandled state %d", currState);
             // reset state machine
@@ -112,8 +129,6 @@ void UwbTagDevice::do_ranging() {
 }
 
 void UwbTagDevice::prepareSendInitial() {
-     // if running with high-frequency loop(), go back to normal frequency
-    mHighFreqLoopRequester.stop();
 
     const uint32_t now = millis();
     if (now - mLastInitialSentMillis < RANGING_INTERVAL_MS) {
@@ -216,10 +231,10 @@ void UwbTagDevice::waitRecvResponse() {
                 ESP_LOGW(TAG, "0x%02X: waitRecvResponse RX Preamble Detection timeout after %" PRIu32 " us", anchorId, waitMicros);
         } else if (status_reg & SYS_STATUS_ALL_RX_ERR) {
             ESP_LOGE(TAG, "0x%02X: waitRecvResponse RX error after %" PRIu32 " us", anchorId, waitMicros);
-            setMyState(MYSTATE_PREPARE_SEND_INITIAL);
+            rangingDone(false);
         } else {
             ESP_LOGE(TAG, "0x%02X: waitRecvResponse status_reg=0x%08x after %" PRIu32 " us", anchorId, status_reg, waitMicros);
-            setMyState(MYSTATE_PREPARE_SEND_INITIAL);
+            rangingDone(false);
         }
     }
 }
@@ -232,7 +247,7 @@ void UwbTagDevice::recvdFrameResponse() {
     } else {
         const uint8_t anchorId = mAnchors.at(mCurrentAnchorIndex)->getId();
         ESP_LOGW(TAG, "0x%02X: recvdFrameResponse frame bytes %" PRIu16 " exceeds RX_BUF_LEN %zu", anchorId, frame_len, RX_BUF_LEN);
-        setMyState(MYSTATE_PREPARE_SEND_INITIAL);
+        rangingDone(false);
         return;
     }
     /* Check that the frame is the expected Response and targeted to this device. */
@@ -327,17 +342,14 @@ void UwbTagDevice::recvdFrameResponse() {
 }
 
 void UwbTagDevice::sendInitialError() {
-    // reset state machine
-    setMyState(MYSTATE_PREPARE_SEND_INITIAL);
+    rangingDone(false);
 }
 
 void UwbTagDevice::waitRecvFinal() {
     /* Check for timeout */
     const uint32_t startedPollLoopMicros = micros();
     if ((startedPollLoopMicros - mEnteredWaitRecvFinalMicros) >= (WAIT_RX_TIMEOUT_MS * 1000U)) {
-        // next ranging loop
-        setMyState(MYSTATE_PREPARE_SEND_INITIAL);
-        return;
+        rangingDone(false);
     }
     /* Poll for reception of expected Final response frame or error/timeout. */
     uint32_t status_reg;
@@ -369,10 +381,10 @@ void UwbTagDevice::waitRecvFinal() {
                 ESP_LOGW(TAG, "0x%02X: waitRecvFinal RX Preamble Detection timeout after %" PRIu32 " us", anchorId, waitMicros);
         } else if (status_reg & SYS_STATUS_ALL_RX_ERR) {
             ESP_LOGE(TAG, "0x%02X: waitRecvFinal RX error after %" PRIu32 " us", anchorId, waitMicros);
-            setMyState(MYSTATE_PREPARE_SEND_INITIAL);
+            rangingDone(false);
         } else {
             ESP_LOGE(TAG, "0x%02X: waitRecvFinal status_reg=0x%08x after %" PRIu32 " us", anchorId, status_reg, waitMicros);
-            setMyState(MYSTATE_PREPARE_SEND_INITIAL);
+            rangingDone(false);
         }
     }
 }
@@ -385,7 +397,7 @@ void UwbTagDevice::recvdFrameFinal() {
     } else {
         const uint8_t anchorId = mAnchors.at(mCurrentAnchorIndex)->getId();
         ESP_LOGW(TAG, "0x%02X: recvdFrameFinal frame bytes %" PRIu16 " exceeds RX_BUF_LEN %zu", anchorId, frame_len, RX_BUF_LEN);
-        setMyState(MYSTATE_PREPARE_SEND_INITIAL);
+        rangingDone(false);
         return;
     }
     /* Check that the frame is the expected Final response and targeted to this device. */
@@ -423,15 +435,14 @@ void UwbTagDevice::recvdFrameFinal() {
         const uint32_t distanceUpdated = millis();
 
         /* Display computed distance. */
-        ESP_LOGW(TAG, "DIST to anchor 0x%.2X: %.2f m", anchorId, distance);
+        ESP_LOGW(TAG, "DIST anchor 0x%.2X: %.2fm", anchorId, distance);
         if (mCurrentAnchorIndex > -1) {
             (mAnchors[mCurrentAnchorIndex])->setDistance(distance);
         } else {
             ESP_LOGE(TAG, "mCurrentAnchorIndex=%i", mCurrentAnchorIndex);
         }
 
-        // next ranging loop
-        setMyState(MYSTATE_PREPARE_SEND_INITIAL);
+        rangingDone(true);
 
     } else {
         setMyState(MYSTATE_RECVD_INVALID_FINAL);
@@ -441,13 +452,11 @@ void UwbTagDevice::recvdFrameFinal() {
 void UwbTagDevice::recvdValidResponse() {
     // should not come here
     ESP_LOGE(TAG, "entered recvdValidResponse() unexpectedly");
-    // reset statemachine
-    setMyState(MYSTATE_PREPARE_SEND_INITIAL);
+    rangingDone(false);
 }
 
 void UwbTagDevice::recvdInvalidResponse() {
-    // reset statemachine
-    setMyState(MYSTATE_PREPARE_SEND_INITIAL);
+    rangingDone(false);
 }
 
 void UwbTagDevice::sentFinal() {
@@ -461,19 +470,56 @@ void UwbTagDevice::sentFinal() {
 }
 
 void UwbTagDevice::sendErrorFinal() {
-    // reset statemachine
-    setMyState(MYSTATE_PREPARE_SEND_INITIAL);
+    rangingDone(false);
 }
 
 void UwbTagDevice::recvdValidFinal() {
     // should not come here
     ESP_LOGE(TAG, "entered recvdValidFinal() unexpectedly");
-    // reset statemachine
-    setMyState(MYSTATE_PREPARE_SEND_INITIAL);
+    rangingDone(false);
 }
 
 void UwbTagDevice::recvdInvalidFinal() {
-    // reset statemachine
+    rangingDone(false);
+}
+
+void UwbTagDevice::rangingDone(bool success) {
+     // if running with high-frequency loop(), go back to normal frequency
+    mHighFreqLoopRequester.stop();
+
+    if (success) {
+        setMyState(MYSTATE_CALCULATE_LOCATION);
+    } else {
+        setMyState(MYSTATE_PREPARE_SEND_INITIAL);
+    }
+}
+
+void UwbTagDevice::calculateLocation() {
+    // collect all distances to anchors
+    std::vector<AnchorPositionTagDistance> anchorPositionAndTagDistances;
+    for(const auto anchor: mAnchors) {
+        AnchorPositionTagDistance anchorPosAndTagDist;
+        anchorPosAndTagDist.anchorId = anchor->getId();
+        anchorPosAndTagDist.anchorPosition.latitude =  anchor->getLatitude();
+        anchorPosAndTagDist.anchorPosition.longitude = anchor->getLongitude();
+        anchorPosAndTagDist.tagDistance = anchor->getDistance(nullptr); // no need for the age of the distance
+        if (Location::isValid(anchorPosAndTagDist)) {
+            anchorPositionAndTagDistances.push_back(anchorPosAndTagDist);
+        }
+    }
+    LatLong tagPosition;
+    double errorEstimateMeters;
+    const uint32_t startMicros = micros();
+    CalcResult res = Location::calculatePosition(anchorPositionAndTagDistances, tagPosition, errorEstimateMeters);
+    const uint32_t endMicros = micros();
+    if (CALC_OK == res) {
+        ESP_LOGW(TAG, "0x%02x: position %.7f,%.7f errEst %.2fm duration %" PRIu32 "us",
+            getDeviceId(), tagPosition.latitude, tagPosition.longitude, errorEstimateMeters, endMicros-startMicros);
+    } else {
+        ESP_LOGW(TAG, "calculatePosition failed: %i", res);
+    }
+
+    // next ranging cycle
     setMyState(MYSTATE_PREPARE_SEND_INITIAL);
 }
 

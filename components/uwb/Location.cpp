@@ -1,15 +1,41 @@
 #include "Location.h"
 
-#include <limits>
+#include <iomanip>
 #include <iostream>
+#include <limits>
+
+// un-comment to get further log outputs
+// #define __LOCATION__DEBUG__
+
+#ifdef ESP32
+#ifdef __LOCATION__DEBUG__
+#include "esphome/core/log.h"
+    #define LOC_LOGW(ostringstream) ESP_LOGW(TAG, "%s", ostringstream.str().c_str());
+#else
+#define LOC_LOGW(x)
+#endif
+#else
+    #define LOC_LOGW(ostringstream) std::cout << msg.str() << std::endl;
+#endif
 
 namespace esphome {
 namespace uwb {
 
-
 #define DEG_TO_RAD      ((double)(M_PI / 180.0))
 #define RAD_TO_DEG      ((double)(180.0 / M_PI))
-    
+
+const char* Location::TAG = "Location";
+
+void Location::LOG_ANCHOR_TO_STREAM(std::ostringstream & ostream, const AnchorPositionTagDistance & anchor) {
+#if __LOCATION__DEBUG__
+    ostream << std::hex << +anchor.anchorId << std::dec << "(";
+    ostream << std::setprecision(10);
+    ostream << +anchor.anchorPosition.latitude << "," << +anchor.anchorPosition.longitude << ",";
+    ostream << std::setprecision(3);
+    ostream << +anchor.tagDistance << "m) ";
+#endif
+}
+
 double Location::METER_TO_DEGREE(const double latitude) {
     // What is 1 meter on earth at a certain latitude [°] ?
     /* 1. Earth radius at latitude
@@ -31,17 +57,20 @@ double Location::METER_TO_DEGREE(const double latitude) {
     return 360.0 / U;
 }
 
-bool Location::calculatePosition(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
+CalcResult Location::calculatePosition(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
                                  LatLong & outputTagPosition, double & outputTagPositionErrorEstimate) {
 
     /* Find all distinct combinations of two inputAnchorLocations. */
     std::vector<std::pair<AnchorPositionTagDistance, AnchorPositionTagDistance>> pairOfTwoAnchorsAndTheirDistanceToTag;
     bool ok = findAllAnchorCombinations(inputAnchorPositionAndTagDistances, pairOfTwoAnchorsAndTheirDistanceToTag);
-    if (!ok) return false;
+    if (!ok) return CALC_F_ANCHOR_COMBINATIONS;
 
+    /* For each pair of anchors with their tag distance, find the intersection positions of 2 circles.
+       Each circle's center is the anchor position and circle radius is the distance to tag.
+       The usually 2 positions are 'candidates' of the tag position relative to this pair of anchors.
+    */
     std::vector<LatLong> positionCandidates;
     for (const auto & p : pairOfTwoAnchorsAndTheirDistanceToTag) {
-        const double distanceOfAnchors = getDistance(p.first.anchorPosition, p.second.anchorPosition);
         LatLong t, t_prime;
         if (findTwoCirclesIntersections(p.first, p.second, t, t_prime)) {
             positionCandidates.push_back(t);
@@ -51,10 +80,24 @@ bool Location::calculatePosition(const std::vector<AnchorPositionTagDistance> & 
         }
     }
     // need at least 1 candidate
-    if (positionCandidates.empty()) return false;
+    if (positionCandidates.empty()) {
+        std::ostringstream msg;
+        msg << "no position candidates found from anchor pairs:";
+        LOC_LOGW(msg);
+        unsigned cnt = 0;
+        for (const auto & p : pairOfTwoAnchorsAndTheirDistanceToTag) {
+            cnt++;
+            msg = std::ostringstream();
+            msg << "pair " << +cnt << ": ";
+            LOG_ANCHOR_TO_STREAM(msg, p.first);
+            LOG_ANCHOR_TO_STREAM(msg, p.second);
+            LOC_LOGW(msg);
+        }
+        return CALC_F_NO_CANDIDATES;
+    }
 
-    /* With the candidates create a rectangle and find its geometric center.
-       Rectangle is a bounding box of four points:
+    /* With the candidates create a 'bounding' rectangle and find its geometric center, the tag location
+       Bounding rectangle is a box of four points:
             top-left X,Y = (min of all candidates' longitude) , (max of all candidates' latitude)
          bottom-left X,Y = (min of all candidates' longitude) , (min of all candidates' latitude)
            top-right X,Y = (max of all candidates' longitude) , (max of all candidates' latitude)
@@ -62,9 +105,9 @@ bool Location::calculatePosition(const std::vector<AnchorPositionTagDistance> & 
     */
     BoundingRect boundingRect;
     ok = findBoundingRectangle(positionCandidates, boundingRect);
-    if (!ok) return false;
+    if (!ok) return CALC_F_BOUNDING_BOX;
 
-    /* Geometric center of a rectangle is the point in the middle: the tag's location */
+    /* Geometric center of a rectangle is the point in the middle: the tag location */
     outputTagPosition.latitude  = boundingRect.westSouthiest.latitude + (boundingRect.height / 2.0);
     outputTagPosition.longitude = boundingRect.westSouthiest.longitude + (boundingRect.width / 2.0);
 
@@ -80,7 +123,17 @@ bool Location::calculatePosition(const std::vector<AnchorPositionTagDistance> & 
               << " errEst:" << +outputTagPositionErrorEstimate << "[m]"
               << std::endl;
 #endif
-    return true;
+    return CALC_OK;
+}
+
+bool Location::isValid(const AnchorPositionTagDistance & a) {
+    return (   (a.anchorPosition.latitude > -90.0 && a.anchorPosition.latitude < 90.0)
+            && (a.anchorPosition.longitude > -180.0 && a.anchorPosition.longitude < 180.0)
+            && (a.anchorPosition.latitude != 0.0 && a.anchorPosition.longitude != 0.0 )
+            && (a.anchorPosition.latitude != NAN && a.anchorPosition.longitude != NAN )
+            && (a.tagDistance > 0.0)
+            && (a.tagDistance < 500.0) // don't think that UWB reaches > 500m
+           );
 }
 
 double Location::getDistance(const LatLong from, const LatLong to) {
@@ -108,6 +161,9 @@ bool Location::findAllAnchorCombinations(const std::vector<AnchorPositionTagDist
                                           std::vector<std::pair<AnchorPositionTagDistance, AnchorPositionTagDistance>> & outputAnchorCombinations) {
     const std::size_t inputAnchorsNum = inputAnchorPositionAndTagDistances.size();
     if (inputAnchorsNum < 2) {
+        std::ostringstream msg;
+        msg << "findAllAnchorCombinations: inputAnchorsNum " << +inputAnchorsNum << " <2";
+        LOC_LOGW(msg);
         return false;
     }
 
@@ -121,13 +177,21 @@ bool Location::findAllAnchorCombinations(const std::vector<AnchorPositionTagDist
 
 bool Location::findBoundingRectangle(const std::vector<LatLong> inputPositions, BoundingRect & outRect) {
     // need at least 1 position
-    if (inputPositions.empty()) return false;
+    if (inputPositions.empty()) {
+        std::ostringstream msg;
+        msg << "empty inputPositions";
+        LOC_LOGW(msg);
+        return false;
+    }
     double minX = std::numeric_limits<double>::max(),
            minY = std::numeric_limits<double>::max(),
            maxX = std::numeric_limits<double>::lowest(),
            maxY = std::numeric_limits<double>::lowest();
     for (const LatLong & c : inputPositions) {
         if (std::isnan(c.latitude) || std::isnan(c.longitude)) {
+            std::ostringstream msg;
+            msg << "nan: " << +c.latitude << "," << c.longitude;
+            LOC_LOGW(msg);
             return false;
         }
         minX = std::min(minX, c.longitude);
@@ -176,11 +240,21 @@ bool Location::findTwoCirclesIntersections(const AnchorPositionTagDistance a1t,
     if (d > (r0 + r1))
     {
         /* no solution. circles do not intersect. */
+        std::ostringstream msg;
+        msg << "circles do not intersect: ";
+        LOG_ANCHOR_TO_STREAM(msg, a1t);
+        LOG_ANCHOR_TO_STREAM(msg, a2t);
+        LOC_LOGW(msg);
         return false;
     }
-    if (d <= std::fabs(r0 - r1)) // was originally: if (d < std::fabs(r0 - r1))
+    if (d <= std::fabs(r0 - r1)) // was originally: if (d < fabs(r0 - r1))
     {
         /* no solution. one circle is contained in the other, or circles exactly equal. */
+        std::ostringstream msg;
+        msg << "circles contained in each other: ";
+        LOG_ANCHOR_TO_STREAM(msg, a1t);
+        LOG_ANCHOR_TO_STREAM(msg, a2t);
+        LOC_LOGW(msg);
         return false;
     }
 

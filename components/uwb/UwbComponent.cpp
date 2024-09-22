@@ -27,7 +27,7 @@ void UwbComponent::setup() {
                     }
                 }
             }
-            mDevice = new UwbTagDevice(mAnchors);
+            mDevice = new UwbTagDevice(mAnchors, mRangingIntervalMs);
              // Anchors and Sensors no longer needed
             mAnchors.clear();
             mDistanceSensors.clear();
@@ -52,8 +52,9 @@ void UwbComponent::loop() {
     mDevice->loop();
 }
 
-void UwbComponent::addAnchor(const uint8_t id, const double latitude, const double longitude) {
-    auto anchor = std::make_shared<UwbAnchorData>(id, latitude, longitude);
+void UwbComponent::addAnchor(const uint8_t id, const double latitude, const double longitude,
+                             const double minDistance, const double maxSpeed) {
+    auto anchor = std::make_shared<UwbAnchorData>(id, latitude, longitude, minDistance, maxSpeed);
     mAnchors.push_back(anchor);
 }
 

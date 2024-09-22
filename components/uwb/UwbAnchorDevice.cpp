@@ -371,7 +371,7 @@ void UwbAnchorDevice::recvdFrameFinal() {
         const double distance = tof * SPEED_OF_LIGHT;
 
         /* Display computed distance. */
-        ESP_LOGW(TAG, "DIST to tag 0x%.2X: %.2f m", otherDeviceId, distance);
+        ESP_LOGW(TAG, "DIST tag 0x%.2X: %.2fm", otherDeviceId, distance);
 
 #ifndef USE_DS_TWR_SYNCRONOUS
         /* Next ranging cycle. */

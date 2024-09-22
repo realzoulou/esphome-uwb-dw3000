@@ -22,7 +22,7 @@ enable_testing()
 set(UWB_SOURCE_DIR ../uwb)
 
 add_executable(${PROJECT_NAME}
-  UwbTagTests.cpp
+  LocationTests.cpp
   ${UWB_SOURCE_DIR}/Location.cpp
 )
 

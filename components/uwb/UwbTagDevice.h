@@ -32,10 +32,11 @@ class UwbTagDevice : public Dw3000Device {
         MYSTATE_RECVD_FRAME_FINAL,
         MYSTATE_RECVD_VALID_FINAL,
         MYSTATE_RECVD_INVALID_FINAL,
+        // Ranging is done (may or may not be successful)
+        MYSTATE_RANGING_DONE,
+        // if ranging was successful, calculate location
+        MYSTATE_CALCULATE_LOCATION,
     } eMyState;
-
-    /* Time in millis between two ranging Initial messages. */
-    static const uint32_t RANGING_INTERVAL_MS = 1000;
 
     /* Delay between frames, in UWB microseconds.*/
 
@@ -64,10 +65,9 @@ class UwbTagDevice : public Dw3000Device {
 
     /*  How long to wait in MYSTATE_WAIT_RECV_RESPONSE/FINAL */
     static const uint32_t WAIT_RX_TIMEOUT_MS = 100;
-    static_assert(WAIT_RX_TIMEOUT_MS < RANGING_INTERVAL_MS, "WAIT_RX_TIMEOUT_MS must be < RANGING_INTERVAL_MS");
 
 public:
-    UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & anchors);
+    UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & anchors, const uint32_t rangingIntervalMs);
     ~UwbTagDevice();
 
     virtual void setup();
@@ -91,9 +91,14 @@ protected:
     virtual void recvdFrameFinal();
     virtual void recvdValidFinal();
     virtual void recvdInvalidFinal();
+    virtual void rangingDone(bool success);
+    virtual void calculateLocation();
 protected:
     static const char* TAG;
     static const char* STATE_TAG;
+
+    /* Time in millis between two ranging Initial messages. */
+    const uint32_t RANGING_INTERVAL_MS;
 
     /* Array of all Anchors that this tag shall do ranging with. */
     std::vector<std::shared_ptr<UwbAnchorData>> mAnchors;
@@ -112,7 +117,7 @@ protected:
 
     /* DW IC timestamp when Response frame received. */
     uint64_t mResponse_rx_ts{0};
-    
+
     /* Current Final frame. */
     FinalMsg mFinalFrame;
 
