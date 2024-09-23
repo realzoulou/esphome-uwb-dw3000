@@ -3,12 +3,18 @@ import esphome.config_validation as cv
 from esphome.components import sensor
 from esphome.const import (
     CONF_DISTANCE,
+    CONF_LATITUDE,
+    CONF_LONGITUDE,
     ICON_SIGNAL_DISTANCE_VARIANT,
-    UNIT_METER
+    UNIT_DEGREES,
+    UNIT_METER,
+
 )
 from . import UWB_COMPONENT, CONF_UWB_ID, CONF_UWB_DEVICE_ID
 
 AUTO_LOAD = ["uwb"]
+
+CONF_UWB_POSITION_ERROR_ESTIMATE = "error_estimate"
 
 CONFIG_SCHEMA = cv.Schema(
     {
@@ -22,6 +28,19 @@ CONFIG_SCHEMA = cv.Schema(
                 cv.Required(CONF_UWB_DEVICE_ID): cv.hex_int_range(min=0, max=254),
             }
         ),
+        cv.Optional(CONF_LATITUDE): sensor.sensor_schema(
+            unit_of_measurement=UNIT_DEGREES,
+            accuracy_decimals=8,
+        ),
+        cv.Optional(CONF_LONGITUDE): sensor.sensor_schema(
+            unit_of_measurement=UNIT_DEGREES,
+            accuracy_decimals=8,
+        ),
+        cv.Optional(CONF_UWB_POSITION_ERROR_ESTIMATE): sensor.sensor_schema(
+            unit_of_measurement=UNIT_METER,
+            icon=ICON_SIGNAL_DISTANCE_VARIANT,
+            accuracy_decimals=2,
+        ),
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -31,3 +50,12 @@ async def to_code(config):
     if distance_config := config.get(CONF_DISTANCE):
         sens = await sensor.new_sensor(distance_config)
         cg.add(uwb.addDistanceSensor(distance_config[CONF_UWB_DEVICE_ID], sens))
+    if latitude_config := config.get(CONF_LATITUDE):
+        sens = await sensor.new_sensor(latitude_config)
+        cg.add(uwb.addLatitudeSensor(sens))
+    if longitude_config := config.get(CONF_LONGITUDE):
+        sens = await sensor.new_sensor(longitude_config)
+        cg.add(uwb.addLongitudeSensor(sens))
+    if err_est_config := config.get(CONF_UWB_POSITION_ERROR_ESTIMATE):
+        sens = await sensor.new_sensor(err_est_config)
+        cg.add(uwb.addErrorEstimateSensor(sens))

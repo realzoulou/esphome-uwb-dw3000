@@ -27,7 +27,8 @@ void UwbComponent::setup() {
                     }
                 }
             }
-            mDevice = new UwbTagDevice(mAnchors, mRangingIntervalMs);
+            mDevice = new UwbTagDevice(mAnchors, mRangingIntervalMs,
+                                       mLatitudeSensor, mLongitudeSensor, mLocationErrorEstimateSensor);
              // Anchors and Sensors no longer needed
             mAnchors.clear();
             mDistanceSensors.clear();
@@ -38,7 +39,6 @@ void UwbComponent::setup() {
     }
     if (mDevice != nullptr) {
         mDevice->setDeviceId(mDeviceId);
-        
         mDevice->setup();
     }
 }
@@ -61,6 +61,18 @@ void UwbComponent::addAnchor(const uint8_t id, const double latitude, const doub
 void UwbComponent::addDistanceSensor(const uint8_t targetDeviceId, const sensor::Sensor* sensor) {
     auto pair = std::make_pair(targetDeviceId, sensor);
     mDistanceSensors.insert(pair);
+}
+
+void UwbComponent::addLatitudeSensor(const sensor::Sensor* sensor) {
+    mLatitudeSensor = const_cast<sensor::Sensor*>(sensor);
+}
+
+void UwbComponent::addLongitudeSensor(const sensor::Sensor* sensor) {
+    mLongitudeSensor = const_cast<sensor::Sensor*>(sensor);
+}
+
+void UwbComponent::addErrorEstimateSensor(const sensor::Sensor* sensor) {
+    mLocationErrorEstimateSensor = const_cast<sensor::Sensor*>(sensor);
 }
 
 std::string UwbComponent::roleToString(const eUwbRole role) {

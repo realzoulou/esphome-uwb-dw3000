@@ -127,15 +127,19 @@ CalcResult Location::calculatePosition(const std::vector<AnchorPositionTagDistan
 }
 
 bool Location::isValid(const AnchorPositionTagDistance & a) {
-    return (   (a.anchorPosition.latitude > -90.0 && a.anchorPosition.latitude < 90.0)
-            && (a.anchorPosition.longitude > -180.0 && a.anchorPosition.longitude < 180.0)
-            && (a.anchorPosition.latitude != 0.0 && a.anchorPosition.longitude != 0.0 )
-            && (a.anchorPosition.latitude != NAN && a.anchorPosition.longitude != NAN )
+    return (   isValid(a.anchorPosition)
             && (a.tagDistance > 0.0)
             && (a.tagDistance < 500.0) // don't think that UWB reaches > 500m
            );
 }
 
+bool Location::isValid(const LatLong & a) {
+    return (   (a.latitude > -90.0 && a.latitude < 90.0)
+            && (a.longitude > -180.0 && a.longitude < 180.0)
+            && (a.latitude != 0.0 && a.longitude != 0.0 )
+            && (a.latitude != NAN && a.longitude != NAN )
+           );
+}
 double Location::getDistance(const LatLong from, const LatLong to) {
     /* Haversine formula
        https://github.com/chrisveness/geodesy/blob/master/latlon-spherical.js#L189

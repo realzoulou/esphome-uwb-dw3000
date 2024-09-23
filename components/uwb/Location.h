@@ -73,6 +73,7 @@ public:
     static CalcResult calculatePosition(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
                                   LatLong & outputTagPosition, double & outputTagPositionErrorEstimate);
     static bool isValid(const AnchorPositionTagDistance & a);
+    static bool isValid(const LatLong & a);
     static void LOG_ANCHOR_TO_STREAM(std::ostringstream & ostream, const AnchorPositionTagDistance & anchor);
 
 UT_VISIBILITY_PRIVATE:

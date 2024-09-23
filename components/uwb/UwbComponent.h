@@ -55,6 +55,9 @@ public:
         const double maxSpeed = MAX_SPEED_DEFAULT
     );
     void addDistanceSensor(const uint8_t targetDeviceId, const sensor::Sensor* sensor);
+    void addLatitudeSensor(const sensor::Sensor* sensor);
+    void addLongitudeSensor(const sensor::Sensor* sensor);
+    void addErrorEstimateSensor(const sensor::Sensor* sensor);
 
 private:
     static std::string roleToString(const eUwbRole role);
@@ -65,6 +68,9 @@ private:
     uint32_t mRangingIntervalMs{RANGING_INTERVAL_TIME};
     std::vector<std::shared_ptr<UwbAnchorData>> mAnchors;
     std::map<const uint8_t, const sensor::Sensor*> mDistanceSensors;
+    esphome::sensor::Sensor * mLatitudeSensor{nullptr};
+    esphome::sensor::Sensor * mLongitudeSensor{nullptr};
+    esphome::sensor::Sensor * mLocationErrorEstimateSensor{nullptr};
     Dw3000Device* mDevice{nullptr};
 };
 

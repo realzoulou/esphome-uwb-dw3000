@@ -67,7 +67,9 @@ class UwbTagDevice : public Dw3000Device {
     static const uint32_t WAIT_RX_TIMEOUT_MS = 100;
 
 public:
-    UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & anchors, const uint32_t rangingIntervalMs);
+    UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & anchors, const uint32_t rangingIntervalMs,
+                 sensor::Sensor* latitudeSensor, sensor::Sensor* longitudeSensor, sensor::Sensor* locationErrorEstimateSensor);
+
     ~UwbTagDevice();
 
     virtual void setup();
@@ -104,6 +106,11 @@ protected:
     std::vector<std::shared_ptr<UwbAnchorData>> mAnchors;
     /* Index into mAnchors of current Anchor to do ranging with. -1 if there is no Anchor configured. */
     int mCurrentAnchorIndex{-1};
+
+    /* Sensors. */
+    sensor::Sensor *mLatitudeSensor,
+                   *mLongitudeSensor,
+                   *mLocationErrorEstimateSensor;
 
     eMyState prevState{MYSTATE_UNKNOWN};
     eMyState currState{MYSTATE_UNKNOWN};

@@ -24,12 +24,18 @@ const char* UwbTagDevice::TAG = "tag";
 const char* UwbTagDevice::STATE_TAG = "tag_STATE";
 
 UwbTagDevice::UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & anchors,
-                           const uint32_t rangingIntervalMs)
+                           const uint32_t rangingIntervalMs,
+                           sensor::Sensor* latitudeSensor,
+                           sensor::Sensor* longitudeSensor,
+                           sensor::Sensor* locationErrorEstimateSensor)
 : RX_BUF_LEN(std::max(ResponseMsg::FRAME_SIZE, FinalMsg::FRAME_SIZE)),
   RANGING_INTERVAL_MS(rangingIntervalMs)
 {
     mAnchors = std::move(anchors);
     rx_buffer = new uint8_t(RX_BUF_LEN);
+    mLatitudeSensor = latitudeSensor;
+    mLongitudeSensor = longitudeSensor;
+    mLocationErrorEstimateSensor = locationErrorEstimateSensor;
 }
 
 UwbTagDevice::~UwbTagDevice() {
@@ -507,16 +513,34 @@ void UwbTagDevice::calculateLocation() {
             anchorPositionAndTagDistances.push_back(anchorPosAndTagDist);
         }
     }
+
+    // calculate location and its error estimate
     LatLong tagPosition;
     double errorEstimateMeters;
     const uint32_t startMicros = micros();
     CalcResult res = Location::calculatePosition(anchorPositionAndTagDistances, tagPosition, errorEstimateMeters);
     const uint32_t endMicros = micros();
     if (CALC_OK == res) {
-        ESP_LOGW(TAG, "0x%02x: position %.7f,%.7f errEst %.2fm duration %" PRIu32 "us",
-            getDeviceId(), tagPosition.latitude, tagPosition.longitude, errorEstimateMeters, endMicros-startMicros);
+        if (Location::isValid(tagPosition)) {
+            ESP_LOGW(TAG, "0x%02x: position %.7f,%.7f errEst %.2fm duration %" PRIu32 "us",
+                getDeviceId(), tagPosition.latitude, tagPosition.longitude, errorEstimateMeters, endMicros-startMicros);
+
+            // report location and error estimate
+            if (mLatitudeSensor != nullptr) {
+                mLatitudeSensor->publish_state(tagPosition.latitude);
+            }
+            if (mLongitudeSensor != nullptr) {
+                mLongitudeSensor->publish_state(tagPosition.longitude);
+            }
+            if (mLocationErrorEstimateSensor != nullptr) {
+                mLocationErrorEstimateSensor->publish_state(errorEstimateMeters);
+            }
+        } else {
+            ESP_LOGW(TAG, "calculatePosition result invalid: 0x%02x: position %.7f,%.7f errEst %.2fm duration %" PRIu32 "us",
+                getDeviceId(), tagPosition.latitude, tagPosition.longitude, errorEstimateMeters, endMicros-startMicros);
+        }
     } else {
-        ESP_LOGW(TAG, "calculatePosition failed: %i", res);
+        ESP_LOGW(TAG, "0x%02x: calculatePosition failed: %i", getDeviceId(), res);
     }
 
     // next ranging cycle
