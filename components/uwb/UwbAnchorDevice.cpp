@@ -195,6 +195,8 @@ void UwbAnchorDevice::recvdFrameInitial() {
         /* Yes, it is the frame we are expecting. */
         setMyState(MYSTATE_RECVD_FRAME_VALID_INITIAL);
 
+        TIME_CRITICAL_START();
+
         /* Compute Response message delayed transmission time. */
         const uint64_t response_tx_time =
             ((mInitial_rx_ts + ((uint64_t)INITIAL_RX_TO_RESP_TX_DLY_UUS * UUS_TO_DWT_TIME)) & 0x00FFFFFFFFFFFFFFUL) >> 8;
@@ -222,6 +224,7 @@ void UwbAnchorDevice::recvdFrameInitial() {
         const uint32_t systime = (uint64_t) dwt_readsystimestamphi32();
         /* If dwt_starttx() returns an error, abandon this ranging exchange and proceed to the next one. */
         if (dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED) == DWT_ERROR) {
+            TIME_CRITICAL_END();
             mTxErrorCount++;
             ESP_LOGE(TAG, "Response TX_DELAYED failed (total %" PRIu32 "x)", mTxErrorCount);
             // dwt_starttx(DWT_START_TX_DELAYED) likely failed due to SYS_STATUS HPDWARN bit
@@ -230,6 +233,7 @@ void UwbAnchorDevice::recvdFrameInitial() {
                 systime, response_tx_time, diff);
             setMyState(MYSTATE_SEND_ERROR_RESPONSE);
         } else {
+            TIME_CRITICAL_END();
             setMyState(MYSTATE_SENT_RESPONSE);
 
             mEnteredWaitRecvFinalMicros = micros();
@@ -311,6 +315,8 @@ void UwbAnchorDevice::recvdFrameFinal() {
         /* Yes, it is the frame we are expecting. */
         setMyState(MYSTATE_RECVD_FRAME_VALID_FINAL);
 
+        TIME_CRITICAL_START();
+
         /* Retrieve Response transmission and Final reception timestamps. */
         const uint64_t response_tx_ts = get_tx_timestamp_u64();
         const uint64_t final_rx_ts = get_rx_timestamp_u64();
@@ -345,10 +351,12 @@ void UwbAnchorDevice::recvdFrameFinal() {
         const uint32_t systime = dwt_readsystimestamphi32();
         /* If dwt_starttx() returns an error, abandon this ranging exchange and proceed to the next one. */
         if (dwt_starttx(DWT_START_TX_DELAYED) == DWT_SUCCESS) {
+            TIME_CRITICAL_END();
             setMyState(MYSTATE_SENT_FINAL);
             ESP_LOGV(TAG, "Final response sent Ok: systime=%" PRIu32 ", final_response_tx_time=%" PRIu64 ", diff=%" PRId32 ,
                     systime, final_response_tx_time, diff);
         } else {
+            TIME_CRITICAL_END();
             mTxErrorCount++;
             ESP_LOGE(TAG, "Final response TX_DELAYED failed (total %" PRIu32 "x)", mTxErrorCount);
             // dwt_starttx(DWT_START_TX_DELAYED) likely failed due to SYS_STATUS HPDWARN bit (check FINAL_RX_TO_FINAL_TX_DLY_UUS)
@@ -359,7 +367,9 @@ void UwbAnchorDevice::recvdFrameFinal() {
             ESP_LOGW(TAG, "final_rx_time=%" PRIu64 ", diff=%" PRId32, final_rx_time, ((uint32_t)final_rx_time - systime));
             setMyState(MYSTATE_SEND_ERROR_FINAL);
         }
-#endif
+#else // not USE_DS_TWR_SYNCRONOUS
+        TIME_CRITICAL_END();
+#endif // USE_DS_TWR_SYNCRONOUS
 
         /* after(!) trying to send Final frame, Compute time of flight. */
         const double Ra = (double)(resp_rx_time - initial_tx_time);

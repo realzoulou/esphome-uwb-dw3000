@@ -16,6 +16,10 @@ namespace uwb {
 /* Enable Double-Sided Tw-Way-Ranging with 4 frames (synchronous). */
 #define USE_DS_TWR_SYNCRONOUS
 
+/* Macros for surrounding a code block which is time-critical and should not be interrupted. */
+#define TIME_CRITICAL_START()  noInterrupts()
+#define TIME_CRITICAL_END()    interrupts()
+
 class Dw3000Device {
 public:
     Dw3000Device();

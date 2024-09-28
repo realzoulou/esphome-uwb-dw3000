@@ -22,15 +22,15 @@ typedef enum eUwbRole {
 } eUwbRole;
 
 /* Default minimum absolute difference in [m] of a new distance to be reported.
-   Avoids to report small changes in distance (and location) in every ranging cycle.
-*/
-const static double MIN_DISTANCE_CHANGE_DEFAULT = 0.05; /* 5cm */
+   Avoids to report small changes in distance (and location) in every ranging cycle. */
+const static double MIN_DISTANCE_CHANGE_DEFAULT = 0.05; /* 5 cm */
 
-/* Default maximum speed in [m/s] that a tag can change its location typically. */
+/* Default maximum speed in [m/s] that a tag can change its location typically. 
+   Avoids to report outliers. */
 const static double MAX_SPEED_DEFAULT           = 1.0;  /* 1 m/s */
 
 /* Default ranging interval time in [ms]. */
-const static uint32_t RANGING_INTERVAL_TIME     = 1000; /* every 1s */
+const static uint32_t RANGING_INTERVAL_TIME_DEFAULT = 5000; /* every 5 s */
 
 class UwbComponent : public esphome::Component {
 
@@ -65,7 +65,7 @@ private:
     static const char* TAG;
     eUwbRole mRole{UWB_ROLE_UNKNOWN};
     uint8_t mDeviceId{0};
-    uint32_t mRangingIntervalMs{RANGING_INTERVAL_TIME};
+    uint32_t mRangingIntervalMs{RANGING_INTERVAL_TIME_DEFAULT};
     std::vector<std::shared_ptr<UwbAnchorData>> mAnchors;
     std::map<const uint8_t, const sensor::Sensor*> mDistanceSensors;
     esphome::sensor::Sensor * mLatitudeSensor{nullptr};

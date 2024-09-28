@@ -13,8 +13,12 @@ namespace uwb {
 
 class UwbTagDevice : public Dw3000Device {
 
-    typedef enum {
+    typedef enum _eMyState {
         MYSTATE_UNKNOWN,
+        // wait state for next ranging interval
+        MYSTATE_WAIT_NEXT_RANGING_INTERVAL,
+        // wait state until next anchor within a ranging interval
+        MYSTATE_WAIT_NEXT_ANCHOR_RANGING,
         // Initial frame to anchor
         MYSTATE_PREPARE_SEND_INITIAL,
         MYSTATE_SENT_INITIAL,
@@ -80,6 +84,8 @@ protected:
 
     virtual void do_ranging();
 
+    virtual void waitNextRangingInterval();
+    virtual void waitNextAnchorRanging();
     virtual void prepareSendInitial();
     virtual void sentInitial();
     virtual void sendInitialError();
@@ -104,6 +110,8 @@ protected:
 
     /* Array of all Anchors that this tag shall do ranging with. */
     std::vector<std::shared_ptr<UwbAnchorData>> mAnchors;
+    /* Array of all Anchors: count of remaining attempts. */
+    std::vector<uint8_t> mAnchorCurrentRangingSuccess;
     /* Index into mAnchors of current Anchor to do ranging with. -1 if there is no Anchor configured. */
     int mCurrentAnchorIndex{-1};
 
@@ -127,6 +135,9 @@ protected:
 
     /* Current Final frame. */
     FinalMsg mFinalFrame;
+
+    /* millis() of when last ranging interval started. */
+    uint32_t mLastRangingIntervalStartedMillis{0};
 
     /* millis() of when last sent Initial frame out successfully. */
     uint32_t mLastInitialSentMillis{0};
