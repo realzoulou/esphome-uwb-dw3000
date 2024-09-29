@@ -23,6 +23,7 @@ CONF_UWB_ROLE_ANCHOR = "anchor"
 CONF_UWB_ROLE_TAG = "tag"
 CONF_TAG_ANCHORS = "anchors"
 CONF_TAG_RANGING_INTERVAL = "ranging_interval_ms"
+CONF_TAG_ANCHOR_AWAY_DURATION = "anchor_away_after_ms"
 
 eUwbRole = uwb_ns.enum("eUwbRole")
 UWB_ROLE = {
@@ -95,6 +96,7 @@ CONFIG_SCHEMA = cv.Schema(
             cv.Length(min=1, msg=f"{CONF_UWB_ROLE} '{CONF_UWB_ROLE_TAG}' must define at least 1 {CONF_TAG_ANCHORS}")
         ),
         cv.Optional(CONF_TAG_RANGING_INTERVAL): cv.int_range(min=1000),
+        cv.Optional(CONF_TAG_ANCHOR_AWAY_DURATION): cv.int_range(min=1000),
     }
 ).extend(cv.COMPONENT_SCHEMA)
 cv.only_with_arduino
@@ -114,6 +116,8 @@ async def to_code(config):
             cg.add(var.addAnchor(anchor[CONF_UWB_DEVICE_ID], anchor[CONF_LATITUDE], anchor[CONF_LONGITUDE]))
             if ranging_interval := config[CONF_TAG_RANGING_INTERVAL]:
                 cg.add(var.setRangingInterval(ranging_interval))
+            if anchor_away_duration := config[CONF_TAG_ANCHOR_AWAY_DURATION]:
+                cg.add(var.setMaxAgeAnchorDistance(anchor_away_duration))
 
     # ----- General compiler settings
     # treat warnings as error, abort compilation on the first error, check printf format and arguments

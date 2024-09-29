@@ -9,13 +9,37 @@ const char* UwbAnchorData::TAG = "tag"; // running in role=tag context
 
 void UwbAnchorData::setDistance(double distanceMeters) {
     const uint32_t now = millis();
-    /* diff in [m] to previous distance. */
-    const double diffToPrevDistance = distanceMeters - mDistanceToTag;
-    /* diff in [ms] to previous millis() when distance was calculated. */
-    const double diffMillis = (double) (now - mMillisDistanceToTag);
-    /* speed in [m/s] that the tag seems to have changed its distance. */
-    const double speed = distanceMeters * 1000.0 / diffMillis;
 
+    if (std::isnan(distanceMeters)) {
+        if (mSensor != nullptr) {
+            auto sensor = const_cast<sensor::Sensor*>(mSensor); // remove 'const' in order to publish_state
+            // don't update mMillisDistanceToTag to now
+            mDistanceToTag = NAN;
+            sensor->publish_state(NAN);
+        }
+        ESP_LOGW(TAG, "anchor 0x%02X away", mId);
+        return;
+    }
+
+    double diffToPrevDistance, diffMillis, speed;
+    if (! std::isnan(mDistanceToTag)) {
+        /* diff in [m] to previous distance. */
+        diffToPrevDistance = distanceMeters - mDistanceToTag;
+        /* diff in [ms] to previous millis() when distance was calculated. */
+        diffMillis = (double) (now - mMillisDistanceToTag);
+        /* speed in [m/s] that the tag seems to have changed its distance. */
+        speed = distanceMeters * 1000.0 / diffMillis;
+    } else {
+        // set values such that outlier detection is passed.
+        diffToPrevDistance = MIN_DISTANCE;
+        diffMillis = NAN;
+        speed = MAX_SPEED;
+        if (!std::isnan(distanceMeters)) {
+            // changed from 'away' to 'back'
+            ESP_LOGW(TAG, "anchor 0x%02X back", mId);
+        }
+    }
+    
     /* Avoid outliers. */
     if (std::fabs(diffToPrevDistance) >= MIN_DISTANCE) {
         if (std::fabs(speed) <= MAX_SPEED) {

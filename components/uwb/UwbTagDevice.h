@@ -71,7 +71,8 @@ class UwbTagDevice : public Dw3000Device {
     static const uint32_t WAIT_RX_TIMEOUT_MS = 100;
 
 public:
-    UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & anchors, const uint32_t rangingIntervalMs,
+    UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & anchors,
+                 const uint32_t rangingIntervalMs, const uint32_t maxAgeAnchorDistanceMs,
                  sensor::Sensor* latitudeSensor, sensor::Sensor* longitudeSensor, sensor::Sensor* locationErrorEstimateSensor);
 
     ~UwbTagDevice();
@@ -107,6 +108,8 @@ protected:
 
     /* Time in millis between two ranging Initial messages. */
     const uint32_t RANGING_INTERVAL_MS;
+    /* Maximum age of distance to anchor until anchor is considered 'away'. */
+    const uint32_t MAX_AGE_ANCHOR_DISTANCE_MS;
 
     /* Array of all Anchors that this tag shall do ranging with. */
     std::vector<std::shared_ptr<UwbAnchorData>> mAnchors;

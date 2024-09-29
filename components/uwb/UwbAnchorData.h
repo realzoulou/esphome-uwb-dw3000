@@ -51,7 +51,7 @@ private:
     const double MAX_SPEED;
 
     /* Latest Distance in [m] to tag. */
-    double mDistanceToTag{0.0};
+    double mDistanceToTag{NAN};
 
     /* Latest millis() when distance was set. */
     uint32_t mMillisDistanceToTag{0};

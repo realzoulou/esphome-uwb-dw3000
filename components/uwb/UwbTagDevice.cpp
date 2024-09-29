@@ -25,11 +25,13 @@ const char* UwbTagDevice::STATE_TAG = "tag_STATE";
 
 UwbTagDevice::UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & anchors,
                            const uint32_t rangingIntervalMs,
+                           const uint32_t maxAgeAnchorDistanceMs,
                            sensor::Sensor* latitudeSensor,
                            sensor::Sensor* longitudeSensor,
                            sensor::Sensor* locationErrorEstimateSensor)
 : RX_BUF_LEN(std::max(ResponseMsg::FRAME_SIZE, FinalMsg::FRAME_SIZE)),
-  RANGING_INTERVAL_MS(rangingIntervalMs)
+  RANGING_INTERVAL_MS(rangingIntervalMs),
+  MAX_AGE_ANCHOR_DISTANCE_MS(maxAgeAnchorDistanceMs)
 {
     mAnchors = std::move(anchors);
     mAnchorCurrentRangingSuccess.reserve(mAnchors.size());
@@ -538,6 +540,15 @@ void UwbTagDevice::rangingDone(bool success) {
     } else {
         const uint8_t attempts = mAnchorCurrentRangingSuccess[mCurrentAnchorIndex] -1;
         mAnchorCurrentRangingSuccess[mCurrentAnchorIndex] = attempts;
+        if (attempts == 0) {
+            const uint32_t now = millis();
+            uint32_t lastDistanceMs;
+            (mAnchors[mCurrentAnchorIndex])->getDistance(&lastDistanceMs);
+            if (now - lastDistanceMs > MAX_AGE_ANCHOR_DISTANCE_MS) {
+                // set anchor as 'away'
+                (mAnchors[mCurrentAnchorIndex])->setDistance(NAN);
+            }
+        }
     }
 
     // next anchor
@@ -546,6 +557,7 @@ void UwbTagDevice::rangingDone(bool success) {
 
 void UwbTagDevice::calculateLocation() {
     if (mAnchors.size() > 1) {
+        const uint32_t now = millis();
         // collect all distances to anchors
         std::vector<AnchorPositionTagDistance> anchorPositionAndTagDistances;
         for(const auto anchor: mAnchors) {
@@ -553,8 +565,9 @@ void UwbTagDevice::calculateLocation() {
             anchorPosAndTagDist.anchorId = anchor->getId();
             anchorPosAndTagDist.anchorPosition.latitude =  anchor->getLatitude();
             anchorPosAndTagDist.anchorPosition.longitude = anchor->getLongitude();
-            anchorPosAndTagDist.tagDistance = anchor->getDistance(nullptr); // no need for the age of the distance
-            if (Location::isValid(anchorPosAndTagDist)) {
+            uint32_t millisDistance;
+            anchorPosAndTagDist.tagDistance = anchor->getDistance(&millisDistance);
+            if (Location::isValid(anchorPosAndTagDist) && ((now - millisDistance) <= MAX_AGE_ANCHOR_DISTANCE_MS)) {
                 anchorPositionAndTagDistances.push_back(anchorPosAndTagDist);
             }
         }
@@ -583,7 +596,7 @@ void UwbTagDevice::calculateLocation() {
                     tagPosition.latitude, tagPosition.longitude, errorEstimateMeters);
             }
         } else {
-            ESP_LOGW(TAG, "calculatePosition failed: %i", res);
+            ESP_LOGW(TAG, "calculate position failed: 0x%02X", res);
         }
     }
     // next ranging cycle

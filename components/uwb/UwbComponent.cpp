@@ -27,7 +27,7 @@ void UwbComponent::setup() {
                     }
                 }
             }
-            mDevice = new UwbTagDevice(mAnchors, mRangingIntervalMs,
+            mDevice = new UwbTagDevice(mAnchors, mRangingIntervalMs, mMaxAgeAnchorDistanceMs,
                                        mLatitudeSensor, mLongitudeSensor, mLocationErrorEstimateSensor);
              // Anchors and Sensors no longer needed
             mAnchors.clear();
