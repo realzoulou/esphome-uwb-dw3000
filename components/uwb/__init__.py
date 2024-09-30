@@ -24,12 +24,16 @@ CONF_UWB_ROLE_TAG = "tag"
 CONF_TAG_ANCHORS = "anchors"
 CONF_TAG_RANGING_INTERVAL = "ranging_interval_ms"
 CONF_TAG_ANCHOR_AWAY_DURATION = "anchor_away_after_ms"
+CONF_TAG_MIN_DISTANCE_CHANGE = "min_distance_change"
+CONF_TAG_MAX_SPEED = "max_speed"
 
 eUwbRole = uwb_ns.enum("eUwbRole")
 UWB_ROLE = {
     CONF_UWB_ROLE_ANCHOR: eUwbRole.UWB_ROLE_ANCHOR,
     CONF_UWB_ROLE_TAG:    eUwbRole.UWB_ROLE_TAG
 }
+MIN_DISTANCE_CHANGE_DEFAULT : float = uwb_ns.MIN_DISTANCE_CHANGE_DEFAULT
+MAX_SPEED_DEFAULT           : float = uwb_ns.MAX_SPEED_DEFAULT
 
 # BEGIN: parse_latlon and LAT_LON_REGEX copied from esphome/components/sun/__init__.py
 # Parses sexagesimal values like 22°57′7″S
@@ -97,6 +101,8 @@ CONFIG_SCHEMA = cv.Schema(
         ),
         cv.Optional(CONF_TAG_RANGING_INTERVAL): cv.int_range(min=1000),
         cv.Optional(CONF_TAG_ANCHOR_AWAY_DURATION): cv.int_range(min=1000),
+        cv.Optional(CONF_TAG_MIN_DISTANCE_CHANGE): cv.float_range(min=0.01),
+        cv.Optional(CONF_TAG_MAX_SPEED): cv.float_range(min=0.01),
     }
 ).extend(cv.COMPONENT_SCHEMA)
 cv.only_with_arduino
@@ -112,12 +118,23 @@ async def to_code(config):
     cg.add(var.setRole(role))
 
     if (role == CONF_UWB_ROLE_TAG):
-        for anchor in config[CONF_TAG_ANCHORS]:
-            cg.add(var.addAnchor(anchor[CONF_UWB_DEVICE_ID], anchor[CONF_LATITUDE], anchor[CONF_LONGITUDE]))
+        minDistanceChange = MIN_DISTANCE_CHANGE_DEFAULT
+        maxSpeed = MAX_SPEED_DEFAULT
+        # optional role keys
+        try:
+            if config[CONF_TAG_MIN_DISTANCE_CHANGE]:
+                minDistanceChange = config[CONF_TAG_MIN_DISTANCE_CHANGE]
+            if config[CONF_TAG_MAX_SPEED]:
+                maxSpeed = config[CONF_TAG_MAX_SPEED]
             if ranging_interval := config[CONF_TAG_RANGING_INTERVAL]:
                 cg.add(var.setRangingInterval(ranging_interval))
             if anchor_away_duration := config[CONF_TAG_ANCHOR_AWAY_DURATION]:
                 cg.add(var.setMaxAgeAnchorDistance(anchor_away_duration))
+        except KeyError:
+            True
+        for anchor in config[CONF_TAG_ANCHORS]:
+            cg.add(var.addAnchor(anchor[CONF_UWB_DEVICE_ID], anchor[CONF_LATITUDE], anchor[CONF_LONGITUDE],
+                                 minDistanceChange, maxSpeed))
 
     # ----- General compiler settings
     # treat warnings as error, abort compilation on the first error, check printf format and arguments
