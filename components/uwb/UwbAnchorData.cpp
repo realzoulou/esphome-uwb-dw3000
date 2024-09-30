@@ -54,6 +54,8 @@ void UwbAnchorData::setDistance(double distanceMeters) {
                 mId, distanceMeters, diffToPrevDistance, diffMillis, speed, MAX_SPEED, mDistanceToTag);
         }
     } else {
+        // update timestamp nevertheless to avoid 'away' detection kicks in
+        mMillisDistanceToTag = now;
         // not a warning because this happens very frequently and is actually normal
         ESP_LOGI(TAG, "anchor 0x%02X: dist %.2fm (prev %.2fm) < threshold %.2fm, keep %.2fm",
             mId, distanceMeters, diffToPrevDistance, MIN_DISTANCE, mDistanceToTag);
