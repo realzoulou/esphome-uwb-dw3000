@@ -480,17 +480,11 @@ void UwbTagDevice::recvdFrameFinal() {
         const int64_t tof_dtu = (int64_t)((Ra * Rb - Da * Db) / (Ra + Rb + Da + Db));
         const double tof = tof_dtu * DWT_TIME_UNITS;
         const double distance = tof * SPEED_OF_LIGHT;
-        const uint32_t distanceUpdated = millis();
 
         /* Display computed distance. */
         ESP_LOGW(TAG, "DIST anchor 0x%.2X: %.2fm", anchorId, distance);
-        if (mCurrentAnchorIndex >= 0 && mCurrentAnchorIndex < mAnchors.size()) {
-            (mAnchors[mCurrentAnchorIndex])->setDistance(distance);
-        } else {
-            ESP_LOGE(TAG, "mCurrentAnchorIndex=%i", mCurrentAnchorIndex);
-        }
 
-        rangingDone(true);
+        rangingDone(true, distance);
 
     } else {
         setMyState(MYSTATE_RECVD_INVALID_FINAL);
@@ -531,12 +525,13 @@ void UwbTagDevice::recvdInvalidFinal() {
     rangingDone(false);
 }
 
-void UwbTagDevice::rangingDone(bool success) {
+void UwbTagDevice::rangingDone(bool success, double distance) {
      // if running with high-frequency loop(), go back to normal frequency
     mHighFreqLoopRequester.stop();
 
     if (success) {
         mAnchorCurrentRangingSuccess[mCurrentAnchorIndex] = 0; // no more attempts
+        (mAnchors[mCurrentAnchorIndex])->setDistance(distance);
     } else {
         const uint8_t attempts = mAnchorCurrentRangingSuccess[mCurrentAnchorIndex] -1;
         mAnchorCurrentRangingSuccess[mCurrentAnchorIndex] = attempts;
@@ -567,8 +562,18 @@ void UwbTagDevice::calculateLocation() {
             anchorPosAndTagDist.anchorPosition.longitude = anchor->getLongitude();
             uint32_t millisDistance;
             anchorPosAndTagDist.tagDistance = anchor->getDistance(&millisDistance);
-            if (Location::isValid(anchorPosAndTagDist) && ((now - millisDistance) <= MAX_AGE_ANCHOR_DISTANCE_MS)) {
-                anchorPositionAndTagDistances.push_back(anchorPosAndTagDist);
+            if (Location::isValid(anchorPosAndTagDist)) {
+                const uint32_t timeDiffMs = now - millisDistance;
+                if (timeDiffMs <= MAX_AGE_ANCHOR_DISTANCE_MS) {
+                    anchorPositionAndTagDistances.push_back(anchorPosAndTagDist);
+                } else {
+                    ESP_LOGW(TAG, "anchor 0x%02X timeDiffMs %" PRIu32 " > %" PRIu32,
+                        anchorPosAndTagDist.anchorId, timeDiffMs, MAX_AGE_ANCHOR_DISTANCE_MS);
+                }
+            } else {
+                std::ostringstream msg;
+                Location::LOG_ANCHOR_TO_STREAM(msg, anchorPosAndTagDist);
+                ESP_LOGW(TAG, "anchor invalid %s", msg.str().c_str());
             }
         }
 

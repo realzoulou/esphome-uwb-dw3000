@@ -100,7 +100,7 @@ protected:
     virtual void recvdFrameFinal();
     virtual void recvdValidFinal();
     virtual void recvdInvalidFinal();
-    virtual void rangingDone(bool success);
+    virtual void rangingDone(bool success, double distance=NAN);
     virtual void calculateLocation();
 protected:
     static const char* TAG;
