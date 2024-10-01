@@ -4,18 +4,13 @@
 #include <iostream>
 #include <limits>
 
-// un-comment to get further log outputs
-// #define __LOCATION__DEBUG__
-
 #ifdef ESP32
-#ifdef __LOCATION__DEBUG__
 #include "esphome/core/log.h"
     #define LOC_LOGW(ostringstream) ESP_LOGW(TAG, "%s", ostringstream.str().c_str());
+    #define LOC_LOGI(ostringstream) ESP_LOGI(TAG, "%s", ostringstream.str().c_str());
 #else
-#define LOC_LOGW(x)
-#endif
-#else
-    #define LOC_LOGW(ostringstream) std::cout << msg.str() << std::endl;
+    #define LOC_LOGW(ostringstream) std::clog << msg.str() << std::endl;
+    #define LOC_LOGI(ostringstream) std::cout << msg.str() << std::endl;
 #endif
 
 namespace esphome {
@@ -24,16 +19,14 @@ namespace uwb {
 #define DEG_TO_RAD      ((double)(M_PI / 180.0))
 #define RAD_TO_DEG      ((double)(180.0 / M_PI))
 
-const char* Location::TAG = "Location";
+const char* Location::TAG = "location";
 
 void Location::LOG_ANCHOR_TO_STREAM(std::ostringstream & ostream, const AnchorPositionTagDistance & anchor) {
-#if __LOCATION__DEBUG__
     ostream << std::hex << +anchor.anchorId << std::dec << "(";
     ostream << std::setprecision(10);
     ostream << +anchor.anchorPosition.latitude << "," << +anchor.anchorPosition.longitude << ",";
-    ostream << std::setprecision(3);
+    ostream << std::setprecision(2);
     ostream << +anchor.tagDistance << "m) ";
-#endif
 }
 
 double Location::METER_TO_DEGREE(const double latitude) {
@@ -81,6 +74,7 @@ CalcResult Location::calculatePosition(const std::vector<AnchorPositionTagDistan
     }
     // need at least 1 candidate
     if (positionCandidates.empty()) {
+#if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_WARN
         std::ostringstream msg;
         msg << "no position candidates found from anchor pairs:";
         LOC_LOGW(msg);
@@ -88,13 +82,30 @@ CalcResult Location::calculatePosition(const std::vector<AnchorPositionTagDistan
         for (const auto & p : pairOfTwoAnchorsAndTheirDistanceToTag) {
             cnt++;
             msg = std::ostringstream();
-            msg << "pair " << +cnt << ": ";
+            msg << " pair " << +cnt << ": ";
             LOG_ANCHOR_TO_STREAM(msg, p.first);
             LOG_ANCHOR_TO_STREAM(msg, p.second);
             LOC_LOGW(msg);
         }
+#endif // ESPHOME_LOG_LEVEL_WARN
         return CALC_F_NO_CANDIDATES;
     }
+
+#if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_INFO
+    {
+        std::ostringstream msg;
+        msg << +positionCandidates.size() <<  " position candidates:";
+        LOC_LOGI(msg);
+        unsigned cnt = 0;
+        for (const auto & p : positionCandidates) {
+            cnt++;
+            msg = std::ostringstream();
+            msg << std::setprecision(10);
+            msg << " " << +cnt << ": " << +p.latitude << "," << +p.longitude;
+            LOC_LOGI(msg);
+        }
+    }
+#endif // ESPHOME_LOG_LEVEL_INFO
 
     /* With the candidates create a 'bounding' rectangle and find its geometric center, the tag location
        Bounding rectangle is a box of four points:
@@ -106,6 +117,18 @@ CalcResult Location::calculatePosition(const std::vector<AnchorPositionTagDistan
     BoundingRect boundingRect;
     ok = findBoundingRectangle(positionCandidates, boundingRect);
     if (!ok) return CALC_F_BOUNDING_BOX;
+
+#if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_INFO
+    {
+        std::ostringstream msg;
+        msg.setf(std::ios_base::fixed, std::ios_base::floatfield);
+        msg << std::setprecision(10);
+        msg << "bounding rectangle: (" << +boundingRect.westSouthiest.latitude << "," << +boundingRect.westSouthiest.longitude;
+        msg << std::setprecision(10);
+        msg << "),w:" << +boundingRect.width << "°,h:" << +boundingRect.height << "°";
+        LOC_LOGI(msg);
+    }
+#endif // ESPHOME_LOG_LEVEL_INFO
 
     /* Geometric center of a rectangle is the point in the middle: the tag location */
     outputTagPosition.latitude  = boundingRect.westSouthiest.latitude + (boundingRect.height / 2.0);
