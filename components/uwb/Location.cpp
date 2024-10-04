@@ -16,16 +16,22 @@
 namespace esphome {
 namespace uwb {
 
+#ifndef DEG_TO_RAD
 #define DEG_TO_RAD      ((double)(M_PI / 180.0))
+#endif
+#ifndef RAD_TO_DEG
 #define RAD_TO_DEG      ((double)(180.0 / M_PI))
+#endif
 
 const char* Location::TAG = "location";
 
+#define LOG_DOUBLE_PRECISION  (10)
+
 void Location::LOG_ANCHOR_TO_STREAM(std::ostringstream & ostream, const AnchorPositionTagDistance & anchor) {
     ostream << std::hex << +anchor.anchorId << std::dec << "(";
-    ostream << std::setprecision(10);
+    ostream << std::setprecision(LOG_DOUBLE_PRECISION);
     ostream << +anchor.anchorPosition.latitude << "," << +anchor.anchorPosition.longitude << ",";
-    ostream << std::setprecision(2);
+    ostream << std::setprecision(2); // up to [cm]
     ostream << +anchor.tagDistance << "m) ";
 }
 
@@ -51,7 +57,7 @@ double Location::METER_TO_DEGREE(const double latitude) {
 }
 
 CalcResult Location::calculatePosition(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
-                                 LatLong & outputTagPosition, double & outputTagPositionErrorEstimate) {
+                                       LatLong & outputTagPosition, double & outputTagPositionErrorEstimate) {
 
     /* Find all distinct combinations of two inputAnchorLocations. */
     std::vector<std::pair<AnchorPositionTagDistance, AnchorPositionTagDistance>> pairOfTwoAnchorsAndTheirDistanceToTag;
@@ -100,7 +106,7 @@ CalcResult Location::calculatePosition(const std::vector<AnchorPositionTagDistan
         for (const auto & p : positionCandidates) {
             cnt++;
             msg = std::ostringstream();
-            msg << std::setprecision(10);
+            msg << std::setprecision(LOG_DOUBLE_PRECISION);
             msg << " " << +cnt << ": " << +p.latitude << "," << +p.longitude;
             LOC_LOGI(msg);
         }
@@ -122,9 +128,9 @@ CalcResult Location::calculatePosition(const std::vector<AnchorPositionTagDistan
     {
         std::ostringstream msg;
         msg.setf(std::ios_base::fixed, std::ios_base::floatfield);
-        msg << std::setprecision(10);
+        msg << std::setprecision(LOG_DOUBLE_PRECISION);
         msg << "bounding rectangle: (" << +boundingRect.westSouthiest.latitude << "," << +boundingRect.westSouthiest.longitude;
-        msg << std::setprecision(10);
+        msg << std::setprecision(LOG_DOUBLE_PRECISION);
         msg << "),w:" << +boundingRect.width << "°,h:" << +boundingRect.height << "°";
         LOC_LOGI(msg);
     }
@@ -138,7 +144,7 @@ CalcResult Location::calculatePosition(const std::vector<AnchorPositionTagDistan
        = radius of a circle with center = tag location and touching all 4 rectable corners
     */
     // choosing arbitrarily the bottom-left corner
-    outputTagPositionErrorEstimate = getDistance(outputTagPosition, {boundingRect.westSouthiest.latitude, boundingRect.westSouthiest.longitude});
+    outputTagPositionErrorEstimate = getHaversineDistance(outputTagPosition, {boundingRect.westSouthiest.latitude, boundingRect.westSouthiest.longitude});
 #ifdef __UT_TEST__ // extra log in unit tests
     std::cout << "outputTagPosition (lat/lng)=" << +outputTagPosition.latitude << "/" << +outputTagPosition.longitude
               << " boundingRect:" << +boundingRect.westSouthiest.latitude << "/" << +boundingRect.westSouthiest.longitude
@@ -163,7 +169,7 @@ bool Location::isValid(const LatLong & a) {
             && (a.latitude != NAN && a.longitude != NAN )
            );
 }
-double Location::getDistance(const LatLong from, const LatLong to) {
+double Location::getHaversineDistance(const LatLong & from, const LatLong & to) {
     /* Haversine formula
        https://github.com/chrisveness/geodesy/blob/master/latlon-spherical.js#L189
        a = sin²(Δφ/2) + cos(φ1)⋅cos(φ2)⋅sin²(Δλ/2)
@@ -320,6 +326,140 @@ bool Location::findTwoCirclesIntersections(const AnchorPositionTagDistance a1t,
     t_prime.latitude = y_prime * RAD_TO_DEG;
     t_prime.longitude = x_prime * RAD_TO_DEG;
     return true;
+}
+
+// happily copied from an OpenAI chat :-)
+bool Location::solveLinearSystem_leastSquares(const uint32_t N_EQN, const double A[][2], const double b[], double & x, double & y) {
+    // prevent memory access violations
+    if (N_EQN < 1 || A == nullptr || b == nullptr) return false;
+
+    double A_T[2][N_EQN]; // Transpose of A
+    double A_T_A[2][2]; // A^T * A
+    double A_T_b[2];    // A^T * b
+
+    // Transpose of A (A_T)
+    for (int i = 0; i < N_EQN; i++) {
+        A_T[0][i] = A[i][0];
+        A_T[1][i] = A[i][1];
+    }
+
+    // A^T * A
+    A_T_A[0][0] = A_T[0][0]*A[0][0] + A_T[0][1]*A[1][0];
+    A_T_A[0][1] = A_T[0][0]*A[0][1] + A_T[0][1]*A[1][1];
+    A_T_A[1][0] = A_T[1][0]*A[0][0] + A_T[1][1]*A[1][0];
+    A_T_A[1][1] = A_T[1][0]*A[0][1] + A_T[1][1]*A[1][1];
+
+    // A^T * b
+    A_T_b[0] = A_T[0][0]*b[0] + A_T[0][1]*b[1];
+    A_T_b[1] = A_T[1][0]*b[0] + A_T[1][1]*b[1];
+
+    // Solve the system using the inverse of A_T_A
+    double det = A_T_A[0][0] * A_T_A[1][1] - A_T_A[0][1] * A_T_A[1][0];
+    if (std::fabs(det) < 1e-6) return false; // Singular matrix
+
+    double invA_T_A[2][2];
+    invA_T_A[0][0] = A_T_A[1][1] / det;
+    invA_T_A[0][1] = -A_T_A[0][1] / det;
+    invA_T_A[1][0] = -A_T_A[1][0] / det;
+    invA_T_A[1][1] = A_T_A[0][0] / det;
+
+    // Solution for x, y
+    x = invA_T_A[0][0] * A_T_b[0] + invA_T_A[0][1] * A_T_b[1];
+    y = invA_T_A[1][0] * A_T_b[0] + invA_T_A[1][1] * A_T_b[1];
+
+    return true;
+}
+
+// happily copied from an OpenAI chat :-), partially at least
+CalcResult Location::calculatePosition_leastSquares(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
+                                                    LatLong & outputTagPosition, double & outputTagPositionErrorEstimate) {
+    const std::size_t N = inputAnchorPositionAndTagDistances.size();
+    const std::size_t N_EQN = N-1; // number of equations
+    if (N_EQN < 2) return CALC_F_ANCHOR_COMBINATIONS; // need a system of at least 2 equations
+
+    // Select the first anchor as the reference point
+    double x1 = inputAnchorPositionAndTagDistances[0].anchorPosition.longitude;
+    double y1 = inputAnchorPositionAndTagDistances[0].anchorPosition.latitude;
+    double r1 = inputAnchorPositionAndTagDistances[0].tagDistance;
+
+    // Matrices for the system of equations
+    double A[N_EQN][2];
+    double b[N_EQN];
+
+    // Linearize the system by subtracting the first equation from the others
+    for (int i = 1; i < N; i++) {
+        double x2 = inputAnchorPositionAndTagDistances[i].anchorPosition.longitude;
+        double y2 = inputAnchorPositionAndTagDistances[i].anchorPosition.latitude;
+        double r2 = inputAnchorPositionAndTagDistances[i].tagDistance;
+
+        A[i-1][0] = 2 * (x2 - x1);
+        A[i-1][1] = 2 * (y2 - y1);
+        b[i-1] = r1 * r1 - r2 * r2 - x1 * x1 + x2 * x2 - y1 * y1 + y2 * y2;
+    }
+
+    // Solve the system of equations for the tag position
+    double lat = NAN, lng = NAN;
+    if (!solveLinearSystem_leastSquares(N_EQN, A, b, lng, lat)) {
+        std::ostringstream msg;
+        msg << "unable to solve system of " << +N_EQN << " equations";
+        LOC_LOGW(msg);
+        return CALC_F_NO_CANDIDATES; // the system cannot be solved
+    }
+
+    // Estimate error (simplified as the average error for now)
+    double tagPositionErrorEstimate = 0.0;
+    for (int i = 0; i < N; i++) {
+        double dLat = lat - inputAnchorPositionAndTagDistances[i].anchorPosition.latitude;
+        double dLng = lng - inputAnchorPositionAndTagDistances[i].anchorPosition.longitude;
+        double dist = std::sqrt(dLat * dLat + dLng * dLng);
+        tagPositionErrorEstimate += std::fabs(dist - inputAnchorPositionAndTagDistances[i].tagDistance);
+    }
+    tagPositionErrorEstimate /= N;
+
+    outputTagPosition.latitude  = lat;
+    outputTagPosition.longitude = lng;
+    outputTagPositionErrorEstimate = tagPositionErrorEstimate;
+    return CALC_OK;
+}
+
+/* DO NOT USE THIS METHOD, RESULTS IN A WILD GUESS (1st attempt of OpenAI chat) */
+CalcResult Location::calculatePosition_centroid(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
+                                                LatLong & outputTagPosition, double & outputTagPositionErrorEstimate) {
+    const std::size_t n = inputAnchorPositionAndTagDistances.size();
+
+    // Need at least 3 anchors for trilateration, allow also 2
+    if (n < 2) {
+        return CALC_F_ANCHOR_COMBINATIONS;
+    }
+
+    // Trilateration calculation goes here
+    // For simplicity, we are using a centroid method to estimate the position
+
+    double sumLat = 0.0;
+    double sumLon = 0.0;
+
+    // Accumulate the weighted position based on the distance (smaller distance gets more weight)
+    for (const auto & anchorTagDist : inputAnchorPositionAndTagDistances) {
+        sumLat += anchorTagDist.anchorPosition.latitude / anchorTagDist.tagDistance;
+        sumLon += anchorTagDist.anchorPosition.longitude / anchorTagDist.tagDistance;
+    }
+
+    // Averaging the positions
+    outputTagPosition.latitude = sumLat / n;
+    outputTagPosition.longitude = sumLon / n;
+
+    // Estimate error based on the distances
+    double totalError = 0.0;
+    for (const auto& anchorTagDist : inputAnchorPositionAndTagDistances) {
+        double dist = getHaversineDistance(anchorTagDist.anchorPosition, outputTagPosition);
+        totalError += fabs(dist - anchorTagDist.tagDistance);
+    }
+
+    // Average error estimate
+    outputTagPositionErrorEstimate = totalError / n;
+
+    // Return true since the calculation is successful
+    return CALC_OK;
 }
 
 }  // namespace uwb

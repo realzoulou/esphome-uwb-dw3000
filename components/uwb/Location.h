@@ -71,14 +71,21 @@ class Location {
 
 public:
     static CalcResult calculatePosition(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
-                                  LatLong & outputTagPosition, double & outputTagPositionErrorEstimate);
+                                        LatLong & outputTagPosition, double & outputTagPositionErrorEstimate);
+    static CalcResult calculatePosition_leastSquares(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
+                                                     LatLong & outputTagPosition, double & outputTagPositionErrorEstimate);
+    static CalcResult calculatePosition_centroid(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
+                                                 LatLong & outputTagPosition, double & outputTagPositionErrorEstimate);
     static bool isValid(const AnchorPositionTagDistance & a);
     static bool isValid(const LatLong & a);
     static void LOG_ANCHOR_TO_STREAM(std::ostringstream & ostream, const AnchorPositionTagDistance & anchor);
 
 UT_VISIBILITY_PRIVATE:
-    /* get squerical distance between 2 points on earth in [m] */
-    static double getDistance(const LatLong a, const LatLong b);
+    /* get squerical distance between 2 points on earth in [m] using Haversine formula. */
+    static double getHaversineDistance(const LatLong & from, const LatLong & to);
+
+    /* solve a system of >= 2 linear equations using least squares. */
+    static bool solveLinearSystem_leastSquares(const uint32_t N_EQN, const double A[][2], const double b[], double & x, double & y);
 
     /* find all distinct combinations of two anchors from given set of >= 2 anchors.
        distinct means that no combination of two anchors shall appear >1 in the output.
@@ -93,6 +100,7 @@ UT_VISIBILITY_PRIVATE:
                                             LatLong & t, LatLong & t_prime);
     static double METER_TO_DEGREE(const double latitude);
 
+private:
     static const char* TAG;
 };
 

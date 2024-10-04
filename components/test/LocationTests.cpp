@@ -79,36 +79,36 @@ TEST(Location_isValid, validities) {
 }
 
 ////////////////////////
-// Location::getDistance
+// Location::getHaversineDistance
 
-TEST(Location_getDistance, Washington2Philadelpha) {
+TEST(Location_getHaversineDistance, Washington2Philadelpha) {
     // https://www.distancefromto.net : 199.83 km
     const LatLong a = {38.8976, -77.0366}; // Washington
     const LatLong b = {39.9496, -75.1503}; // Philadelpha
-    EXPECT_NEAR(199.83 * KM_TO_M, Location::getDistance(a ,b), 1.0); // 1m accuracy
+    EXPECT_NEAR(199.83 * KM_TO_M, Location::getHaversineDistance(a ,b), 1.0); // 1m accuracy
 }
-TEST(Location_getDistance, 0to0) {
+TEST(Location_getHaversineDistance, 0to0) {
     const LatLong a = {0.0, 0.0};
     const LatLong b = {0.0, 0.0};
-    EXPECT_NEAR(0, Location::getDistance(a ,b), 0.01); // 1cm accuracy
+    EXPECT_NEAR(0, Location::getHaversineDistance(a ,b), 0.01); // 1cm accuracy
 }
-TEST(Location_getDistance, LibertyStatue2EiffelTower) {
+TEST(Location_getHaversineDistance, LibertyStatue2EiffelTower) {
     // https://www.distancefromto.net : 5837.39 km
     const LatLong a = {40.689412075430546, -74.0444789444429};
     const LatLong b = {48.858546539612085, 2.2944920269667555};
-    EXPECT_NEAR(5837.39 * KM_TO_M, Location::getDistance(a ,b), 4.0); // 4m accuracy
+    EXPECT_NEAR(5837.39 * KM_TO_M, Location::getHaversineDistance(a ,b), 4.0); // 4m accuracy
 }
-TEST(Location_getDistance, BuckinghamPalace2VictoriaMemorial) {
+TEST(Location_getHaversineDistance, BuckinghamPalace2VictoriaMemorial) {
      // https://www.distancefromto.net : 0.12 km
     const LatLong a = {51.50148961, -0.14220856};
     const LatLong b = {51.5018814, -0.1406225};
-    EXPECT_NEAR(0.12 * KM_TO_M, Location::getDistance(a ,b), 2.0); // 2m accuracy
+    EXPECT_NEAR(0.12 * KM_TO_M, Location::getHaversineDistance(a ,b), 2.0); // 2m accuracy
 }
-TEST(Location_getDistance, near0) {
+TEST(Location_getHaversineDistance, near0) {
     // https://www.distancefromto.net : 177.64 km
     const LatLong a = {1.5, 0.133975962155614};
     const LatLong b = {1.5, 1.7320508075688772};
-    EXPECT_NEAR(177.64 * KM_TO_M, Location::getDistance(a ,b), 5.0); // 5m accuracy
+    EXPECT_NEAR(177.64 * KM_TO_M, Location::getHaversineDistance(a ,b), 5.0); // 5m accuracy
 }
 
 //////////////////////////////////////
@@ -432,7 +432,7 @@ TEST(Location_calculatePosition, twoAnchorsEqual) {
 
 TEST(Location_calculatePosition, twoAnchors_tagExactInTheMiddleInEastWestDirection) {
     const LatLong a1 = {1.0, 1.0}, a2 = {1.0000002, 1.0}, expPosition = {1.0000001, 1.0};
-    const double dist = Location::getDistance(a1, a2);
+    const double dist = Location::getHaversineDistance(a1, a2);
     const double dist_half = dist/1.99; // should be ideally dist/2
     const std::vector<AnchorPositionTagDistance> two = {
         {0xA1, a1, dist_half},
@@ -449,7 +449,7 @@ TEST(Location_calculatePosition, twoAnchors_tagExactInTheMiddleInEastWestDirecti
 
 TEST(Location_calculatePosition, twoAnchors_tagExactInTheMiddleNorthSouth) {
     const LatLong a1 = {1.0, 1.0}, a2 = {1.0, 1.0000002}, expPosition = {1.0, 1.0000001};
-    const double dist = Location::getDistance(a1, a2);
+    const double dist = Location::getHaversineDistance(a1, a2);
     const double dist_half = dist/1.99; // should be ideally dist/2
     const std::vector<AnchorPositionTagDistance> two = {
         {0xA1, a1, dist_half},
@@ -516,9 +516,61 @@ TEST(Location_calculatePosition, threeAnchors) {
     const LatLong expPosition = {0.99905, 1.00015}; // trial & error until test passed, but looks reasonable
     const double expErr = 6; // 6m (trial & error)
 
-    LatLong tagPosition;
-    double errEst;
+    LatLong tagPosition = {NAN, NAN};
+    double errEst = NAN;
     EXPECT_TRUE(CALC_OK == Location::calculatePosition(three, tagPosition, errEst));
+    EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
+    EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
+    EXPECT_NEAR(expErr, errEst, 1); // 1m accuracy
+}
+
+////////////////////////////////////////////////
+// Location::calculatePosition_centroid
+
+TEST(Location_calculatePosition_centroid, threeAnchors) {
+    const std::vector<AnchorPositionTagDistance> anchors = {
+        {0xA1, {52.2296756, 21.0122287}, 10.0},
+        {0xA2, {52.406374, 16.9251681}, 15.0},
+        {0xA3, {51.1078852, 17.0385376}, 12.5},
+    };
+    const LatLong expPosition = {4.2684522, 1.5308835};
+    const double expErr = 5522866;
+
+    LatLong tagPosition = {NAN, NAN};
+    double errEst = NAN;
+    EXPECT_TRUE(CALC_OK == Location::calculatePosition_centroid(anchors, tagPosition, errEst));
+    EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
+    EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
+    EXPECT_NEAR(expErr, errEst, 1); // 1m accuracy
+}
+
+////////////////////////////////////////////////
+// Location::solveLinearSystem_leastSquares
+
+TEST(Location_solveLinearSystem_leastSquares, einval) {
+    double x, y;
+    double A_nok[1][2]; // [*][1] would not compile
+    double b_nok[1];
+    EXPECT_FALSE(Location::solveLinearSystem_leastSquares(2, nullptr, nullptr, x, y));
+    EXPECT_FALSE(Location::solveLinearSystem_leastSquares(2, A_nok, nullptr, x, y));
+    EXPECT_FALSE(Location::solveLinearSystem_leastSquares(2, nullptr, b_nok, x, y));
+    EXPECT_FALSE(Location::solveLinearSystem_leastSquares(2, A_nok, b_nok, x, y));
+}
+
+////////////////////////////////////////////////
+// Location::calculatePosition_leastSquares
+TEST(Location_calculatePosition_leastSquares, threeAnchors) {
+    const std::vector<AnchorPositionTagDistance> anchors = {
+        {0xA1, {52.2296756, 21.0122287}, 10.0},
+        {0xA2, {52.406374, 16.9251681}, 15.0},
+        {0xA3, {51.1078852, 17.0385376}, 12.5},
+    };
+    const LatLong expPosition = {26.6959425, 33.1531269};
+    const double expErr = 16;
+
+    LatLong tagPosition = {NAN, NAN};
+    double errEst = NAN;
+    EXPECT_TRUE(CALC_OK == Location::calculatePosition_leastSquares(anchors, tagPosition, errEst));
     EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
     EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
     EXPECT_NEAR(expErr, errEst, 1); // 1m accuracy

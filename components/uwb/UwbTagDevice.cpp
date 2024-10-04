@@ -577,31 +577,43 @@ void UwbTagDevice::calculateLocation() {
             }
         }
 
-        // calculate location and its error estimate
-        LatLong tagPosition;
-        double errorEstimateMeters;
-        CalcResult res = Location::calculatePosition(anchorPositionAndTagDistances, tagPosition, errorEstimateMeters);
-        if (CALC_OK == res) {
-            if (Location::isValid(tagPosition)) {
-                ESP_LOGW(TAG, "position %.7f,%.7f errEst %.2fm",
-                    tagPosition.latitude, tagPosition.longitude, errorEstimateMeters);
+        const std::size_t anchorNum = anchorPositionAndTagDistances.size();
+        if (anchorNum >= 2) { // min 2 anchors needed
+            // calculate location and its error estimate
+            LatLong tagPosition;
+            double errorEstimateMeters;
+            CalcResult res;
+            
+            if (anchorNum == 2) {
+                // works for 2 anchors, but not perfect
+                res = Location::calculatePosition(anchorPositionAndTagDistances, tagPosition, errorEstimateMeters);
+            } else {
+                // requires 3+ anchors
+                res = Location::calculatePosition_leastSquares(anchorPositionAndTagDistances, tagPosition, errorEstimateMeters);
+            }
 
-                // report location and error estimate
-                if (mLatitudeSensor != nullptr) {
-                    mLatitudeSensor->publish_state(tagPosition.latitude);
-                }
-                if (mLongitudeSensor != nullptr) {
-                    mLongitudeSensor->publish_state(tagPosition.longitude);
-                }
-                if (mLocationErrorEstimateSensor != nullptr) {
-                    mLocationErrorEstimateSensor->publish_state(errorEstimateMeters);
+            if (CALC_OK == res) {
+                if (Location::isValid(tagPosition)) {
+                    ESP_LOGW(TAG, "position %.7f,%.7f errEst %.2fm",
+                        tagPosition.latitude, tagPosition.longitude, errorEstimateMeters);
+
+                    // report location and error estimate
+                    if (mLatitudeSensor != nullptr) {
+                        mLatitudeSensor->publish_state(tagPosition.latitude);
+                    }
+                    if (mLongitudeSensor != nullptr) {
+                        mLongitudeSensor->publish_state(tagPosition.longitude);
+                    }
+                    if (mLocationErrorEstimateSensor != nullptr) {
+                        mLocationErrorEstimateSensor->publish_state(errorEstimateMeters);
+                    }
+                } else {
+                    ESP_LOGW(TAG, "calculated position invalid: %.7f,%.7f errEst %.2fm",
+                        tagPosition.latitude, tagPosition.longitude, errorEstimateMeters);
                 }
             } else {
-                ESP_LOGW(TAG, "position result invalid: position %.7f,%.7f errEst %.2fm",
-                    tagPosition.latitude, tagPosition.longitude, errorEstimateMeters);
+                ESP_LOGW(TAG, "calculate position failed: 0x%02X", res);
             }
-        } else {
-            ESP_LOGW(TAG, "calculate position failed: 0x%02X", res);
         }
     }
     // next ranging cycle
