@@ -1,8 +1,8 @@
 #include "FinalMsg.h"
 
- #include <cstring>
+#include <cstring>
 
-#include "UwbMessage.h"
+#include "esphome/core/log.h"
 
 namespace esphome {
 namespace uwb {
@@ -38,9 +38,6 @@ FinalMsg::FinalMsg()
     mBytes.resize(FinalMsg::FRAME_SIZE);
     mBytes.assign((uint8_t*)&DEFAULT_FINAL_FRAME, (uint8_t*)&DEFAULT_FINAL_FRAME + FinalMsg::FRAME_SIZE);
 }
-
-FinalMsg::FinalMsg(const uint8_t* bytes, const size_t sizeBytes)
-: UwbMessage(bytes, sizeBytes) {}
 
 bool FinalMsg::isValid() const {
     // check size
@@ -78,6 +75,16 @@ bool FinalMsg::isValid() const {
 void FinalMsg::resetToDefault() {
     mBytes.resize(FinalMsg::FRAME_SIZE);
     mBytes.assign((uint8_t*)&DEFAULT_FINAL_FRAME, (uint8_t*)&DEFAULT_FINAL_FRAME + FinalMsg::FRAME_SIZE);
+}
+
+bool FinalMsg::fromIncomingBytes(const uint8_t* bytes, std::size_t sizeBytes) {
+    if (sizeBytes == FinalMsg::FRAME_SIZE) {
+        mBytes.assign(bytes, bytes + sizeBytes);
+        return true;
+    } else {
+        ESP_LOGW(TAG, "Incoming FinalMsg size mismatch: got %zu, exp %zu", sizeBytes, FinalMsg::FRAME_SIZE);
+        return false;
+    }
 }
 
 void FinalMsg::getTimestamps(uint32_t* initial, uint32_t* response, uint32_t* final) const {

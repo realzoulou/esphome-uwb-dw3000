@@ -10,11 +10,6 @@ namespace uwb {
 
 class UwbMessage {
 public:
-    typedef enum {
-        RX,
-        TX
-    } UwbMessageDirection;
-
     /* Structure of a UWB frame (start) */
     /* --- MAC Header MHR --- */
     static const std::size_t MHR_SIZE = 5;
@@ -70,16 +65,12 @@ public:
     static const uint8_t PAN_ID_MSB = 0xDE;
 
 public:
-    // constructor for outgoing message
     UwbMessage();
-
-    // constructor for incoming message
-    UwbMessage(const uint8_t* bytes, const std::size_t sizeBytes);
 
     virtual bool isValid() const = 0;
     virtual void resetToDefault() = 0;
+    virtual bool fromIncomingBytes(const uint8_t* bytes, std::size_t sizeBytes) = 0;
 
-    virtual inline UwbMessageDirection getDirection() const { return mDirection; }
     inline std::vector<uint8_t> & getBytes() { return mBytes; }
     virtual void setSequenceNumber(const uint8_t seqNo);
     virtual void setTargetId(const uint8_t id);
@@ -88,9 +79,10 @@ public:
     virtual uint8_t getSourceId() const;
 
 protected:
-    static const char* TAG;
-    const UwbMessageDirection mDirection;
     std::vector<uint8_t> mBytes;
+
+private:
+    static const char* TAG;
 };
 
 }  // namespace uwb

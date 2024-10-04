@@ -13,12 +13,9 @@ namespace uwb {
 #define TX_ANT_DLY  (16385) // Decawave default was confirmed to be good (by ranging with 8.0m distance)
 #define RX_ANT_DLY  TX_ANT_DLY // for simplicity: RX = TX antenna delay
 
-/* Enable Double-Sided Tw-Way-Ranging with 4 frames (synchronous). */
-#define USE_DS_TWR_SYNCRONOUS
-
 /* Macros for surrounding a code block which is time-critical and should not be interrupted. */
-#define TIME_CRITICAL_START()  noInterrupts()
-#define TIME_CRITICAL_END()    interrupts()
+#define TIME_CRITICAL_START()
+#define TIME_CRITICAL_END()
 
 class Dw3000Device {
 public:

@@ -25,12 +25,12 @@ public:
 
 public:
     InitialMsg();
-    InitialMsg(const uint8_t* bytes, size_t sizeBytes);
 
     virtual bool isValid() const;
     virtual void resetToDefault();
+    virtual bool fromIncomingBytes(const uint8_t* bytes, std::size_t sizeBytes);
 
-protected:
+private:
     static const char* TAG;
 };
 

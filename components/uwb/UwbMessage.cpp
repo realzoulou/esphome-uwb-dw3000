@@ -7,14 +7,7 @@ namespace uwb {
 
 const char* UwbMessage::TAG = "UwbMessage";
 
-UwbMessage::UwbMessage()
-: mDirection(UwbMessageDirection::TX) {
-}
-
-UwbMessage::UwbMessage(const uint8_t* bytes, const size_t sizeBytes)
-: mDirection(UwbMessageDirection::RX) {
-    mBytes.resize(sizeBytes);
-    mBytes.assign(bytes, bytes + sizeBytes);
+UwbMessage::UwbMessage() {
 }
 
 void UwbMessage::setSequenceNumber(const uint8_t seqNo) {

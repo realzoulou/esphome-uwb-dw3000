@@ -177,18 +177,19 @@ void UwbAnchorDevice::recvdFrameInitial() {
         return;
     }
     /* Check that the frame is an Initial frame and targeted to this device. */
-    const auto initialMsg = std::make_shared<InitialMsg>(rx_buffer, frame_len);
-    bool proceed = initialMsg->isValid();
+    bool proceed = mInitialFrame.fromIncomingBytes(rx_buffer, frame_len);
     if (proceed) {
-        const uint8_t targetId = initialMsg->getTargetId();
-        if (targetId != getDeviceId()) {
+        proceed = mInitialFrame.isValid();
+    }
+    if (proceed) {
+        if (mInitialFrame.getTargetId() != getDeviceId()) {
             // silently ignore
             proceed = false;
             setMyState(MYSTATE_PREPARE_WAIT_RECV_INITIAL);
             return;
         } else {
             // remember the source ID as the tag's device ID
-            mCurrentTagId = initialMsg->getSourceId();
+            mCurrentTagId = mInitialFrame.getSourceId();
         }
     }
     if (proceed) {
@@ -299,12 +300,14 @@ void UwbAnchorDevice::recvdFrameFinal() {
         return;
     }
     /* Check that the frame is a Final frame sent by inititating tag device and targeted to this device. */
-    const auto finalMsg = std::make_shared<FinalMsg>(rx_buffer, frame_len);
-    bool proceed = finalMsg->isValid();
-    const uint8_t thisDeviceId = getDeviceId();
-    const uint8_t otherDeviceId = finalMsg->getSourceId();
+    bool proceed = mFinalFrame.fromIncomingBytes(rx_buffer, frame_len);
     if (proceed) {
-        if ( (finalMsg->getTargetId() != thisDeviceId) || (otherDeviceId != mCurrentTagId) ) {
+        proceed = mFinalFrame.isValid();
+    }
+    const uint8_t thisDeviceId = getDeviceId();
+    const uint8_t otherDeviceId = mFinalFrame.getSourceId();
+    if (proceed) {
+        if ( (mFinalFrame.getTargetId() != thisDeviceId) || (otherDeviceId != mCurrentTagId) ) {
             // silently ignore
             proceed = false;
             setMyState(MYSTATE_WAIT_RECV_FINAL); // keep state, not MYSTATE_RECVD_FRAME_INVALID_FINAL
@@ -323,9 +326,8 @@ void UwbAnchorDevice::recvdFrameFinal() {
 
         /* Get timestamps embedded in the final message. */
         uint32_t initial_tx_time, resp_rx_time, final_tx_time;
-        finalMsg->getTimestamps(&initial_tx_time, &resp_rx_time, &final_tx_time);
+        mFinalFrame.getTimestamps(&initial_tx_time, &resp_rx_time, &final_tx_time);
 
-#ifdef USE_DS_TWR_SYNCRONOUS
         /* Compute Final response message delayed transmission time. */
         const uint64_t final_response_tx_time =
             ((response_tx_ts + ((uint64_t)FINAL_RX_TO_FINAL_TX_DLY_UUS * UUS_TO_DWT_TIME))  & 0x00FFFFFFFFFFFFFFUL) >> 8;
@@ -335,16 +337,16 @@ void UwbAnchorDevice::recvdFrameFinal() {
         const uint64_t final_response_tx_ts = (((uint64_t)(final_response_tx_time & 0xFFFFFFFEUL)) << 8) + TX_ANT_DLY;
 
         /* Write all timestamps in the Final response message. */
-        mFinalResponseFrame.resetToDefault();
-        mFinalResponseFrame.setSequenceNumber(Dw3000Device::getNextTxSequenceNumberAndIncrease());
-        mFinalResponseFrame.setTimestamps((uint32_t)response_tx_ts,
+        mFinalFrame.resetToDefault();
+        mFinalFrame.setSequenceNumber(Dw3000Device::getNextTxSequenceNumberAndIncrease());
+        mFinalFrame.setTimestamps((uint32_t)response_tx_ts,
                                           (uint32_t)final_rx_ts,
                                           (uint32_t)final_response_tx_ts);
-        mFinalResponseFrame.setTargetId(otherDeviceId);
-        mFinalResponseFrame.setSourceId(thisDeviceId);
+        mFinalFrame.setTargetId(otherDeviceId);
+        mFinalFrame.setSourceId(thisDeviceId);
         /* Write and send Final response message. */
-        // not checking mFinalResponseFrame.isValid() in order to save processing time
-        uint8_t* txbuffer = mFinalResponseFrame.getBytes().data();
+        // not checking mFinalFrame.isValid() in order to save processing time
+        uint8_t* txbuffer = mFinalFrame.getBytes().data();
         dwt_writetxdata(FinalMsg::FRAME_SIZE, txbuffer, 0 /*zero offset*/);
         dwt_writetxfctrl(FinalMsg::FRAME_SIZE, 0 /*zero offset*/, 1 /*=ranging */);
 
@@ -367,9 +369,6 @@ void UwbAnchorDevice::recvdFrameFinal() {
             ESP_LOGW(TAG, "final_rx_time=%" PRIu64 ", diff=%" PRId32, final_rx_time, ((uint32_t)final_rx_time - systime));
             setMyState(MYSTATE_SEND_ERROR_FINAL);
         }
-#else // not USE_DS_TWR_SYNCRONOUS
-        TIME_CRITICAL_END();
-#endif // USE_DS_TWR_SYNCRONOUS
 
         /* after(!) trying to send Final frame, Compute time of flight. */
         const double Ra = (double)(resp_rx_time - initial_tx_time);
@@ -381,12 +380,8 @@ void UwbAnchorDevice::recvdFrameFinal() {
         const double distance = tof * SPEED_OF_LIGHT;
 
         /* Display computed distance. */
-        ESP_LOGW(TAG, "DIST tag 0x%.2X: %.2fm", otherDeviceId, distance);
+        ESP_LOGW(TAG, "DIST tag 0x%02X: %.2fm", otherDeviceId, distance);
 
-#ifndef USE_DS_TWR_SYNCRONOUS
-        /* Next ranging cycle. */
-        setMyState(MYSTATE_PREPARE_WAIT_RECV_INITIAL);
-#endif
     } else {
         setMyState(MYSTATE_RECVD_FRAME_INVALID_FINAL);
     }

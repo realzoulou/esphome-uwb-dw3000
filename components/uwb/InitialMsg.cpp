@@ -3,7 +3,6 @@
 #include <cstring>
 
 #include "esphome/core/log.h"
-#include "esp_log.h"
 
 namespace esphome {
 namespace uwb {
@@ -37,8 +36,6 @@ InitialMsg::InitialMsg()
     mBytes.assign((uint8_t*)&DEFAULT_INITIAL_FRAME, (uint8_t*)&DEFAULT_INITIAL_FRAME + InitialMsg::FRAME_SIZE);
 }
 
-InitialMsg::InitialMsg(const uint8_t* bytes, const size_t sizeBytes)
-: UwbMessage(bytes, sizeBytes) {}
 
 bool InitialMsg::isValid() const {
     // check size
@@ -81,6 +78,17 @@ bool InitialMsg::isValid() const {
 void InitialMsg::resetToDefault() {
     mBytes.resize(InitialMsg::FRAME_SIZE);
     mBytes.assign((uint8_t*)&DEFAULT_INITIAL_FRAME, (uint8_t*)&DEFAULT_INITIAL_FRAME + InitialMsg::FRAME_SIZE);
+}
+
+bool InitialMsg::fromIncomingBytes(const uint8_t* bytes, std::size_t sizeBytes) {
+    if (sizeBytes == InitialMsg::FRAME_SIZE) {
+        mBytes.assign(bytes, bytes + sizeBytes);
+        return true;
+    } else {
+        // not a warning, this could be a Final message to a different anchor
+        ESP_LOGI(TAG, "Incoming InitialMsg size mismatch: got %zu, exp %zu", sizeBytes, InitialMsg::FRAME_SIZE);
+        return false;
+    }
 }
 
 }  // namespace uwb

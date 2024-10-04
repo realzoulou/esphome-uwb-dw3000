@@ -27,15 +27,15 @@ public:
 
 public:
     FinalMsg();
-    FinalMsg(const uint8_t* bytes, size_t sizeBytes);
 
     virtual bool isValid() const;
     virtual void resetToDefault();
+    virtual bool fromIncomingBytes(const uint8_t* bytes, std::size_t sizeBytes);
 
     void getTimestamps(uint32_t* initial, uint32_t* response, uint32_t* final) const;
     void setTimestamps(uint32_t initial, uint32_t response, uint32_t final);
 
-protected:
+private:
     static const char* TAG;
 };
 

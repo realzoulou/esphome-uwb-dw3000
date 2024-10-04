@@ -49,7 +49,7 @@ UwbTagDevice::~UwbTagDevice() {
 void UwbTagDevice::setup() {
     Dw3000Device::setup();
 
-    setMyState(MYSTATE_WAIT_NEXT_RANGING_INTERVAL);
+    setMyState(MY_DEFAULT_STATE);
 }
 
 void UwbTagDevice::loop() {
@@ -137,7 +137,7 @@ void UwbTagDevice::do_ranging() {
         default:
             ESP_LOGE(TAG, "unhandled state %d", currState);
             // reset state machine
-            setMyState(MYSTATE_PREPARE_SEND_INITIAL);
+            setMyState(MY_DEFAULT_STATE);
             break;
     }
 }
@@ -240,16 +240,17 @@ void UwbTagDevice::sentInitial() {
 void UwbTagDevice::waitRecvResponse() {
     /* Check for timeout */
     const uint32_t startedPollLoopMicros = micros();
-    if ((startedPollLoopMicros - mEnteredWaitRecvResponseMicros) >= (WAIT_RX_TIMEOUT_MS * 1000UL)) {
+    const uint32_t diffToEnterStateMicros = startedPollLoopMicros - mEnteredWaitRecvResponseMicros;
+    if (diffToEnterStateMicros >= (WAIT_RX_TIMEOUT_MS * 1000U)) {
         // next ranging loop
-        //ESP_LOGW(TAG, "Timeout awaiting Response after %" PRIu32 " ms", WAIT_RX_TIMEOUT_MS);
-        setMyState(MYSTATE_PREPARE_SEND_INITIAL);
+        ESP_LOGI(TAG, "Timeout awaiting Response after %" PRIu32 " ms", (diffToEnterStateMicros/1000U));
+        rangingDone(false);
         return;
     }
     /* Poll for reception of expected Response frame or error/timeout. */
     uint32_t status_reg;
     while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG_BIT_MASK | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR))) {
-        if ((micros() - startedPollLoopMicros) >= (MAX_POLL_DURATION_MS * 1000UL)) {
+        if ((micros() - startedPollLoopMicros) >= (MAX_POLL_DURATION_MS * 1000U)) {
             // abort polling for now until next loop()
             return;
         }
@@ -295,15 +296,16 @@ void UwbTagDevice::recvdFrameResponse() {
         return;
     }
     /* Check that the frame is the expected Response and targeted to this device. */
-    const auto responseMsg = std::make_shared<ResponseMsg>(rx_buffer, frame_len);
-    bool proceed = responseMsg->isValid();
+    bool proceed = mResponseFrame.fromIncomingBytes(rx_buffer, frame_len);
+    if (proceed) {
+        proceed = mResponseFrame.isValid();
+    }
     uint8_t anchorId;
     if (proceed) {
-        const uint8_t targetId = responseMsg->getTargetId();
-        if (targetId != getDeviceId()) {
+        if (mResponseFrame.getTargetId() != getDeviceId()) {
             proceed = false;
         }
-        anchorId = responseMsg->getSourceId();
+        anchorId = mResponseFrame.getSourceId();
         // skipping the check for anchorId against current mCurrentAnchorIndex to save processing time
     }
     if (proceed) {
@@ -343,13 +345,8 @@ void UwbTagDevice::recvdFrameResponse() {
 
         const uint32_t systime = dwt_readsystimestamphi32();
         /* If dwt_starttx() returns an error, abandon this ranging exchange and proceed to the next one. */
-#ifdef USE_DS_TWR_SYNCRONOUS
         mResponse_rx_ts = response_rx_ts;
-        const uint8_t mode = DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED;
-#else
-        const uint8_t mode = DWT_START_TX_DELAYED;
-#endif
-        if (dwt_starttx(mode) == DWT_SUCCESS) {
+        if (dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED) == DWT_SUCCESS) {
             TIME_CRITICAL_END();
             setMyState(MYSTATE_SENT_FINAL);
             ESP_LOGV(TAG, "Final sent Ok: systime=%" PRIu32 ", final_tx_time=%" PRIu64 ", diff=%" PRId32 ,
@@ -367,24 +364,23 @@ void UwbTagDevice::recvdFrameResponse() {
             setMyState(MYSTATE_SEND_ERROR_FINAL);
         }
 
-#if 0 // -- reserved for future use --
+        // -- reserved for future use --
         /* after(!) trying to send Final frame, read function code and data from Response frame */
         uint8_t data[ResponseMsg::RESPONSE_DATA_SIZE];
         std::size_t actualdataSize;
         uint8_t fctCode;
-        if (responseMsg->getFunctionCodeAndData(&fctCode, data, ResponseMsg::RESPONSE_DATA_SIZE, &actualdataSize)) {
+        if (mResponseFrame.getFunctionCodeAndData(&fctCode, data, ResponseMsg::RESPONSE_DATA_SIZE, &actualdataSize)) {
             if (fctCode == ResponseMsg::RESPONSE_FCT_CODE_RANGING) {
                 const uint16_t dummyData = (uint16_t)(data[0] << 8) + (uint16_t) data[1];
             } else {
-                const uint8_t anchorId = mAnchors.at(mCurrentAnchorIndex)->getId();
                 ESP_LOGE(TAG, "0x%02X: getFunctionCodeAndData from Response frame failed", anchorId);
             }
         } else {
-            const uint8_t anchorId = mAnchors.at(mCurrentAnchorIndex)->getId();
             ESP_LOGE(TAG, "0x%02X: getFunctionCodeAndData from Response frame failed", anchorId);
         }
-#endif
     } else {
+        const uint8_t anchorId = mAnchors.at(mCurrentAnchorIndex)->getId();
+        ESP_LOGW(TAG, "0x%02X: recvdFrameResponse invalid", anchorId);
         setMyState(MYSTATE_RECVD_INVALID_RESPONSE);
     }
 }
@@ -396,8 +392,11 @@ void UwbTagDevice::sendInitialError() {
 void UwbTagDevice::waitRecvFinal() {
     /* Check for timeout */
     const uint32_t startedPollLoopMicros = micros();
-    if ((startedPollLoopMicros - mEnteredWaitRecvFinalMicros) >= (WAIT_RX_TIMEOUT_MS * 1000U)) {
+    const uint32_t diffToEnterStateMicros = startedPollLoopMicros - mEnteredWaitRecvFinalMicros;
+    if (diffToEnterStateMicros >= (WAIT_RX_TIMEOUT_MS * 1000U)) {
+        ESP_LOGW(TAG, "Timeout awaiting Final after %" PRIu32 " ms", (diffToEnterStateMicros/1000U));
         rangingDone(false);
+        return;
     }
     /* Poll for reception of expected Final response frame or error/timeout. */
     uint32_t status_reg;
@@ -449,16 +448,16 @@ void UwbTagDevice::recvdFrameFinal() {
         return;
     }
     /* Check that the frame is the expected Final response and targeted to this device. */
-    const auto finalMsg = std::make_shared<FinalMsg>(rx_buffer, frame_len);
-    bool proceed = finalMsg->isValid();
-    uint8_t anchorId;
-    const uint8_t myDeviceId = getDeviceId();
+    bool proceed = mFinalFrame.fromIncomingBytes(rx_buffer, frame_len);
     if (proceed) {
-        const uint8_t targetId = finalMsg->getTargetId();
-        if (targetId != myDeviceId) {
+        bool proceed = mFinalFrame.isValid();
+    }
+    uint8_t anchorId;
+    if (proceed) {
+        if (mFinalFrame.getTargetId() != getDeviceId()) {
             proceed = false;
         }
-        anchorId = finalMsg->getSourceId();
+        anchorId = mFinalFrame.getSourceId();
         // skipping the check for anchorId against current mCurrentAnchorIndex to save processing time
     }
     if (proceed) {
@@ -470,7 +469,7 @@ void UwbTagDevice::recvdFrameFinal() {
 
         /* Get timestamps embedded in the Final response message. */
         uint32_t response_tx_ts, final_rx_ts, final_response_tx_ts;
-        finalMsg->getTimestamps(&response_tx_ts, &final_rx_ts, &final_response_tx_ts);
+        mFinalFrame.getTimestamps(&response_tx_ts, &final_rx_ts, &final_response_tx_ts);
 
         /* Compute time of flight. */
         const double Ra = (double)(final_rx_ts - response_tx_ts);
@@ -482,11 +481,13 @@ void UwbTagDevice::recvdFrameFinal() {
         const double distance = tof * SPEED_OF_LIGHT;
 
         /* Display computed distance. */
-        ESP_LOGW(TAG, "DIST anchor 0x%.2X: %.2fm", anchorId, distance);
+        ESP_LOGW(TAG, "DIST anchor 0x%02X: %.2fm", anchorId, distance);
 
         rangingDone(true, distance);
 
     } else {
+        const uint8_t anchorId = mAnchors.at(mCurrentAnchorIndex)->getId();
+        ESP_LOGW(TAG, "0x%02X: recvdFrameFinal invalid", anchorId);
         setMyState(MYSTATE_RECVD_INVALID_FINAL);
     }
 }
@@ -494,7 +495,8 @@ void UwbTagDevice::recvdFrameFinal() {
 void UwbTagDevice::recvdValidResponse() {
     // should not come here
     ESP_LOGE(TAG, "entered recvdValidResponse() unexpectedly");
-    rangingDone(false);
+    // reset state machine
+    setMyState(MY_DEFAULT_STATE);
 }
 
 void UwbTagDevice::recvdInvalidResponse() {
@@ -502,13 +504,9 @@ void UwbTagDevice::recvdInvalidResponse() {
 }
 
 void UwbTagDevice::sentFinal() {
-#ifdef USE_DS_TWR_SYNCRONOUS
     /* remember when MYSTATE_WAIT_RECV_FINAL was entered for timeout calculation. */
     mEnteredWaitRecvFinalMicros = micros();
     setMyState(MYSTATE_WAIT_RECV_FINAL);
-#else
-    rangingDone(true);
-#endif
 }
 
 void UwbTagDevice::sendErrorFinal() {
@@ -518,7 +516,8 @@ void UwbTagDevice::sendErrorFinal() {
 void UwbTagDevice::recvdValidFinal() {
     // should not come here
     ESP_LOGE(TAG, "entered recvdValidFinal() unexpectedly");
-    rangingDone(false);
+    // reset state machine
+    setMyState(MY_DEFAULT_STATE);
 }
 
 void UwbTagDevice::recvdInvalidFinal() {
@@ -583,7 +582,7 @@ void UwbTagDevice::calculateLocation() {
             LatLong tagPosition;
             double errorEstimateMeters;
             CalcResult res;
-            
+
             if (anchorNum == 2) {
                 // works for 2 anchors, but not perfect
                 res = Location::calculatePosition(anchorPositionAndTagDistances, tagPosition, errorEstimateMeters);

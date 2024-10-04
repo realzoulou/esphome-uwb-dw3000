@@ -41,6 +41,7 @@ class UwbTagDevice : public Dw3000Device {
         // if ranging was successful, calculate location
         MYSTATE_CALCULATE_LOCATION,
     } eMyState;
+    static const eMyState MY_DEFAULT_STATE = MYSTATE_WAIT_NEXT_RANGING_INTERVAL;
 
     /* Delay between frames, in UWB microseconds.*/
 
@@ -133,11 +134,17 @@ protected:
     /* Current Initial Frame. */
     InitialMsg mInitialFrame;
 
+    /* Current Response Frame. */
+    ResponseMsg mResponseFrame;
+
+    /* Current Final Frame. */
+    FinalMsg mFinalFrame;
+
+    /* DW IC SYS_TIME timestamp of when Initial frame was sent. */
+    uint64_t mInitial_tx_ts{0};
+
     /* DW IC timestamp when Response frame received. */
     uint64_t mResponse_rx_ts{0};
-
-    /* Current Final frame. */
-    FinalMsg mFinalFrame;
 
     /* millis() of when last ranging interval started. */
     uint32_t mLastRangingIntervalStartedMillis{0};
@@ -147,11 +154,9 @@ protected:
 
     /* micros() of when entered waiting for Response. */
     uint32_t mEnteredWaitRecvResponseMicros{0};
+
     /* micros() of when entered waiting for Final response. */
     uint32_t mEnteredWaitRecvFinalMicros{0};
-
-    /* DW IC SYS_TIME timestamp of when Initial frame was sent. */
-    uint64_t mInitial_tx_ts{0};
 
     HighFrequencyLoopRequester mHighFreqLoopRequester;
 };

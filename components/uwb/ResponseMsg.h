@@ -29,15 +29,15 @@ public:
 
 public:
     ResponseMsg();
-    ResponseMsg(const uint8_t* bytes, const size_t sizeBytes);
 
     virtual bool isValid() const;
     virtual void resetToDefault();
+    virtual bool fromIncomingBytes(const uint8_t* bytes, std::size_t sizeBytes);
 
     virtual bool setFunctionCodeAndData(const uint8_t fctCode, const uint8_t* data, const std::size_t dataSize);
     virtual bool getFunctionCodeAndData(uint8_t* fctCode, uint8_t*data, const std::size_t dataSize, std::size_t *actualDataSize) const;
 
-protected:
+private:
     static const char* TAG;
 };
 

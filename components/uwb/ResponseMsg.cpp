@@ -1,6 +1,6 @@
 #include "ResponseMsg.h"
 
- #include <cstring>
+#include <cstring>
 
 #include "esphome/core/log.h"
 
@@ -38,9 +38,6 @@ ResponseMsg::ResponseMsg()
     mBytes.assign((uint8_t*)&DEFAULT_RESPONSE_FRAME, (uint8_t*)&DEFAULT_RESPONSE_FRAME + ResponseMsg::FRAME_SIZE);
 }
 
-ResponseMsg::ResponseMsg(const uint8_t* bytes, const size_t sizeBytes)
-: UwbMessage(bytes, sizeBytes) {}
-
 bool ResponseMsg::isValid() const {
     // check size
     const auto & bytes = mBytes;
@@ -77,6 +74,16 @@ bool ResponseMsg::isValid() const {
 void ResponseMsg::resetToDefault() {
     mBytes.resize(ResponseMsg::FRAME_SIZE);
     mBytes.assign((uint8_t*)&DEFAULT_RESPONSE_FRAME, (uint8_t*)&DEFAULT_RESPONSE_FRAME + ResponseMsg::FRAME_SIZE);
+}
+
+bool ResponseMsg::fromIncomingBytes(const uint8_t* bytes, std::size_t sizeBytes) {
+    if (sizeBytes == ResponseMsg::FRAME_SIZE) {
+        mBytes.assign(bytes, bytes + sizeBytes);
+        return true;
+    } else {
+        ESP_LOGW(TAG, "Incoming ResponseMsg size mismatch: got %zu, exp %zu", sizeBytes, ResponseMsg::FRAME_SIZE);
+        return false;
+    }
 }
 
 bool ResponseMsg::setFunctionCodeAndData(const uint8_t fctCode, const uint8_t* data, const std::size_t dataSize) {

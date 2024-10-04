@@ -3,8 +3,9 @@
 #include <vector>
 
 #include "Dw3000Device.h"
-#include "ResponseMsg.h"
+#include "InitialMsg.h"
 #include "FinalMsg.h"
+#include "ResponseMsg.h"
 
 #include "esphome/core/helpers.h"
 
@@ -110,11 +111,14 @@ protected:
     /* DW IC timestamp when Intial frame received. */
     uint64_t mInitial_rx_ts{0};
 
-    /* Current Response frame. */
+    /* Current Initial Frame. */
+    InitialMsg mInitialFrame;
+
+    /* Current Response Frame. */
     ResponseMsg mResponseFrame;
 
-    /* Current Final response frame. */
-    FinalMsg mFinalResponseFrame;
+    /* Current Final Frame. */
+    FinalMsg mFinalFrame;
 
     /* micros() of when entered MYSTATE_WAIT_RECV_FINAL */
     uint64_t mEnteredWaitRecvFinalMicros{0};
