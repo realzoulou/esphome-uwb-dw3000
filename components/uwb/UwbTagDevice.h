@@ -6,8 +6,6 @@
 #include "FinalMsg.h"
 #include "ResponseMsg.h"
 
-#include "esphome/core/helpers.h"
-
 namespace esphome {
 namespace uwb {
 
@@ -158,7 +156,6 @@ protected:
     /* micros() of when entered waiting for Final response. */
     uint32_t mEnteredWaitRecvFinalMicros{0};
 
-    HighFrequencyLoopRequester mHighFreqLoopRequester;
 };
 
 }  // namespace uwb

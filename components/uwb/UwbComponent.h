@@ -35,6 +35,9 @@ const static uint32_t RANGING_INTERVAL_TIME_DEFAULT = 5000; /* every 5 s */
 /* Default maximum age of tag->anchor distance measurement until anchor is considered 'away'. */
 const static uint32_t MAX_AGE_ANCHOR_DISTANCE_DEFAULT = 30000; /* 30 s */
 
+/* Default time in [ms] after startup to turn LEDs off, 0 keeps LEDs on). */
+const static uint32_t LED_OFF_AFTER_DEFAULT = 0;
+
 class UwbComponent : public esphome::Component {
 
 public:
@@ -51,6 +54,7 @@ public:
     inline void setRole(const eUwbRole role) { mRole = role; };
     inline void setRangingInterval(const uint32_t rangingIntervalMs) { mRangingIntervalMs = rangingIntervalMs; }
     inline void setMaxAgeAnchorDistance(const uint32_t maxAgeAnchorDistanceMs) { mMaxAgeAnchorDistanceMs = maxAgeAnchorDistanceMs; }
+    inline void setLedsOffAfter(const uint32_t ledsOffAfterMs) { mLedsOffAfterMs = ledsOffAfterMs; }
     void addAnchor(
         // mandatory parameters
         const uint8_t id, const double latitude, const double longitude,
@@ -71,6 +75,7 @@ private:
     uint8_t mDeviceId{0};
     uint32_t mRangingIntervalMs{RANGING_INTERVAL_TIME_DEFAULT};
     uint32_t mMaxAgeAnchorDistanceMs{MAX_AGE_ANCHOR_DISTANCE_DEFAULT};
+    uint32_t mLedsOffAfterMs{LED_OFF_AFTER_DEFAULT};
     std::vector<std::shared_ptr<UwbAnchorData>> mAnchors;
     std::map<const uint8_t, const sensor::Sensor*> mDistanceSensors;
     esphome::sensor::Sensor * mLatitudeSensor{nullptr};

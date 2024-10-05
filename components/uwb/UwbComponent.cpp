@@ -39,6 +39,7 @@ void UwbComponent::setup() {
     }
     if (mDevice != nullptr) {
         mDevice->setDeviceId(mDeviceId);
+        mDevice->setLedsOffAfter(mLedsOffAfterMs);
         mDevice->setup();
     }
 }

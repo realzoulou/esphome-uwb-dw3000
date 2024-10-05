@@ -95,17 +95,38 @@ void Dw3000Device::setup() {
     /* Enable GPIO for external LNA or PA functionality. TX and RX GPIOs are handy to monitor DW3000's IC activity. */
     dwt_setlnapamode(DWT_LNA_ENABLE | DWT_PA_ENABLE);
 
-    /* Enabling LEDs here for debug so that for each TX the D1 LED will flash on DW3000 red eval-shield boards. */
-    // TODO make configurable as this increases power consumption
+    /* Enable LEDs. */
     dwt_setleds(DWT_LEDS_ENABLE | DWT_LEDS_INIT_BLINK);
 }
 
-void Dw3000Device::loop() {}
+void Dw3000Device::loop() {
+    if (!mHighFreqLoopRequester.is_high_frequency()) {
+        // do background work only when not running at high frequency (due to active ranging)
+        maybeTurnLedsOff();
+    }
+}
 
 uint8_t Dw3000Device::getNextTxSequenceNumberAndIncrease() {
     const uint8_t res = txSequenceNumber;
     txSequenceNumber++; // wraps around to 0 when 256
     return res;
+}
+
+void Dw3000Device::maybeTurnLedsOff() {
+    if (!mLedsCheckDone) {
+        const uint32_t uptimeMs = millis();
+        if (mLedsOffAfterMs > 0) {
+            if (uptimeMs >= mLedsOffAfterMs) {
+                dwt_setleds(DWT_LEDS_DISABLE);
+                mLedsCheckDone = true;
+                // not an error but make it as visible as possible
+                ESP_LOGE(TAG, "LEDs OFF (%" PRIu32 "ms)", uptimeMs);
+            } /* else: not yet ... */
+        } else {
+            // keep LEDs on
+            mLedsCheckDone = true;
+        }
+    }
 }
 
 }  // namespace uwb

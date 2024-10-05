@@ -21,6 +21,7 @@ CONF_UWB_DEVICE_ID = "device_id"
 CONF_UWB_ROLE = "role"
 CONF_UWB_ROLE_ANCHOR = "anchor"
 CONF_UWB_ROLE_TAG = "tag"
+CONF_UWB_LED_OFF_AFTER = "led_off_after_ms"
 CONF_TAG_ANCHORS = "anchors"
 CONF_TAG_RANGING_INTERVAL = "ranging_interval_ms"
 CONF_TAG_ANCHOR_AWAY_DURATION = "anchor_away_after_ms"
@@ -103,6 +104,7 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_TAG_ANCHOR_AWAY_DURATION): cv.int_range(min=1000),
         cv.Optional(CONF_TAG_MIN_DISTANCE_CHANGE): cv.float_range(min=0.01),
         cv.Optional(CONF_TAG_MAX_SPEED): cv.float_range(min=0.01),
+        cv.Optional(CONF_UWB_LED_OFF_AFTER): cv.int_range(min=0),
     }
 ).extend(cv.COMPONENT_SCHEMA)
 cv.only_with_arduino
@@ -117,7 +119,14 @@ async def to_code(config):
     role = config[CONF_UWB_ROLE]
     cg.add(var.setRole(role))
 
-    if (role == CONF_UWB_ROLE_TAG):
+    # optional key: CONF_LED_OFF_AFTER
+    try:
+        if ledOffDuration := config[CONF_UWB_LED_OFF_AFTER]:
+            cg.add(var.setLedsOffAfter(ledOffDuration))
+    except KeyError:
+        True
+
+    if role == CONF_UWB_ROLE_TAG:
         minDistanceChange = MIN_DISTANCE_CHANGE_DEFAULT
         maxSpeed = MAX_SPEED_DEFAULT
         # optional role keys

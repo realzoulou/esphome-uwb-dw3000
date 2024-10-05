@@ -4,6 +4,8 @@
 
 #include "UwbListener.h"
 
+#include "esphome/core/helpers.h"
+
 #include "dw3000_device_api.h"
 
 namespace esphome {
@@ -27,6 +29,10 @@ public:
     inline void setDeviceId(const uint8_t id) { mDeviceId = id; }
     inline uint8_t getDeviceId() const { return mDeviceId; }
 
+    inline void setLedsOffAfter(const uint32_t ledsOffAfterMs) { mLedsOffAfterMs = ledsOffAfterMs; }
+    inline uint32_t getLedsOffAfter() const { return mLedsOffAfterMs; }
+    virtual void maybeTurnLedsOff();
+
     static uint8_t getNextTxSequenceNumberAndIncrease();
     static dwt_config_t* getConfig();
 
@@ -39,6 +45,12 @@ protected:
     /* Total amount of TX errors.*/
     uint32_t mTxErrorCount{0};
 
+    /* Time in [ms] after startup to turn LEDs off, 0 keeps LEDs on). */
+    uint32_t mLedsOffAfterMs{0};
+    /* Remembers that maybeTurnLedsOff() has already done its job. */
+    bool mLedsCheckDone{false};
+
+    HighFrequencyLoopRequester mHighFreqLoopRequester;
 private:
     static uint8_t txSequenceNumber;
 };
