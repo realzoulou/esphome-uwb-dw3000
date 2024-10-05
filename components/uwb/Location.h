@@ -85,7 +85,8 @@ UT_VISIBILITY_PRIVATE:
     static double getHaversineDistance(const LatLong & from, const LatLong & to);
 
     /* solve a system of >= 2 linear equations using least squares. */
-    static bool solveLinearSystem_leastSquares(const uint32_t N_EQN, const double A[][2], const double b[], double & x, double & y);
+    static bool solveLinearSystem_leastSquares(const uint32_t N_EQN, const double A[][2], const double b[], double & x, double & y,
+                                               std::ostringstream & errMsg);
 
     /* find all distinct combinations of two anchors from given set of >= 2 anchors.
        distinct means that no combination of two anchors shall appear >1 in the output.

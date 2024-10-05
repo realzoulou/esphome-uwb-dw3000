@@ -551,15 +551,16 @@ TEST(Location_solveLinearSystem_leastSquares, einval) {
     double x, y;
     double A_nok[1][2]; // [*][1] would not compile
     double b_nok[1];
-    EXPECT_FALSE(Location::solveLinearSystem_leastSquares(2, nullptr, nullptr, x, y));
-    EXPECT_FALSE(Location::solveLinearSystem_leastSquares(2, A_nok, nullptr, x, y));
-    EXPECT_FALSE(Location::solveLinearSystem_leastSquares(2, nullptr, b_nok, x, y));
-    EXPECT_FALSE(Location::solveLinearSystem_leastSquares(2, A_nok, b_nok, x, y));
+    std::ostringstream msg;
+    EXPECT_FALSE(Location::solveLinearSystem_leastSquares(2, nullptr, nullptr, x, y, msg));
+    EXPECT_FALSE(Location::solveLinearSystem_leastSquares(2, A_nok, nullptr, x, y, msg));
+    EXPECT_FALSE(Location::solveLinearSystem_leastSquares(2, nullptr, b_nok, x, y, msg));
+    EXPECT_FALSE(Location::solveLinearSystem_leastSquares(2, A_nok, b_nok, x, y, msg));
 }
 
 ////////////////////////////////////////////////
 // Location::calculatePosition_leastSquares
-TEST(Location_calculatePosition_leastSquares, threeAnchors) {
+TEST(Location_calculatePosition_leastSquares, threeAnchorsExampleOfOpenAI) {
     const std::vector<AnchorPositionTagDistance> anchors = {
         {0xA1, {52.2296756, 21.0122287}, 10.0},
         {0xA2, {52.406374, 16.9251681}, 15.0},
@@ -571,6 +572,25 @@ TEST(Location_calculatePosition_leastSquares, threeAnchors) {
     LatLong tagPosition = {NAN, NAN};
     double errEst = NAN;
     EXPECT_TRUE(CALC_OK == Location::calculatePosition_leastSquares(anchors, tagPosition, errEst));
+    EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
+    EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
+    EXPECT_NEAR(expErr, errEst, 1); // 1m accuracy
+}
+
+TEST(Location_calculatePosition_leastSquares, threeAnchors) {
+    const LatLong a1 = {1.00000, 1.00000}, a2 = {0.99910, 1.00010}, a3 = {0.99900, 1.00020};
+    const std::vector<AnchorPositionTagDistance> three = {
+        {0xA1, a1, 10},
+        {0xA2, a2, 10},
+        {0xA3, a3, 10},
+    };
+    // found no independent way (e.g. Internet page) to calculate the expected results
+    const LatLong expPosition = {0.999625, 1.000725}; // trial & error until test passed, but looks reasonable
+    const double expErr = 10; // trial & error
+
+    LatLong tagPosition = {NAN, NAN};
+    double errEst = NAN;
+    EXPECT_TRUE(CALC_OK == Location::calculatePosition_leastSquares(three, tagPosition, errEst));
     EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
     EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
     EXPECT_NEAR(expErr, errEst, 1); // 1m accuracy

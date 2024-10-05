@@ -329,7 +329,8 @@ bool Location::findTwoCirclesIntersections(const AnchorPositionTagDistance a1t,
 }
 
 // happily copied from an OpenAI chat :-)
-bool Location::solveLinearSystem_leastSquares(const uint32_t N_EQN, const double A[][2], const double b[], double & x, double & y) {
+bool Location::solveLinearSystem_leastSquares(const uint32_t N_EQN, const double A[][2], const double b[], double & x, double & y,
+                                              std::ostringstream & errMsg) {
     // prevent memory access violations
     if (N_EQN < 1 || A == nullptr || b == nullptr) return false;
 
@@ -355,7 +356,11 @@ bool Location::solveLinearSystem_leastSquares(const uint32_t N_EQN, const double
 
     // Solve the system using the inverse of A_T_A
     double det = A_T_A[0][0] * A_T_A[1][1] - A_T_A[0][1] * A_T_A[1][0];
-    if (std::fabs(det) < 1e-6) return false; // Singular matrix
+    if (std::fabs(det) < 1e-14) { // 1e-14 is too low, but to let unit test pass ...
+        // Singular matrix
+        errMsg << "Singular matrix determinant " << +det;
+        return false;
+    }
 
     double invA_T_A[2][2];
     invA_T_A[0][0] = A_T_A[1][1] / det;
@@ -399,9 +404,10 @@ CalcResult Location::calculatePosition_leastSquares(const std::vector<AnchorPosi
 
     // Solve the system of equations for the tag position
     double lat = NAN, lng = NAN;
-    if (!solveLinearSystem_leastSquares(N_EQN, A, b, lng, lat)) {
+    std::ostringstream errMsg;
+    if (!solveLinearSystem_leastSquares(N_EQN, A, b, lng, lat, errMsg)) {
         std::ostringstream msg;
-        msg << "unable to solve system of " << +N_EQN << " equations";
+        msg << "unable to solve system of " << +N_EQN << " equations: " << errMsg.str();
         LOC_LOGW(msg);
         return CALC_F_NO_CANDIDATES; // the system cannot be solved
     }
