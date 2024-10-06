@@ -6,16 +6,18 @@ from esphome.const import (
     CONF_LATITUDE,
     CONF_LONGITUDE,
     DEVICE_CLASS_DISTANCE,
+    DEVICE_CLASS_EMPTY,
     STATE_CLASS_MEASUREMENT,
     UNIT_DEGREES,
+    UNIT_EMPTY,
     UNIT_METER,
-
 )
 from . import UWB_COMPONENT, CONF_UWB_ID, CONF_UWB_DEVICE_ID
 
 AUTO_LOAD = ["uwb"]
 
 CONF_UWB_POSITION_ERROR_ESTIMATE = "error_estimate"
+CONF_UWB_ANCHORS_IN_USE = "anchors_in_use"
 
 CONFIG_SCHEMA = cv.Schema(
     {
@@ -48,6 +50,13 @@ CONFIG_SCHEMA = cv.Schema(
             device_class=DEVICE_CLASS_DISTANCE,
             state_class=STATE_CLASS_MEASUREMENT,
         ),
+        cv.Optional(CONF_UWB_ANCHORS_IN_USE): sensor.sensor_schema(
+            unit_of_measurement=UNIT_EMPTY,
+            icon="mdi:numeric",
+            accuracy_decimals=0,
+            device_class=DEVICE_CLASS_EMPTY,
+            state_class=STATE_CLASS_MEASUREMENT,
+        ),
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -66,3 +75,6 @@ async def to_code(config):
     if err_est_config := config.get(CONF_UWB_POSITION_ERROR_ESTIMATE):
         sens = await sensor.new_sensor(err_est_config)
         cg.add(uwb.addErrorEstimateSensor(sens))
+    if anchors_in_use := config.get(CONF_UWB_ANCHORS_IN_USE):
+        sens = await sensor.new_sensor(anchors_in_use)
+        cg.add(uwb.addAnchorsInUseSensor(sens))

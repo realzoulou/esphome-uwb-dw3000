@@ -28,7 +28,8 @@ UwbTagDevice::UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & a
                            const uint32_t maxAgeAnchorDistanceMs,
                            sensor::Sensor* latitudeSensor,
                            sensor::Sensor* longitudeSensor,
-                           sensor::Sensor* locationErrorEstimateSensor)
+                           sensor::Sensor* locationErrorEstimateSensor,
+                           sensor::Sensor* anchorsInUseSensor)
 : RX_BUF_LEN(std::max(ResponseMsg::FRAME_SIZE, FinalMsg::FRAME_SIZE)),
   RANGING_INTERVAL_MS(rangingIntervalMs),
   MAX_AGE_ANCHOR_DISTANCE_MS(maxAgeAnchorDistanceMs)
@@ -40,6 +41,7 @@ UwbTagDevice::UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & a
     mLatitudeSensor = latitudeSensor;
     mLongitudeSensor = longitudeSensor;
     mLocationErrorEstimateSensor = locationErrorEstimateSensor;
+    mAnchorsInUseSensor = anchorsInUseSensor;
 }
 
 UwbTagDevice::~UwbTagDevice() {
@@ -600,7 +602,7 @@ void UwbTagDevice::calculateLocation() {
                     ESP_LOGW(TAG, "position %.7f,%.7f errEst %.2fm",
                         tagPosition.latitude, tagPosition.longitude, errorEstimateMeters);
 
-                    // report location and error estimate
+                    // report sensors
                     if (mLatitudeSensor != nullptr) {
                         mLatitudeSensor->publish_state(tagPosition.latitude);
                     }
@@ -609,6 +611,9 @@ void UwbTagDevice::calculateLocation() {
                     }
                     if (mLocationErrorEstimateSensor != nullptr) {
                         mLocationErrorEstimateSensor->publish_state(errorEstimateMeters);
+                    }
+                    if (mAnchorsInUseSensor != nullptr) {
+                        mAnchorsInUseSensor->publish_state((float)anchorNum);
                     }
                 } else {
                     ESP_LOGW(TAG, "calculated position invalid: %.7f,%.7f errEst %.2fm",

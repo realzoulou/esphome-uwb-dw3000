@@ -67,6 +67,7 @@ public:
     void addLatitudeSensor(const sensor::Sensor* sensor);
     void addLongitudeSensor(const sensor::Sensor* sensor);
     void addErrorEstimateSensor(const sensor::Sensor* sensor);
+    void addAnchorsInUseSensor(const sensor::Sensor* sensor);
 
 private:
     static std::string roleToString(const eUwbRole role);
@@ -84,6 +85,7 @@ private:
     std::vector<std::shared_ptr<UwbAnchorData>> mAnchors;
     uint32_t mRangingIntervalMs{RANGING_INTERVAL_TIME_DEFAULT};
     uint32_t mMaxAgeAnchorDistanceMs{MAX_AGE_ANCHOR_DISTANCE_DEFAULT};
+    sensor::Sensor * mAnchorsInUseSensor{nullptr};
     // data only for anchor
     double mAnchorLatitude{NAN};
     double mAnchorLongitude{NAN};

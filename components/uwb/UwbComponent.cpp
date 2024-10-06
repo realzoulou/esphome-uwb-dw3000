@@ -38,7 +38,8 @@ void UwbComponent::setup() {
                 }
             }
             mDevice = new UwbTagDevice(mAnchors, mRangingIntervalMs, mMaxAgeAnchorDistanceMs,
-                                       mLatitudeSensor, mLongitudeSensor, mLocationErrorEstimateSensor);
+                                       mLatitudeSensor, mLongitudeSensor,
+                                       mLocationErrorEstimateSensor, mAnchorsInUseSensor);
         }
         break;
         default:
@@ -86,6 +87,10 @@ void UwbComponent::addLongitudeSensor(const sensor::Sensor* sensor) {
 
 void UwbComponent::addErrorEstimateSensor(const sensor::Sensor* sensor) {
     mLocationErrorEstimateSensor = const_cast<sensor::Sensor*>(sensor);
+}
+
+void UwbComponent::addAnchorsInUseSensor(const sensor::Sensor* sensor) {
+    mAnchorsInUseSensor = const_cast<sensor::Sensor*>(sensor);
 }
 
 std::string UwbComponent::roleToString(const eUwbRole role) {

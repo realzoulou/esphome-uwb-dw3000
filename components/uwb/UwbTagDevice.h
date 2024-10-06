@@ -72,7 +72,8 @@ class UwbTagDevice : public Dw3000Device {
 public:
     UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & anchors,
                  const uint32_t rangingIntervalMs, const uint32_t maxAgeAnchorDistanceMs,
-                 sensor::Sensor* latitudeSensor, sensor::Sensor* longitudeSensor, sensor::Sensor* locationErrorEstimateSensor);
+                 sensor::Sensor* latitudeSensor, sensor::Sensor* longitudeSensor,
+                 sensor::Sensor* locationErrorEstimateSensor, sensor::Sensor* anchorsInUseSensor);
 
     ~UwbTagDevice();
 
@@ -120,7 +121,8 @@ protected:
     /* Sensors. */
     sensor::Sensor *mLatitudeSensor,
                    *mLongitudeSensor,
-                   *mLocationErrorEstimateSensor;
+                   *mLocationErrorEstimateSensor,
+                   *mAnchorsInUseSensor;
 
     eMyState prevState{MYSTATE_UNKNOWN};
     eMyState currState{MYSTATE_UNKNOWN};

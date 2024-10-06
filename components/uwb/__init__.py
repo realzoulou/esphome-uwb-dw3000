@@ -35,6 +35,8 @@ UWB_ROLE = {
 }
 MIN_DISTANCE_CHANGE_DEFAULT : float = uwb_ns.MIN_DISTANCE_CHANGE_DEFAULT
 MAX_SPEED_DEFAULT           : float = uwb_ns.MAX_SPEED_DEFAULT
+RANGING_INTERVAL_DEFAULT    : float = uwb_ns.RANGING_INTERVAL_TIME_DEFAULT
+ANCHOR_AWAY_DURATION_DEFAULT: float = uwb_ns.MAX_AGE_ANCHOR_DISTANCE_DEFAULT
 
 # BEGIN: parse_latlon and LAT_LON_REGEX copied from esphome/components/sun/__init__.py
 # Parses sexagesimal values like 22°57′7″S
@@ -129,30 +131,37 @@ async def to_code(config):
     if role == CONF_UWB_ROLE_TAG:
         minDistanceChange = MIN_DISTANCE_CHANGE_DEFAULT
         maxSpeed = MAX_SPEED_DEFAULT
-        # optional role keys
+        ranging_interval = RANGING_INTERVAL_DEFAULT
+        anchor_away_duration = ANCHOR_AWAY_DURATION_DEFAULT
+        # optional tag keys
         try:
             if config[CONF_TAG_MIN_DISTANCE_CHANGE]:
                 minDistanceChange = config[CONF_TAG_MIN_DISTANCE_CHANGE]
+        finally: True
+        try:
             if config[CONF_TAG_MAX_SPEED]:
                 maxSpeed = config[CONF_TAG_MAX_SPEED]
+        finally: True
+        try:
             if ranging_interval := config[CONF_TAG_RANGING_INTERVAL]:
                 cg.add(var.setRangingInterval(ranging_interval))
+        finally: True
+        try:
             if anchor_away_duration := config[CONF_TAG_ANCHOR_AWAY_DURATION]:
                 cg.add(var.setMaxAgeAnchorDistance(anchor_away_duration))
-        except KeyError:
-            True
+        finally: True
+
         for anchor in config[CONF_TAG_ANCHORS]:
             cg.add(var.addAnchor(anchor[CONF_UWB_DEVICE_ID], anchor[CONF_LATITUDE], anchor[CONF_LONGITUDE],
                                  minDistanceChange, maxSpeed))
 
     if role == CONF_UWB_ROLE_ANCHOR:
-        try:
+        try: # both latitude and longitude, or none
             latitude = config[CONF_LATITUDE]
             longitude = config[CONF_LONGITUDE]
             if latitude and longitude:
                 cg.add(var.setAnchorPosition(latitude, longitude))
-        except KeyError:
-            True
+        finally: True
 
     # ----- General compiler settings
     # treat warnings as error, abort compilation on the first error, check printf format and arguments
