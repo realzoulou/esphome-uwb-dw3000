@@ -87,14 +87,14 @@ ANCHOR_TAGS_SCHEMA = cv.Schema(
     }
 )
 
-def validate_tag_anchors(value):
-    return cv.validate(value, TAG_ANCHORS_SCHEMA)
-
 CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(): cv.declare_id(UWB_COMPONENT),
         cv.Required(CONF_UWB_ROLE): cv.enum(UWB_ROLE, lower=True),
         cv.Required(CONF_UWB_DEVICE_ID): cv.hex_int_range(min=0, max=254),
+        # options for role=anchor
+        cv.Optional(CONF_LATITUDE): cv.All(parse_latlon, cv.float_range(min=-90, max=90)),
+        cv.Optional(CONF_LONGITUDE): cv.All(parse_latlon, cv.float_range(min=-180, max=180)),
         # options for role=tag
         cv.Optional(CONF_TAG_ANCHORS): cv.All(
             cv.ensure_list(TAG_ANCHORS_SCHEMA),
@@ -144,6 +144,15 @@ async def to_code(config):
         for anchor in config[CONF_TAG_ANCHORS]:
             cg.add(var.addAnchor(anchor[CONF_UWB_DEVICE_ID], anchor[CONF_LATITUDE], anchor[CONF_LONGITUDE],
                                  minDistanceChange, maxSpeed))
+
+    if role == CONF_UWB_ROLE_ANCHOR:
+        try:
+            latitude = config[CONF_LATITUDE]
+            longitude = config[CONF_LONGITUDE]
+            if latitude and longitude:
+                cg.add(var.setAnchorPosition(latitude, longitude))
+        except KeyError:
+            True
 
     # ----- General compiler settings
     # treat warnings as error, abort compilation on the first error, check printf format and arguments

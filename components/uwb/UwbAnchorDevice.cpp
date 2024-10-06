@@ -16,8 +16,13 @@ namespace uwb {
 const char* UwbAnchorDevice::TAG = "anchor";
 const char* UwbAnchorDevice::STATE_TAG = "anchor_STATE";
 
-UwbAnchorDevice::UwbAnchorDevice()
-: RX_BUF_LEN(std::max(InitialMsg::FRAME_SIZE, FinalMsg::FRAME_SIZE)) {
+UwbAnchorDevice::UwbAnchorDevice(const double latitude, const double longitude,
+                                 const sensor::Sensor* latitudeSensor,
+                                 const sensor::Sensor* longitudeSensor,
+                                 const sensor::Sensor* distSensor)
+: mLatitude(latitude), mLongitude(longitude)
+, mLatitudeSensor(latitudeSensor), mLongitudeSensor(longitudeSensor), mDistSensor(distSensor)
+, RX_BUF_LEN(std::max(InitialMsg::FRAME_SIZE, FinalMsg::FRAME_SIZE)) {
     rx_buffer = new uint8_t(RX_BUF_LEN);
 }
 UwbAnchorDevice::~UwbAnchorDevice() {
@@ -34,6 +39,11 @@ void UwbAnchorDevice::loop() {
     Dw3000Device::loop();
 
     do_ranging();
+
+    if (!mHighFreqLoopRequester.is_high_frequency()) {
+        // do background work only when not running at high frequency (due to active ranging)
+        maybe_reportPosition();
+    }
 }
 
 void UwbAnchorDevice::setMyState(const eMyState newState) {
@@ -82,6 +92,21 @@ void UwbAnchorDevice::setMyState(const eMyState newState) {
                 break;
         }
 #endif
+    }
+}
+
+void UwbAnchorDevice::maybe_reportPosition() {
+    const uint32_t uptime = millis();
+    // every 30s report latitude and longitude
+    if ((uptime - mLastPositionReportedMs) >= 30000U) {
+        mLastPositionReportedMs = uptime;
+
+        if (mLatitudeSensor != nullptr) {
+            (const_cast<sensor::Sensor*>(mLatitudeSensor))->publish_state(mLatitude);
+        }
+        if (mLongitudeSensor != nullptr) {
+            (const_cast<sensor::Sensor*>(mLongitudeSensor))->publish_state(mLongitude);
+        }
     }
 }
 
@@ -382,6 +407,10 @@ void UwbAnchorDevice::recvdFrameFinal() {
         /* Display computed distance. */
         ESP_LOGW(TAG, "DIST tag 0x%02X: %.2fm", otherDeviceId, distance);
 
+        /* Report distance sensor. */
+        if (mDistSensor != nullptr) {
+            (const_cast<sensor::Sensor*>(mDistSensor))->publish_state(distance);
+        }
     } else {
         setMyState(MYSTATE_RECVD_FRAME_INVALID_FINAL);
     }

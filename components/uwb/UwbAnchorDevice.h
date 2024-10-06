@@ -7,6 +7,8 @@
 #include "FinalMsg.h"
 #include "ResponseMsg.h"
 
+#include "esphome/components/sensor/sensor.h"
+
 namespace esphome {
 namespace uwb {
 
@@ -63,7 +65,10 @@ public:
     static const uint32_t WAIT_FINAL_RX_TIMEOUT_MS = 100;
 
 public:
-    UwbAnchorDevice();
+    UwbAnchorDevice(const double latitude, const double longitude,
+                    const sensor::Sensor* latitudeSensor,
+                    const sensor::Sensor* longitudeSensor,
+                    const sensor::Sensor* distSensor);
     ~UwbAnchorDevice();
 
     virtual void setup();
@@ -73,6 +78,7 @@ protected:
     virtual void setMyState(const eMyState state);
 
     virtual void do_ranging();
+    virtual void maybe_reportPosition();
 
     virtual void prepareWaitRecvInitial();
     virtual void waitRecvInitial();
@@ -92,12 +98,24 @@ protected:
     static const char* TAG;
     static const char* STATE_TAG;
 
+    /* fixed anchor coordinates, NAN if not configured in YAML */
+    const double mLatitude;
+    const double mLongitude;
+
+    /* Sensors, nullptr if not configured in YAML. */
+    const sensor::Sensor* mLatitudeSensor;
+    const sensor::Sensor* mLongitudeSensor;
+    const sensor::Sensor* mDistSensor;
+
     uint8_t mCurrentTagId{0xFF};
 
     /* Last measured distance. */
     double mLastDistance{0.0};
     /* millis() of when last distance was updated. */
     uint32_t mLastDistanceUpdatedMs{0};
+
+    /* millis() of when position was last reported. */
+    uint32_t mLastPositionReportedMs{0};
 
     eMyState prevState{MYSTATE_UNKNOWN};
     eMyState currState{MYSTATE_UNKNOWN};

@@ -16,9 +16,19 @@ UwbComponent::UwbComponent() {}
 void UwbComponent::setup() {
     switch (mRole) {
         case UWB_ROLE_ANCHOR:
-            mDevice = new UwbAnchorDevice();
-            break;
+        {
+            const sensor::Sensor *distSensor;
+            const auto search = mDistanceSensors.find(mDeviceId);
+            if (search != mDistanceSensors.cend()) {
+                distSensor = search->second;
+            } else {
+                distSensor = nullptr;
+            }
+            mDevice = new UwbAnchorDevice(mAnchorLatitude, mAnchorLongitude, mLatitudeSensor, mLongitudeSensor, distSensor);
+        }
+        break;
         case UWB_ROLE_TAG:
+        {
             // assign distance sensor to Anchors, if configured in YAML
             for (const auto sensor : mDistanceSensors) {
                 for (auto anchorConfig : mAnchors) {
@@ -29,14 +39,16 @@ void UwbComponent::setup() {
             }
             mDevice = new UwbTagDevice(mAnchors, mRangingIntervalMs, mMaxAgeAnchorDistanceMs,
                                        mLatitudeSensor, mLongitudeSensor, mLocationErrorEstimateSensor);
-             // Anchors and Sensors no longer needed
-            mAnchors.clear();
-            mDistanceSensors.clear();
-            break;
+        }
+        break;
         default:
             ESP_LOGE(TAG, "unknown role %i", mRole);
             break;
     }
+    // Anchors and Sensors no longer needed
+    mAnchors.clear();
+    mDistanceSensors.clear();
+
     if (mDevice != nullptr) {
         mDevice->setDeviceId(mDeviceId);
         mDevice->setLedsOffAfter(mLedsOffAfterMs);

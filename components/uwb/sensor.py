@@ -5,7 +5,8 @@ from esphome.const import (
     CONF_DISTANCE,
     CONF_LATITUDE,
     CONF_LONGITUDE,
-    ICON_SIGNAL_DISTANCE_VARIANT,
+    DEVICE_CLASS_DISTANCE,
+    STATE_CLASS_MEASUREMENT,
     UNIT_DEGREES,
     UNIT_METER,
 
@@ -21,8 +22,10 @@ CONFIG_SCHEMA = cv.Schema(
         cv.GenerateID(CONF_UWB_ID): cv.use_id(UWB_COMPONENT),
         cv.Optional(CONF_DISTANCE): sensor.sensor_schema(
             unit_of_measurement=UNIT_METER,
-            icon=ICON_SIGNAL_DISTANCE_VARIANT,
+            icon="mdi:map-marker-radius-outline",
             accuracy_decimals=2,
+            device_class=DEVICE_CLASS_DISTANCE,
+            state_class=STATE_CLASS_MEASUREMENT,
         ).extend(
             {
                 cv.Required(CONF_UWB_DEVICE_ID): cv.hex_int_range(min=0, max=254),
@@ -30,16 +33,20 @@ CONFIG_SCHEMA = cv.Schema(
         ),
         cv.Optional(CONF_LATITUDE): sensor.sensor_schema(
             unit_of_measurement=UNIT_DEGREES,
+            icon="mdi:map-marker",
             accuracy_decimals=8,
         ),
         cv.Optional(CONF_LONGITUDE): sensor.sensor_schema(
             unit_of_measurement=UNIT_DEGREES,
+            icon="mdi:map-marker",
             accuracy_decimals=8,
         ),
         cv.Optional(CONF_UWB_POSITION_ERROR_ESTIMATE): sensor.sensor_schema(
             unit_of_measurement=UNIT_METER,
-            icon=ICON_SIGNAL_DISTANCE_VARIANT,
+            icon="mdi:map-marker-radius-outline",
             accuracy_decimals=2,
+            device_class=DEVICE_CLASS_DISTANCE,
+            state_class=STATE_CLASS_MEASUREMENT,
         ),
     }
 ).extend(cv.COMPONENT_SCHEMA)

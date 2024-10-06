@@ -25,7 +25,7 @@ typedef enum eUwbRole {
    Avoids to report small changes in distance (and location) in every ranging cycle. */
 const static double MIN_DISTANCE_CHANGE_DEFAULT = 0.05; /* 5 cm */
 
-/* Default maximum speed in [m/s] that a tag can change its location typically. 
+/* Default maximum speed in [m/s] that a tag can change its location typically.
    Avoids to report outliers. */
 const static double MAX_SPEED_DEFAULT           = 1.0;  /* 1 m/s */
 
@@ -55,6 +55,7 @@ public:
     inline void setRangingInterval(const uint32_t rangingIntervalMs) { mRangingIntervalMs = rangingIntervalMs; }
     inline void setMaxAgeAnchorDistance(const uint32_t maxAgeAnchorDistanceMs) { mMaxAgeAnchorDistanceMs = maxAgeAnchorDistanceMs; }
     inline void setLedsOffAfter(const uint32_t ledsOffAfterMs) { mLedsOffAfterMs = ledsOffAfterMs; }
+    inline void setAnchorPosition(const double latitude, const double longitude) { mAnchorLatitude = latitude; mAnchorLongitude = longitude; }
     void addAnchor(
         // mandatory parameters
         const uint8_t id, const double latitude, const double longitude,
@@ -71,17 +72,22 @@ private:
     static std::string roleToString(const eUwbRole role);
 
     static const char* TAG;
+    // data for both tag and anchor
+    Dw3000Device* mDevice{nullptr};
     eUwbRole mRole{UWB_ROLE_UNKNOWN};
     uint8_t mDeviceId{0};
+    uint32_t mLedsOffAfterMs{LED_OFF_AFTER_DEFAULT};
+    sensor::Sensor * mLatitudeSensor{nullptr};
+    sensor::Sensor * mLongitudeSensor{nullptr};
+    std::map<const uint8_t, const sensor::Sensor*> mDistanceSensors;
+    // data only for tag
+    std::vector<std::shared_ptr<UwbAnchorData>> mAnchors;
     uint32_t mRangingIntervalMs{RANGING_INTERVAL_TIME_DEFAULT};
     uint32_t mMaxAgeAnchorDistanceMs{MAX_AGE_ANCHOR_DISTANCE_DEFAULT};
-    uint32_t mLedsOffAfterMs{LED_OFF_AFTER_DEFAULT};
-    std::vector<std::shared_ptr<UwbAnchorData>> mAnchors;
-    std::map<const uint8_t, const sensor::Sensor*> mDistanceSensors;
-    esphome::sensor::Sensor * mLatitudeSensor{nullptr};
-    esphome::sensor::Sensor * mLongitudeSensor{nullptr};
-    esphome::sensor::Sensor * mLocationErrorEstimateSensor{nullptr};
-    Dw3000Device* mDevice{nullptr};
+    // data only for anchor
+    double mAnchorLatitude{NAN};
+    double mAnchorLongitude{NAN};
+    sensor::Sensor * mLocationErrorEstimateSensor{nullptr};
 };
 
 }  // namespace uwb
