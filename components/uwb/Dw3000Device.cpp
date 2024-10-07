@@ -103,6 +103,7 @@ void Dw3000Device::loop() {
     if (!mHighFreqLoopRequester.is_high_frequency()) {
         // do background work only when not running at high frequency (due to active ranging)
         maybeTurnLedsOff();
+        maybeReportVoltageAndTemperature();
     }
 }
 
@@ -125,6 +126,32 @@ void Dw3000Device::maybeTurnLedsOff() {
         } else {
             // keep LEDs on
             mLedsCheckDone = true;
+        }
+    }
+}
+
+void Dw3000Device::maybeReportVoltageAndTemperature() {
+    if (mVoltageSensor != nullptr || mTemperatureSensor != nullptr) {
+        const uint32_t uptimeMs = millis();
+        if (  (mVoltAndTempLastReportedMs == 0) // never reported so far
+           || (uptimeMs - mVoltAndTempLastReportedMs) >= 10000U) { // every 10s
+            mVoltAndTempLastReportedMs = uptimeMs;
+
+            // Temperature and voltage reading
+            const uint16_t temperatureAndVbattRaw = dwt_readtempvbat();
+            // The low 8-bits are voltage value, and the high 8-bits are temperature value
+            const uint8_t temperatureRaw = (uint8_t) ((temperatureAndVbattRaw & 0xFF00) >> 8);
+            const uint8_t voltageRaw     = (uint8_t) (temperatureAndVbattRaw & 0x00FF);
+            // convert to human readable values
+            const float temperatureDegrees = dwt_convertrawtemperature(temperatureRaw);
+            const float voltageVolt        = dwt_convertrawvoltage(voltageRaw);
+            ESP_LOGW(TAG, "IC temp %.2f°C volt %.2fV", temperatureDegrees, voltageVolt);
+            if (mTemperatureSensor != nullptr) {
+                mTemperatureSensor->publish_state(temperatureDegrees);
+            }
+            if (mVoltageSensor != nullptr) {
+                mVoltageSensor->publish_state(voltageVolt);
+            }
         }
     }
 }

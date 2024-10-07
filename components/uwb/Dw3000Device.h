@@ -5,6 +5,7 @@
 #include "UwbListener.h"
 
 #include "esphome/core/helpers.h"
+#include "esphome/components/sensor/sensor.h"
 
 #include "dw3000_device_api.h"
 
@@ -31,7 +32,11 @@ public:
 
     inline void setLedsOffAfter(const uint32_t ledsOffAfterMs) { mLedsOffAfterMs = ledsOffAfterMs; }
     inline uint32_t getLedsOffAfter() const { return mLedsOffAfterMs; }
+    inline void setVoltageSensor(sensor::Sensor* sensor) { mVoltageSensor = sensor; }
+    inline void setTemperatureSensor(sensor::Sensor* sensor) { mTemperatureSensor = sensor; }
+
     virtual void maybeTurnLedsOff();
+    virtual void maybeReportVoltageAndTemperature();
 
     static uint8_t getNextTxSequenceNumberAndIncrease();
     static dwt_config_t* getConfig();
@@ -49,6 +54,11 @@ protected:
     uint32_t mLedsOffAfterMs{0};
     /* Remembers that maybeTurnLedsOff() has already done its job. */
     bool mLedsCheckDone{false};
+
+    sensor::Sensor * mVoltageSensor{nullptr};
+    sensor::Sensor * mTemperatureSensor{nullptr};
+    /* last millis() when voltage and temperature sensor value reported. */
+    uint32_t mVoltAndTempLastReportedMs{0};
 
     HighFrequencyLoopRequester mHighFreqLoopRequester;
 private:

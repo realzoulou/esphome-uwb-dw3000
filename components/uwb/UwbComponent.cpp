@@ -46,13 +46,15 @@ void UwbComponent::setup() {
             ESP_LOGE(TAG, "unknown role %i", mRole);
             break;
     }
-    // Anchors and Sensors no longer needed
+    // Anchors and Distance sensors no longer needed
     mAnchors.clear();
     mDistanceSensors.clear();
 
     if (mDevice != nullptr) {
         mDevice->setDeviceId(mDeviceId);
         mDevice->setLedsOffAfter(mLedsOffAfterMs);
+        mDevice->setVoltageSensor(mVoltageSensor);
+        mDevice->setTemperatureSensor(mTemperatureSensor);
         mDevice->setup();
     }
 }
@@ -91,6 +93,14 @@ void UwbComponent::addErrorEstimateSensor(const sensor::Sensor* sensor) {
 
 void UwbComponent::addAnchorsInUseSensor(const sensor::Sensor* sensor) {
     mAnchorsInUseSensor = const_cast<sensor::Sensor*>(sensor);
+}
+
+void UwbComponent::setVoltageSensor(const sensor::Sensor* sensor) {
+    mVoltageSensor = const_cast<sensor::Sensor*>(sensor);
+}
+
+void UwbComponent::setTemperatureSensor(const sensor::Sensor* sensor) {
+    mTemperatureSensor = const_cast<sensor::Sensor*>(sensor);
 }
 
 std::string UwbComponent::roleToString(const eUwbRole role) {

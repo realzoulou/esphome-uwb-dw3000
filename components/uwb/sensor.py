@@ -5,12 +5,19 @@ from esphome.const import (
     CONF_DISTANCE,
     CONF_LATITUDE,
     CONF_LONGITUDE,
+    CONF_TEMPERATURE,
+    CONF_VOLTAGE,
     DEVICE_CLASS_DISTANCE,
     DEVICE_CLASS_EMPTY,
+    DEVICE_CLASS_TEMPERATURE,
+    DEVICE_CLASS_VOLTAGE,
+    ICON_THERMOMETER,
     STATE_CLASS_MEASUREMENT,
+    UNIT_CELSIUS,
     UNIT_DEGREES,
     UNIT_EMPTY,
     UNIT_METER,
+    UNIT_VOLT,
 )
 from . import UWB_COMPONENT, CONF_UWB_ID, CONF_UWB_DEVICE_ID
 
@@ -57,6 +64,20 @@ CONFIG_SCHEMA = cv.Schema(
             device_class=DEVICE_CLASS_EMPTY,
             state_class=STATE_CLASS_MEASUREMENT,
         ),
+        cv.Optional(CONF_VOLTAGE): sensor.sensor_schema(
+            unit_of_measurement=UNIT_VOLT,
+            icon="mdi:sine-wave",
+            accuracy_decimals=2,
+            device_class=DEVICE_CLASS_VOLTAGE,
+            state_class=STATE_CLASS_MEASUREMENT,
+        ),
+        cv.Optional(CONF_TEMPERATURE): sensor.sensor_schema(
+            unit_of_measurement=UNIT_CELSIUS,
+            icon=ICON_THERMOMETER,
+            accuracy_decimals=2,
+            device_class=DEVICE_CLASS_TEMPERATURE,
+            state_class=STATE_CLASS_MEASUREMENT,
+        ),
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -75,6 +96,12 @@ async def to_code(config):
     if err_est_config := config.get(CONF_UWB_POSITION_ERROR_ESTIMATE):
         sens = await sensor.new_sensor(err_est_config)
         cg.add(uwb.addErrorEstimateSensor(sens))
-    if anchors_in_use := config.get(CONF_UWB_ANCHORS_IN_USE):
-        sens = await sensor.new_sensor(anchors_in_use)
+    if anchors_in_use_config := config.get(CONF_UWB_ANCHORS_IN_USE):
+        sens = await sensor.new_sensor(anchors_in_use_config)
         cg.add(uwb.addAnchorsInUseSensor(sens))
+    if voltage_config := config.get(CONF_VOLTAGE):
+        sens = await sensor.new_sensor(voltage_config)
+        cg.add(uwb.setVoltageSensor(sens))
+    if temperature_config := config.get(CONF_TEMPERATURE):
+        sens = await sensor.new_sensor(temperature_config)
+        cg.add(uwb.setTemperatureSensor(sens))

@@ -68,6 +68,8 @@ public:
     void addLongitudeSensor(const sensor::Sensor* sensor);
     void addErrorEstimateSensor(const sensor::Sensor* sensor);
     void addAnchorsInUseSensor(const sensor::Sensor* sensor);
+    void setVoltageSensor(const sensor::Sensor* sensor);
+    void setTemperatureSensor(const sensor::Sensor* sensor);
 
 private:
     static std::string roleToString(const eUwbRole role);
@@ -80,6 +82,8 @@ private:
     uint32_t mLedsOffAfterMs{LED_OFF_AFTER_DEFAULT};
     sensor::Sensor * mLatitudeSensor{nullptr};
     sensor::Sensor * mLongitudeSensor{nullptr};
+    sensor::Sensor * mVoltageSensor{nullptr};
+    sensor::Sensor * mTemperatureSensor{nullptr};
     std::map<const uint8_t, const sensor::Sensor*> mDistanceSensors;
     // data only for tag
     std::vector<std::shared_ptr<UwbAnchorData>> mAnchors;
