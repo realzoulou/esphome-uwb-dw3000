@@ -38,11 +38,13 @@ void UwbAnchorDevice::setup() {
 void UwbAnchorDevice::loop() {
     Dw3000Device::loop();
 
-    do_ranging();
+    if (getDiagnosticStatus() == DIAG_OK) {
+        do_ranging();
 
-    if (!mHighFreqLoopRequester.is_high_frequency()) {
-        // do background work only when not running at high frequency (due to active ranging)
-        maybe_reportPosition();
+        if (!mHighFreqLoopRequester.is_high_frequency()) {
+            // do background work only when not running at high frequency (due to active ranging)
+            maybe_reportPosition();
+        }
     }
 }
 

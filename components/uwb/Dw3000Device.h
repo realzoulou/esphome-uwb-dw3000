@@ -6,6 +6,7 @@
 
 #include "esphome/core/helpers.h"
 #include "esphome/components/sensor/sensor.h"
+#include "esphome/components/text_sensor/text_sensor.h"
 
 #include "dw3000_device_api.h"
 
@@ -20,8 +21,20 @@ namespace uwb {
 #define TIME_CRITICAL_START()
 #define TIME_CRITICAL_END()
 
+/* Diagnostic status */
+typedef enum _DiagStatus {
+    DIAG_UNKNOWN,
+    DIAG_OK,
+    DIAG_INIT_FAILED,
+    DIAG_CONFIGURE_FAILED,
+    DIAG_REBOOTING,
+} DiagStatus;
+
 class Dw3000Device {
 public:
+    static uint8_t getNextTxSequenceNumberAndIncrease();
+    static dwt_config_t* getConfig();
+
     Dw3000Device();
 
     virtual void setup();
@@ -34,12 +47,14 @@ public:
     inline uint32_t getLedsOffAfter() const { return mLedsOffAfterMs; }
     inline void setVoltageSensor(sensor::Sensor* sensor) { mVoltageSensor = sensor; }
     inline void setTemperatureSensor(sensor::Sensor* sensor) { mTemperatureSensor = sensor; }
+    inline void setDiagnosticStatusSensor(text_sensor::TextSensor* sensor) { mDiagnosticStatusSensor = sensor; }
 
     virtual void maybeTurnLedsOff();
     virtual void maybeReportVoltageAndTemperature();
 
-    static uint8_t getNextTxSequenceNumberAndIncrease();
-    static dwt_config_t* getConfig();
+protected:
+    void setDiagnosticStatus(DiagStatus status);
+    inline DiagStatus getDiagnosticStatus() const { return mDiagStatus; }
 
 protected:
     static const char* TAG;
@@ -61,8 +76,16 @@ protected:
     uint32_t mVoltAndTempLastReportedMs{0};
 
     HighFrequencyLoopRequester mHighFreqLoopRequester;
+
+private:
+    const char* diagStatusToString(const DiagStatus status);
+
 private:
     static uint8_t txSequenceNumber;
+
+    /* Diagnostic status. */
+    DiagStatus mDiagStatus{DIAG_UNKNOWN};
+    text_sensor::TextSensor * mDiagnosticStatusSensor{nullptr};
 };
 
 }  // namespace uwb

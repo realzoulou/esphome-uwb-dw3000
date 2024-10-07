@@ -6,6 +6,7 @@
 
 #include "esphome/core/component.h"
 #include "esphome/components/sensor/sensor.h"
+#include "esphome/components/text_sensor/text_sensor.h"
 
 #include "Dw3000Device.h"
 
@@ -70,6 +71,7 @@ public:
     void addAnchorsInUseSensor(const sensor::Sensor* sensor);
     void setVoltageSensor(const sensor::Sensor* sensor);
     void setTemperatureSensor(const sensor::Sensor* sensor);
+    void setDiagnosticStatusSensor(const text_sensor::TextSensor* sensor);
 
 private:
     static std::string roleToString(const eUwbRole role);
@@ -84,6 +86,7 @@ private:
     sensor::Sensor * mLongitudeSensor{nullptr};
     sensor::Sensor * mVoltageSensor{nullptr};
     sensor::Sensor * mTemperatureSensor{nullptr};
+    text_sensor::TextSensor * mDiagnosticStatusSensor{nullptr};
     std::map<const uint8_t, const sensor::Sensor*> mDistanceSensors;
     // data only for tag
     std::vector<std::shared_ptr<UwbAnchorData>> mAnchors;

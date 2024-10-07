@@ -1,5 +1,6 @@
 #include "Dw3000Device.h"
 
+#include "esphome/core/application.h"
 #include "esphome/core/log.h"
 
 #include "SPI.h"
@@ -14,7 +15,7 @@ extern SPISettings _fastSPI; // from dw3000_port.cpp
 namespace esphome {
 namespace uwb {
 
-const char* Dw3000Device::TAG = "Dw3000Device";
+const char* Dw3000Device::TAG = "dw3000";
 
 #define SPI_SPEED_HZ 16000000
 #define PIN_RST 27  // ----> DWM3120 RST
@@ -76,12 +77,16 @@ void Dw3000Device::setup() {
 
     if (dwt_initialise(DWT_DW_INIT) == DWT_ERROR) {
         ESP_LOGE(TAG, "dwt_initialise FAIL");
+        setDiagnosticStatus(DIAG_INIT_FAILED);
+        return;
     }
 
     /* Configure DW IC */
     /* if the dwt_configure returns DWT_ERROR either the PLL or RX calibration has failed the host should reset the device */
     if (dwt_configure(&config) == DWT_ERROR) {
         ESP_LOGE(TAG, "dwt_configure FAIL");
+        setDiagnosticStatus(DIAG_CONFIGURE_FAILED);
+        return;
     }
 
     /* Configure the TX spectrum parameters (power, PG delay and PG count) */
@@ -97,13 +102,51 @@ void Dw3000Device::setup() {
 
     /* Enable LEDs. */
     dwt_setleds(DWT_LEDS_ENABLE | DWT_LEDS_INIT_BLINK);
+
+    // setup successful
+    setDiagnosticStatus(DIAG_OK);
 }
 
 void Dw3000Device::loop() {
-    if (!mHighFreqLoopRequester.is_high_frequency()) {
-        // do background work only when not running at high frequency (due to active ranging)
-        maybeTurnLedsOff();
-        maybeReportVoltageAndTemperature();
+    const DiagStatus diagStatus = getDiagnosticStatus();
+    if (diagStatus == DIAG_OK) {
+
+        if (!mHighFreqLoopRequester.is_high_frequency()) {
+            // do background work only when not running at high frequency (due to active ranging)
+            maybeTurnLedsOff();
+            maybeReportVoltageAndTemperature();
+
+        }
+    } else {
+        // avoid rebooting too early while 'boot_is_good_after' detection not yet finished
+        // see https://esphome.io/components/safe_mode.html#configuration-variables
+        const uint32_t uptime = millis();
+        if (uptime > 65000U) { // 'boot_is_good_after' defaults to 60s, add 5s more
+            ESP_LOGE(TAG, "Restarting due to earlier error %i", diagStatus);
+            setDiagnosticStatus(DIAG_REBOOTING);
+            delay(500);
+            App.safe_reboot();
+        }
+    }
+}
+
+void Dw3000Device::setDiagnosticStatus(DiagStatus status) {
+    if (status != mDiagStatus) {
+        mDiagStatus = status;
+        if (mDiagnosticStatusSensor != nullptr) {
+            mDiagnosticStatusSensor->publish_state(diagStatusToString(status));
+        }
+    }
+}
+
+const char* Dw3000Device::diagStatusToString(const DiagStatus status) {
+    switch(status) {
+        case DIAG_OK:                return "OK";
+        case DIAG_INIT_FAILED:       return "INIT_FAILED";
+        case DIAG_CONFIGURE_FAILED:  return "CONFIGURE_FAILED";
+        case DIAG_REBOOTING:         return "REBOOTING";
+        case DIAG_UNKNOWN:           return "UNKNOWN";
+        default:                     return "?!?";
     }
 }
 

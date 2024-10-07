@@ -57,7 +57,9 @@ void UwbTagDevice::setup() {
 void UwbTagDevice::loop() {
     Dw3000Device::loop();
 
-    do_ranging();
+    if (getDiagnosticStatus() == DIAG_OK) {
+        do_ranging();
+    }
 }
 
 void UwbTagDevice::setMyState(const eMyState newState) {
