@@ -97,8 +97,8 @@ void UwbAnchorDevice::setMyState(const eMyState newState) {
 
 void UwbAnchorDevice::maybe_reportPosition() {
     const uint32_t uptime = millis();
-    // every 30s report latitude and longitude
-    if ((uptime - mLastPositionReportedMs) >= 30000U) {
+    if (   (mLastPositionReportedMs == 0) // never reported so far
+        || (uptime - mLastPositionReportedMs) >= 30000U) { // every 30s
         mLastPositionReportedMs = uptime;
 
         if (mLatitudeSensor != nullptr) {
