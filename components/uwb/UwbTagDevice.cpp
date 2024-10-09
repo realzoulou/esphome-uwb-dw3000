@@ -354,7 +354,7 @@ void UwbTagDevice::recvdFrameResponse() {
             TIME_CRITICAL_END();
             setMyState(MYSTATE_SENT_FINAL);
             ESP_LOGV(TAG, "Final sent Ok: systime=%" PRIu32 ", final_tx_time=%" PRIu64 ", diff=%" PRId32 ,
-                    systime, final_tx_time, diff);
+                    systime, final_tx_time, (int32_t)(final_tx_time-systime));
         } else {
             TIME_CRITICAL_END();
             const uint8_t anchorId = mAnchors.at(mCurrentAnchorIndex)->getId();

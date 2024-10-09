@@ -383,7 +383,7 @@ void UwbAnchorDevice::recvdFrameFinal() {
             TIME_CRITICAL_END();
             setMyState(MYSTATE_SENT_FINAL);
             ESP_LOGV(TAG, "Final response sent Ok: systime=%" PRIu32 ", final_response_tx_time=%" PRIu64 ", diff=%" PRId32 ,
-                    systime, final_response_tx_time, diff);
+                    systime, final_response_tx_time, ((int32_t)(final_response_tx_time-systime)));
         } else {
             TIME_CRITICAL_END();
             mTxErrorCount++;
