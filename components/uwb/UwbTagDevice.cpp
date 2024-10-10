@@ -484,10 +484,14 @@ void UwbTagDevice::recvdFrameFinal() {
         const double tof = tof_dtu * DWT_TIME_UNITS;
         const double distance = tof * SPEED_OF_LIGHT;
 
-        /* Display computed distance. */
-        ESP_LOGW(TAG, "DIST anchor 0x%02X: %.2fm", anchorId, distance);
-
-        rangingDone(true, distance);
+        if (distance > 0.0 && distance <= Location::UWB_MAX_REACH_METER) {
+            /* Display computed distance. */
+            ESP_LOGW(TAG, "DIST anchor 0x%02X: %.2fm", anchorId, distance);
+            rangingDone(true, distance);
+        } else {
+            ESP_LOGW(TAG, "DIST anchor 0x%02X: %.2fm implausible (>%.0f)", anchorId, distance, Location::UWB_MAX_REACH_METER);
+            rangingDone(false);
+        }
 
     } else {
         const uint8_t anchorId = mAnchors.at(mCurrentAnchorIndex)->getId();

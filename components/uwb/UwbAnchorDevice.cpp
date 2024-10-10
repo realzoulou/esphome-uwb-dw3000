@@ -2,6 +2,7 @@
 #include "InitialMsg.h"
 #include "ResponseMsg.h"
 #include "FinalMsg.h"
+#include "Location.h"
 
 #include <algorithm>
 #include <cstring>
@@ -404,11 +405,15 @@ void UwbAnchorDevice::recvdFrameFinal() {
         const double Db = (double)(response_tx_ts - mInitial_rx_ts);
         const int64_t tof_dtu = (int64_t)((Ra * Rb - Da * Db) / (Ra + Rb + Da + Db));
         const double tof = tof_dtu * DWT_TIME_UNITS;
-        const double distance = tof * SPEED_OF_LIGHT;
+        double distance = tof * SPEED_OF_LIGHT;
 
-        /* Display computed distance. */
-        ESP_LOGW(TAG, "DIST tag 0x%02X: %.2fm", otherDeviceId, distance);
-
+        if (distance > 0.0 && distance <= Location::UWB_MAX_REACH_METER) {
+            /* Display computed distance. */
+            ESP_LOGW(TAG, "DIST tag 0x%02X: %.2fm", otherDeviceId, distance);
+        } else {
+            ESP_LOGW(TAG, "DIST tag 0x%02X: %.2fm implausible (>%.0f)", otherDeviceId, distance, Location::UWB_MAX_REACH_METER);
+            distance = NAN; // Unavailable
+        }
         /* Report distance sensor. */
         if (mDistSensor != nullptr) {
             (const_cast<sensor::Sensor*>(mDistSensor))->publish_state(distance);
