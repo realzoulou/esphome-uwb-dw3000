@@ -28,12 +28,12 @@ void UwbAnchorData::setDistance(double distanceMeters) {
         /* diff in [ms] to previous millis() when distance was calculated. */
         diffMillis = (double) (now - mMillisDistanceToTag);
         /* speed in [m/s] that the tag seems to have changed its distance. */
-        speed = distanceMeters * 1000.0 / diffMillis;
+        speed = (diffToPrevDistance * 1000.0) / diffMillis;
     } else {
         // set values such that outlier detection is passed.
         diffToPrevDistance = MIN_DISTANCE;
-        diffMillis = NAN;
         speed = MAX_SPEED;
+        diffMillis = NAN;
         if (!std::isnan(distanceMeters)) {
             // changed from 'away' to 'back'
             ESP_LOGW(TAG, "anchor 0x%02X back", mId);
@@ -56,6 +56,8 @@ void UwbAnchorData::setDistance(double distanceMeters) {
     } else {
         // update timestamp nevertheless to avoid 'away' detection kicks in
         mMillisDistanceToTag = now;
+        // update also distance otherwise 'over-speed' detection could kick in
+        mDistanceToTag = distanceMeters;
         // not a warning because this happens very frequently and is actually normal
         ESP_LOGI(TAG, "anchor 0x%02X: dist %.2fm (prev %.2fm) < threshold %.2fm, keep %.2fm",
             mId, distanceMeters, diffToPrevDistance, MIN_DISTANCE, mDistanceToTag);
