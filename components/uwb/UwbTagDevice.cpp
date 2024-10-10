@@ -187,7 +187,7 @@ void UwbTagDevice::prepareSendInitial() {
     }
     const uint32_t now = millis();
     const uint8_t anchorId = mAnchors.at(mCurrentAnchorIndex)->getId();
-    ESP_LOGV(TAG, "Tag 0x%02X: Initiating to Anchor 0x%02X", getDeviceId(), anchorId);
+    ESP_LOGI(TAG, "Tag 0x%02X: Initiating to Anchor 0x%02X", getDeviceId(), anchorId);
 
     TIME_CRITICAL_START();
     /* Set expected Response's delay and timeout. */
@@ -600,26 +600,40 @@ void UwbTagDevice::calculateLocation() {
             }
 
             if (CALC_OK == res) {
-                if (Location::isValid(tagPosition)) {
-                    ESP_LOGW(TAG, "position %.7f,%.7f errEst %.2fm",
-                        tagPosition.latitude, tagPosition.longitude, errorEstimateMeters);
+                bool isPositionNearAnchors = true;
 
-                    // report sensors
-                    if (mLatitudeSensor != nullptr) {
-                        mLatitudeSensor->publish_state(tagPosition.latitude);
+                for(const auto anchor: mAnchors) {
+                    const LatLong anchorPosition = {anchor->getLatitude(), anchor->getLongitude()};
+                    const double distAnchor = Location::getHaversineDistance(tagPosition, anchorPosition);
+                    if (distAnchor > Location::UWB_MAX_REACH_METER) {
+                        isPositionNearAnchors = false;
+                        ESP_LOGW(TAG, "calculated position %.7f,%.7f errEst %.2fm implausible dist %.2fm (>%.0fm) from anchor 0x%02X",
+                            tagPosition.latitude, tagPosition.longitude, errorEstimateMeters,
+                            distAnchor, Location::UWB_MAX_REACH_METER, anchor->getId());
                     }
-                    if (mLongitudeSensor != nullptr) {
-                        mLongitudeSensor->publish_state(tagPosition.longitude);
+                }
+                if (isPositionNearAnchors) {
+                    if (Location::isValid(tagPosition)) {
+                        ESP_LOGW(TAG, "position %.7f,%.7f errEst %.2fm",
+                            tagPosition.latitude, tagPosition.longitude, errorEstimateMeters);
+
+                        // report sensors
+                        if (mLatitudeSensor != nullptr) {
+                            mLatitudeSensor->publish_state(tagPosition.latitude);
+                        }
+                        if (mLongitudeSensor != nullptr) {
+                            mLongitudeSensor->publish_state(tagPosition.longitude);
+                        }
+                        if (mLocationErrorEstimateSensor != nullptr) {
+                            mLocationErrorEstimateSensor->publish_state(errorEstimateMeters);
+                        }
+                        if (mAnchorsInUseSensor != nullptr) {
+                            mAnchorsInUseSensor->publish_state((float)anchorNum);
+                        }
+                    } else {
+                        ESP_LOGW(TAG, "calculated position invalid: %.7f,%.7f errEst %.2fm",
+                            tagPosition.latitude, tagPosition.longitude, errorEstimateMeters);
                     }
-                    if (mLocationErrorEstimateSensor != nullptr) {
-                        mLocationErrorEstimateSensor->publish_state(errorEstimateMeters);
-                    }
-                    if (mAnchorsInUseSensor != nullptr) {
-                        mAnchorsInUseSensor->publish_state((float)anchorNum);
-                    }
-                } else {
-                    ESP_LOGW(TAG, "calculated position invalid: %.7f,%.7f errEst %.2fm",
-                        tagPosition.latitude, tagPosition.longitude, errorEstimateMeters);
                 }
             } else {
                 ESP_LOGW(TAG, "calculate position failed: 0x%02X", res);

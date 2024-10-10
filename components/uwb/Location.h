@@ -70,6 +70,9 @@ typedef enum eCalcResult {
 class Location {
 
 public:
+    constexpr static double UWB_MAX_REACH_METER = 500.0; // don't think that UWB reaches > 500m
+
+public:
     static CalcResult calculatePosition(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
                                         LatLong & outputTagPosition, double & outputTagPositionErrorEstimate);
     static CalcResult calculatePosition_leastSquares(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
@@ -80,10 +83,10 @@ public:
     static bool isValid(const LatLong & a);
     static void LOG_ANCHOR_TO_STREAM(std::ostringstream & ostream, const AnchorPositionTagDistance & anchor);
 
-UT_VISIBILITY_PRIVATE:
     /* get squerical distance between 2 points on earth in [m] using Haversine formula. */
     static double getHaversineDistance(const LatLong & from, const LatLong & to);
 
+UT_VISIBILITY_PRIVATE:
     /* solve a system of >= 2 linear equations using least squares. */
     static bool solveLinearSystem_leastSquares(const uint32_t N_EQN, const double A[][2], const double b[], double & x, double & y,
                                                std::ostringstream & errMsg);

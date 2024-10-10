@@ -158,7 +158,7 @@ CalcResult Location::calculatePosition(const std::vector<AnchorPositionTagDistan
 bool Location::isValid(const AnchorPositionTagDistance & a) {
     return (   isValid(a.anchorPosition)
             && (a.tagDistance > 0.0)
-            && (a.tagDistance < 500.0) // don't think that UWB reaches > 500m
+            && (a.tagDistance < UWB_MAX_REACH_METER)
            );
 }
 
