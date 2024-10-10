@@ -604,21 +604,22 @@ void UwbTagDevice::calculateLocation() {
             }
 
             if (CALC_OK == res) {
-                bool isPositionNearAnchors = true;
-
-                for(const auto anchor: mAnchors) {
-                    const LatLong anchorPosition = {anchor->getLatitude(), anchor->getLongitude()};
-                    const double distAnchor = Location::getHaversineDistance(tagPosition, anchorPosition);
-                    if (distAnchor > Location::UWB_MAX_REACH_METER) {
-                        isPositionNearAnchors = false;
-                        ESP_LOGW(TAG, "calculated position %.7f,%.7f errEst %.2fm implausible dist %.2fm (>%.0fm) from anchor 0x%02X",
-                            tagPosition.latitude, tagPosition.longitude, errorEstimateMeters,
-                            distAnchor, Location::UWB_MAX_REACH_METER, anchor->getId());
+                // quick check against bounds of latitude and longitude
+                if (Location::isValid(tagPosition)) {
+                    // even if tag position may be a valid position, check distances to anchors for plausibility
+                    bool isPositionNearAnchors = true;
+                    for(const auto anchor: mAnchors) {
+                        const LatLong anchorPosition = {anchor->getLatitude(), anchor->getLongitude()};
+                        const double distAnchor = Location::getHaversineDistance(tagPosition, anchorPosition);
+                        if (distAnchor > Location::UWB_MAX_REACH_METER) {
+                            isPositionNearAnchors = false;
+                            ESP_LOGW(TAG, "calculated position %.7f,%.7f errEst %.2fm implausible dist %.2fm (>%.0fm) from anchor 0x%02X",
+                                tagPosition.latitude, tagPosition.longitude, errorEstimateMeters,
+                                distAnchor, Location::UWB_MAX_REACH_METER, anchor->getId());
+                        }
                     }
-                }
-                if (isPositionNearAnchors) {
-                    if (Location::isValid(tagPosition)) {
-                        ESP_LOGW(TAG, "position %.7f,%.7f errEst %.2fm",
+                    if (isPositionNearAnchors) {
+                        ESP_LOGW(TAG, "POSITION %.7f,%.7f errEst %.2fm",
                             tagPosition.latitude, tagPosition.longitude, errorEstimateMeters);
 
                         // report sensors
@@ -634,10 +635,10 @@ void UwbTagDevice::calculateLocation() {
                         if (mAnchorsInUseSensor != nullptr) {
                             mAnchorsInUseSensor->publish_state((float)anchorNum);
                         }
-                    } else {
-                        ESP_LOGW(TAG, "calculated position invalid: %.7f,%.7f errEst %.2fm",
-                            tagPosition.latitude, tagPosition.longitude, errorEstimateMeters);
                     }
+                } else {
+                    ESP_LOGW(TAG, "calculated position invalid: %.7f,%.7f errEst %.2fm",
+                        tagPosition.latitude, tagPosition.longitude, errorEstimateMeters);
                 }
             } else {
                 ESP_LOGW(TAG, "calculate position failed: 0x%02X", res);
