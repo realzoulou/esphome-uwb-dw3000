@@ -40,7 +40,8 @@ public:
 
     /* This is the delay used with dwt_setrxaftertxdelay() from the end of the frame transmission to the enable of the receiver,
        as programmed for the DW IC's wait for response feature. */
-    static const uint32_t RESP_TX_TO_FINAL_RX_DLY_UUS   = 700;
+    // We set here nearly no delay for dwt_setrxaftertxdelay() but big one for dwt_setrxtimeout(). This allows for max variability regarding tag reaction time.
+    static const uint32_t RESP_TX_TO_FINAL_RX_DLY_UUS   = 100;
 
     /* This is the delay used with dwt_setdelayedtrxtime() from Frame RX timestamp to TX reply timestamp used for calculating/setting the DW IC's delayed TX function.
        This includes the frame length of approximately 190 us with current configuration.
@@ -53,7 +54,7 @@ public:
     /* Receive Final message timeout. This is the delay used in dwt_setrxtimeout().
        The time parameter used here is in 1.0256 us (UWB microseconds, i.e. 512/499.2 MHz) units.
        The maximum RX timeout is ~ 1.0754s. */
-    static const uint32_t FINAL_RX_TIMEOUT_UUS          = 1000;
+    static const uint32_t FINAL_RX_TIMEOUT_UUS          = 60000;
 
     /* Preamble timeout, in multiple of PAC size. */
     static const uint32_t PRE_TIMEOUT                   = 0; // disable Preamble timeout

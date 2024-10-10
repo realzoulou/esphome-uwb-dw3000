@@ -45,8 +45,9 @@ class UwbTagDevice : public Dw3000Device {
 
     /* This is the delay used with dwt_setrxaftertxdelay() from the end of the frame transmission to the enable of the receiver,
        as programmed for the DW IC's wait for response feature. */
-    static const uint32_t INITIAL_TX_TO_RESP_RX_DLY_UUS         = 700;
-    static const uint32_t FINAL_TX_TO_FINAL_RESPONSE_RX_DLY_UUS = 700;
+    // We set here nearly no delay for dwt_setrxaftertxdelay() but big one for dwt_setrxtimeout(). This allows for max variability regarding anchor reaction time.
+    static const uint32_t INITIAL_TX_TO_RESP_RX_DLY_UUS         = 100;
+    static const uint32_t FINAL_TX_TO_FINAL_RESPONSE_RX_DLY_UUS = 100;
 
     /* This is the delay used with dwt_setdelayedtrxtime() from frame RX timestamp to TX reply timestamp used for calculating/setting the DW IC's delayed TX function.
        Adjusting this value lower and lower until dwt_starttx() starts returning DWT_ERROR status allows the user to tweak their system to calculate the
@@ -57,8 +58,8 @@ class UwbTagDevice : public Dw3000Device {
     /* Receive response timeout. This is the delay used in dwt_setrxtimeout().
        The time parameter used here is in 1.0256 us (UWB microseconds, i.e. 512/499.2 MHz) units.
        The maximum RX timeout is ~ 1.0754s. */
-    static const uint32_t RESP_RX_TIMEOUT_UUS           = 1000;
-    static const uint32_t FINAL_RESPONSE_RX_TIMEOUT_UUS = 1000;
+    static const uint32_t RESP_RX_TIMEOUT_UUS           = 60000;
+    static const uint32_t FINAL_RESPONSE_RX_TIMEOUT_UUS = 60000;
 
     /* Preamble timeout, in multiple of PAC size. */
     static const uint32_t PRE_TIMEOUT                   = 0; // disable Preamble timeout
