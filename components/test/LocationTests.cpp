@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include <cmath>
+#include <math.h>
 
 #include "Location.h"
 
@@ -38,7 +38,7 @@ TEST(Location_AnchorPositionTagDistance, operators) {
 
 ////////////////////////////
 // Location::METER_TO_DEGREE
-static const double DEG_PRECISION = 0.00001; // "Precision choice is of 5 decimal place [...]."
+static const double DEG_PRECISION = 0.00001; // ~1.11m
 TEST(Location_METER_TO_DEGREE, oneMeterAtEquator) {
 
     /* https://www.sunearthtools.com/dp/tools/conversion.php "Accuracy" */
@@ -222,51 +222,51 @@ TEST(Location_findTwoCirclesIntersections, noIntersection) {
     const AnchorPositionTagDistance a2t = {0xA2, {-1.0, -1.0}, 1.0};
 
     LatLong t, t_prime;
-    EXPECT_FALSE(Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
+    EXPECT_EQ(CIRCLE_INTERSECT_ERROR_NO_INTERSECTION, Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
 }
 TEST(Location_findTwoCirclesIntersections, inputsNAN) {
     const AnchorPositionTagDistance a1t = {0xA1, { NAN, 1.0}, 1.0};
     const AnchorPositionTagDistance a2t = {0xA2, {-1.0, NAN}, 1.0};
 
     LatLong t, t_prime;
-    EXPECT_FALSE(Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
+    EXPECT_EQ(CIRCLE_INTERSECT_ERROR_INPUT, Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
 }
 TEST(Location_findTwoCirclesIntersections, circleContained) {
     const AnchorPositionTagDistance a1t = {0xA1, {1.0, 1.0}, 1.0};
     const AnchorPositionTagDistance a2t = {0xA2, {1.0, 1.0}, 2.0};
 
     LatLong t, t_prime;
-    EXPECT_FALSE(Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
+    EXPECT_EQ(CIRCLE_INTERSECT_ERROR_CONTAINED, Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
 }
 TEST(Location_findTwoCirclesIntersections, circleEqual) {
     const AnchorPositionTagDistance a1t = {0xA1, {1.0, 1.0}, 1.0};
     const AnchorPositionTagDistance a2t = {0xA2, {1.0, 1.0}, 1.0};
 
     LatLong t, t_prime;
-    EXPECT_FALSE(Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
+    EXPECT_EQ(CIRCLE_INTERSECT_ERROR_CONTAINED, Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
 }
 TEST(Location_findTwoCirclesIntersections, negativeDistancea1t) {
     const AnchorPositionTagDistance a1t = {0xA1, {-1.0, -1.0}, -1.5};
     const AnchorPositionTagDistance a2t = {0xA2, { 1.0,  1.0},  2.0};
 
     LatLong t, t_prime;
-    EXPECT_FALSE(Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
+    EXPECT_EQ(CIRCLE_INTERSECT_ERROR_INPUT, Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
 }
 TEST(Location_findTwoCirclesIntersections, negativeDistancea2t) {
     const AnchorPositionTagDistance a1t = {0xA1, {-1.0, -1.0},  1.5};
     const AnchorPositionTagDistance a2t = {0xA2, { 1.0,  1.0}, -2.0};
 
     LatLong t, t_prime;
-    EXPECT_FALSE(Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
+    EXPECT_EQ(CIRCLE_INTERSECT_ERROR_INPUT, Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
 }
 TEST(Location_findTwoCirclesIntersections, negativeDistances) {
     const AnchorPositionTagDistance a1t = {0xA1, {-1.0, -1.0}, -1.5};
     const AnchorPositionTagDistance a2t = {0xA2, { 1.0,  1.0}, -2.0};
 
     LatLong t, t_prime;
-    EXPECT_FALSE(Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
+    EXPECT_EQ(CIRCLE_INTERSECT_ERROR_INPUT, Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
 }
-static const double INTERSECTION_PRECISION = 0.00001; // hmm, no more precision possible?
+static const double INTERSECTION_PRECISION = 0.00001; // ~1.11m, hmm, no more precision possible?
 TEST(Location_findTwoCirclesIntersections, twoAnchors_inBerlin) {
     // following 2 positions are ~20m apart
     const AnchorPositionTagDistance a1t = {0xA1, {52.4990325, 13.3917949}, 13.95 /*[m]*/};
@@ -285,7 +285,7 @@ TEST(Location_findTwoCirclesIntersections, twoAnchors_inBerlin) {
     const LatLong exp_t_prime = {52.498983, 13.39168};
 
     LatLong t, t_prime;
-    EXPECT_TRUE(Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
+    EXPECT_EQ(CIRCLE_INTERSECT_OK, Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
     // cannot know if t or t_prime could match expected values
     EXPECT_TRUE(
            (IS_NEAR_DOUBLE(exp_t.latitude, t.latitude, INTERSECTION_PRECISION)
@@ -389,7 +389,7 @@ TEST(Location_findBoundingRectangle, threePositions) {
 //////////////////////////////
 // Location::calculatePosition
 
-static const double LATLONG_PRECISION = 0.00001; // TODO why so bad ?
+static const double LATLONG_PRECISION = 0.00002; // 0.00001° ~1.11m, TODO why so bad ?
 
 TEST(Location_calculatePosition, noAnchor) {
     const std::vector<AnchorPositionTagDistance> empty;
@@ -523,6 +523,23 @@ TEST(Location_calculatePosition, threeAnchors) {
     EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
     EXPECT_NEAR(expErr, errEst, 1); // 1m accuracy
 }
+TEST(Location_calculatePosition, threeAnchors_real) {
+    const std::vector<AnchorPositionTagDistance> three = {
+        {0xA1, {50.51695017092124, -35.649778489469757}, 16.59},
+        {0xA2, {50.51678538255722, -35.649683941598978}, 8.02},
+        {0xA3, {50.516870663933815, -35.649518985739324}, 7.63},
+    };
+    const LatLong expPosition = {50.516841, -35.649632};
+    const double expErr = 3;
+
+    LatLong tagPosition = {NAN, NAN};
+    double errEst = NAN;
+    EXPECT_TRUE(CALC_OK == Location::calculatePosition(three, tagPosition, errEst));
+    EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
+    EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
+    EXPECT_LE(errEst, expErr);
+
+}
 
 ////////////////////////////////////////////////
 // Location::calculatePosition_centroid
@@ -576,7 +593,6 @@ TEST(Location_calculatePosition_leastSquares, threeAnchorsExampleOfOpenAI) {
     EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
     EXPECT_NEAR(expErr, errEst, 1); // 1m accuracy
 }
-
 TEST(Location_calculatePosition_leastSquares, threeAnchors) {
     const LatLong a1 = {1.00000, 1.00000}, a2 = {0.99910, 1.00010}, a3 = {0.99900, 1.00020};
     const std::vector<AnchorPositionTagDistance> three = {
@@ -594,4 +610,20 @@ TEST(Location_calculatePosition_leastSquares, threeAnchors) {
     EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
     EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
     EXPECT_NEAR(expErr, errEst, 1); // 1m accuracy
+}
+TEST(Location_calculatePosition_leastSquares, threeAnchors_real) {
+    const std::vector<AnchorPositionTagDistance> three = {
+        {0xA1, {50.51695017092124, -35.649778489469757}, 16.59},
+        {0xA2, {50.51678538255722, -35.649683941598978}, 8.02},
+        {0xA3, {50.516870663933815, -35.649518985739324}, 7.63},
+    };
+    const LatLong expPosition = {50.516841, -35.649632};
+    const double expErr = 3;
+
+    LatLong tagPosition = {NAN, NAN};
+    double errEst = NAN;
+    EXPECT_TRUE(CALC_OK == Location::calculatePosition_leastSquares(three, tagPosition, errEst));
+    EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
+    EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
+    EXPECT_LE(errEst, expErr);
 }

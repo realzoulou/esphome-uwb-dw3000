@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #VERBOSE=x
-set -eu$VERBOSE
+set -eu"$VERBOSE"
 
 # clean
 rm -rf test/build

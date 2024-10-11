@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <math.h>
 
 #ifdef ESP32
 #include "esphome/core/log.h"
@@ -71,7 +72,7 @@ CalcResult Location::calculatePosition(const std::vector<AnchorPositionTagDistan
     std::vector<LatLong> positionCandidates;
     for (const auto & p : pairOfTwoAnchorsAndTheirDistanceToTag) {
         LatLong t, t_prime;
-        if (findTwoCirclesIntersections(p.first, p.second, t, t_prime)) {
+        if (CIRCLE_INTERSECT_OK == findTwoCirclesIntersections(p.first, p.second, t, t_prime)) {
             positionCandidates.push_back(t);
             if ((t != t_prime)) {
                 positionCandidates.push_back(t_prime);
@@ -239,9 +240,9 @@ bool Location::findBoundingRectangle(const std::vector<LatLong> inputPositions, 
     return true;
 }
 
-bool Location::findTwoCirclesIntersections(const AnchorPositionTagDistance a1t,
-                                           const AnchorPositionTagDistance a2t,
-                                           LatLong & t, LatLong & t_prime) {
+CircleIntersectionResult Location::findTwoCirclesIntersections(const AnchorPositionTagDistance a1t,
+                                                               const AnchorPositionTagDistance a2t,
+                                                               LatLong & t, LatLong & t_prime) {
     const double x0 = a1t.anchorPosition.longitude * DEG_TO_RAD,
                  y0 = a1t.anchorPosition.latitude * DEG_TO_RAD,
                  r0 = a1t.tagDistance * METER_TO_DEGREE(a1t.anchorPosition.latitude) * DEG_TO_RAD;
@@ -251,8 +252,9 @@ bool Location::findTwoCirclesIntersections(const AnchorPositionTagDistance a1t,
     double x, y, x_prime, y_prime;
 
     if (std::isnan(x0) || std::isnan(y0) || std::isnan(r0) ||
-        std::isnan(x1) || std::isnan(y1) || std::isnan(r1)) {
-        return false;
+        std::isnan(x1) || std::isnan(y1) || std::isnan(r1) ||
+        r0 < 0 || r1 < 0) {
+        return CIRCLE_INTERSECT_ERROR_INPUT;
     }
 
     /* ported from https://paulbourke.net/geometry/circlesphere/tvoght.c */
@@ -278,7 +280,7 @@ bool Location::findTwoCirclesIntersections(const AnchorPositionTagDistance a1t,
         LOG_ANCHOR_TO_STREAM(msg, a1t);
         LOG_ANCHOR_TO_STREAM(msg, a2t);
         LOC_LOGW(msg);
-        return false;
+        return CIRCLE_INTERSECT_ERROR_NO_INTERSECTION;
     }
     if (d <= std::fabs(r0 - r1)) // was originally: if (d < fabs(r0 - r1))
     {
@@ -288,7 +290,7 @@ bool Location::findTwoCirclesIntersections(const AnchorPositionTagDistance a1t,
         LOG_ANCHOR_TO_STREAM(msg, a1t);
         LOG_ANCHOR_TO_STREAM(msg, a2t);
         LOC_LOGW(msg);
-        return false;
+        return CIRCLE_INTERSECT_ERROR_CONTAINED;
     }
 
     /* 'point 2' is the point where the line through the circle
@@ -325,7 +327,7 @@ bool Location::findTwoCirclesIntersections(const AnchorPositionTagDistance a1t,
     t.longitude = x * RAD_TO_DEG;
     t_prime.latitude = y_prime * RAD_TO_DEG;
     t_prime.longitude = x_prime * RAD_TO_DEG;
-    return true;
+    return CIRCLE_INTERSECT_OK;
 }
 
 // happily copied from an OpenAI chat :-)

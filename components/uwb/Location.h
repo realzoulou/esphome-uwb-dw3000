@@ -67,6 +67,13 @@ typedef enum eCalcResult {
     CALC_F_BOUNDING_BOX = 30
 } CalcResult;
 
+typedef enum eCircleIntersectionResult {
+    CIRCLE_INTERSECT_OK,
+    CIRCLE_INTERSECT_ERROR_INPUT,
+    CIRCLE_INTERSECT_ERROR_NO_INTERSECTION,
+    CIRCLE_INTERSECT_ERROR_CONTAINED,
+} CircleIntersectionResult;
+
 class Location {
 
 public:
@@ -99,9 +106,9 @@ UT_VISIBILITY_PRIVATE:
                                           std::vector<std::pair<AnchorPositionTagDistance, AnchorPositionTagDistance>> & outputAnchorCombinations);
 
     static bool findBoundingRectangle(const std::vector<LatLong> inputPositions, BoundingRect & outRect);
-    static bool findTwoCirclesIntersections(const AnchorPositionTagDistance a1t,
-                                            const AnchorPositionTagDistance a2t,
-                                            LatLong & t, LatLong & t_prime);
+    static CircleIntersectionResult findTwoCirclesIntersections(const AnchorPositionTagDistance a1t,
+                                                                const AnchorPositionTagDistance a2t,
+                                                                LatLong & t, LatLong & t_prime);
     static double METER_TO_DEGREE(const double latitude);
 
 private:
