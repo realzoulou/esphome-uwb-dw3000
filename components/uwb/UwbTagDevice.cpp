@@ -591,17 +591,7 @@ void UwbTagDevice::calculateLocation() {
             double errorEstimateMeters;
             CalcResult res;
 
-            if (anchorNum == 2) {
-                // works for 2 anchors, but not perfect
-                res = Location::calculatePosition(anchorPositionAndTagDistances, tagPosition, errorEstimateMeters);
-            } else {
-                // requires 3+ anchors
-                res = Location::calculatePosition_leastSquares(anchorPositionAndTagDistances, tagPosition, errorEstimateMeters);
-                if (res != CALC_OK) {
-                    // try again with calculatePosition()
-                    res = Location::calculatePosition(anchorPositionAndTagDistances, tagPosition, errorEstimateMeters);
-                }
-            }
+            res = Location::calculatePosition(anchorPositionAndTagDistances, tagPosition, errorEstimateMeters);
 
             if (CALC_OK == res) {
                 // quick check against bounds of latitude and longitude
