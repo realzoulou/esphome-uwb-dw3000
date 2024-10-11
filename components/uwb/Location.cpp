@@ -114,43 +114,39 @@ CalcResult Location::calculatePosition(const std::vector<AnchorPositionTagDistan
     }
 #endif // ESPHOME_LOG_LEVEL_INFO
 
-    /* With the candidates create a 'bounding' rectangle and find its geometric center, the tag location
-       Bounding rectangle is a box of four points:
-            top-left X,Y = (min of all candidates' longitude) , (max of all candidates' latitude)
-         bottom-left X,Y = (min of all candidates' longitude) , (min of all candidates' latitude)
-           top-right X,Y = (max of all candidates' longitude) , (max of all candidates' latitude)
-        bottom-right X,Y = (max of all candidates' longitude) , (min of all candidates' latitude)
-    */
-    BoundingRect boundingRect;
-    ok = findBoundingRectangle(positionCandidates, boundingRect);
-    if (!ok) return CALC_F_BOUNDING_BOX;
+    /* Filter position candidates that are not within the anchors area. */
+    std::vector<LatLong> filteredOut;
+    filterPositionCandidates(inputAnchorPositionAndTagDistances, positionCandidates, filteredOut);
 
 #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_INFO
-    {
+    if (!filteredOut.empty()) {
         std::ostringstream msg;
-        msg.setf(std::ios_base::fixed, std::ios_base::floatfield);
-        msg << std::setprecision(LOG_DOUBLE_PRECISION);
-        msg << "bounding rectangle: (" << +boundingRect.westSouthiest.latitude << "," << +boundingRect.westSouthiest.longitude;
-        msg << std::setprecision(LOG_DOUBLE_PRECISION);
-        msg << "),w:" << +boundingRect.width << "°,h:" << +boundingRect.height << "°";
+        msg << +filteredOut.size() <<  " filtered out position candidates:";
         LOC_LOGI(msg);
+        unsigned cnt = 0;
+        for (const auto & p : filteredOut) {
+            cnt++;
+            msg = std::ostringstream();
+            msg << std::setprecision(LOG_DOUBLE_PRECISION);
+            msg << " " << +cnt << ": " << +p.latitude << "," << +p.longitude;
+            LOC_LOGI(msg);
+        }
     }
 #endif // ESPHOME_LOG_LEVEL_INFO
-
-    /* Geometric center of a rectangle is the point in the middle: the tag location */
-    outputTagPosition.latitude  = boundingRect.westSouthiest.latitude + (boundingRect.height / 2.0);
-    outputTagPosition.longitude = boundingRect.westSouthiest.longitude + (boundingRect.width / 2.0);
-
-    /* Estimate of the location error in [m] is the distance of the Geometric center (=tag location) to one of the bounding box corners.
-       = radius of a circle with center = tag location and touching all 4 rectable corners
-    */
-    // choosing arbitrarily the bottom-left corner
-    outputTagPositionErrorEstimate = getHaversineDistance(outputTagPosition, {boundingRect.westSouthiest.latitude, boundingRect.westSouthiest.longitude});
+    LatLong bestMatchingCandidate = {NAN, NAN};
+    ok = selectBestMatchingCandidate(inputAnchorPositionAndTagDistances, positionCandidates, bestMatchingCandidate);
+    if (!ok) {
+        std::ostringstream msg;
+        msg << "failed to find a best matching position candidate";
+        LOC_LOGW(msg);
+        return CALC_F_BEST_MATCH;
+    }
+    outputTagPosition.latitude = bestMatchingCandidate.latitude;
+    outputTagPosition.longitude = bestMatchingCandidate.longitude;
+    outputTagPositionErrorEstimate = 0; // if distances would be accurate then the resulting position has no error
 #ifdef __UT_TEST__ // extra log in unit tests
     std::cout << "outputTagPosition (lat/lng)=" << +outputTagPosition.latitude << "/" << +outputTagPosition.longitude
-              << " boundingRect:" << +boundingRect.westSouthiest.latitude << "/" << +boundingRect.westSouthiest.longitude
-              << " w:" << +boundingRect.width << " h:" << +boundingRect.height
-              << " errEst:" << +outputTagPositionErrorEstimate << "[m]"
+              << " errEst:" << +outputTagPositionErrorEstimate << "m"
               << std::endl;
 #endif
     return CALC_OK;
@@ -209,34 +205,91 @@ bool Location::findAllAnchorCombinations(const std::vector<AnchorPositionTagDist
     return true;
 }
 
-bool Location::findBoundingRectangle(const std::vector<LatLong> inputPositions, BoundingRect & outRect) {
-    // need at least 1 position
-    if (inputPositions.empty()) {
-        std::ostringstream msg;
-        msg << "empty inputPositions";
-        LOC_LOGW(msg);
-        return false;
-    }
+void Location::filterPositionCandidates(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
+                                        std::vector<LatLong> & positionCandidates, std::vector<LatLong> & filteredOut) {
+    // ensure nothing else is in removed vector from caller than why we put into below
+    filteredOut.clear();
+
+    // need min. 3 anchors and min. 1 position candidate
+    // with 2 anchors there would be no 'area', but a line
+    if ((inputAnchorPositionAndTagDistances.size() < 3) || positionCandidates.empty())
+        return;
+
+    // find minimum and maximum of X,Y coordinates of anchors
     double minX = std::numeric_limits<double>::max(),
            minY = std::numeric_limits<double>::max(),
            maxX = std::numeric_limits<double>::lowest(),
            maxY = std::numeric_limits<double>::lowest();
-    for (const LatLong & c : inputPositions) {
-        if (std::isnan(c.latitude) || std::isnan(c.longitude)) {
+    for (const AnchorPositionTagDistance & a : inputAnchorPositionAndTagDistances) {
+        if (std::isnan(a.anchorPosition.latitude) || std::isnan(a.anchorPosition.longitude)) {
             std::ostringstream msg;
-            msg << "nan: " << +c.latitude << "," << c.longitude;
+            LOG_ANCHOR_TO_STREAM(msg, a);
             LOC_LOGW(msg);
+            continue; // skip anchor with nan X or Y coordinate
+        }
+        minX = std::min(minX, a.anchorPosition.longitude);
+        maxX = std::max(maxX, a.anchorPosition.longitude);
+        minY = std::min(minY, a.anchorPosition.latitude);
+        maxY = std::max(maxY, a.anchorPosition.latitude);
+    }
+    // collect references of positionCandidates array to stay in
+    std::vector<LatLong> filteredPositionCandidates;
+    // collect references of positionCandidates array to be removed
+    std::vector<LatLong> toBeRemoved;
+    // filter out candidates that are outside of minimum and maximum of X,Y coordinates of anchors
+    for (LatLong & p : positionCandidates) {
+        if ((p.latitude > maxY) || (p.latitude < minY) || (p.longitude > maxX) || (p.longitude < minX)
+            || std::isnan(p.latitude) || std::isnan(p.longitude)) {
+            toBeRemoved.push_back(p);
+        } else {
+            filteredPositionCandidates.push_back(p);
+        }
+    }
+    if (toBeRemoved.empty()) {
+        return; // nothing filtered
+    }
+    // remove all old position candidates
+    positionCandidates.clear();
+    // add back the filtered ones
+    positionCandidates.assign(filteredPositionCandidates.begin(), filteredPositionCandidates.end());
+    // fill filteredOut vector
+    filteredOut.assign(toBeRemoved.begin(), toBeRemoved.end());
+}
+
+bool Location::selectBestMatchingCandidate(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
+                                           const std::vector<LatLong> & positionCandidates,
+                                           LatLong & bestMatchingCandidate) {
+    // need at least 2 anchors and at least 1 candidate
+    if (inputAnchorPositionAndTagDistances.size() < 2 || positionCandidates.empty())
+        return false;
+    // if only 1 candidate, this is the best we have
+    if (positionCandidates.size() == 1) {
+        if (std::isnan(bestMatchingCandidate.latitude) || std::isnan(bestMatchingCandidate.longitude)) {
+            // NAN is not a position candidate
             return false;
         }
-        minX = std::min(minX, c.longitude);
-        maxX = std::max(maxX, c.longitude);
-        minY = std::min(minY, c.latitude);
-        maxY = std::max(maxY, c.latitude);
+        bestMatchingCandidate.latitude = positionCandidates[0].latitude;
+        bestMatchingCandidate.longitude = positionCandidates[0].longitude;
+        return true;
     }
-    outRect.westSouthiest.longitude = minX;
-    outRect.westSouthiest.latitude = minY;
-    outRect.height = maxY - minY;
-    outRect.width = maxX - minX;
+    LatLong bestCandidateSoFar = {NAN, NAN};
+    double distMin = std::numeric_limits<double>::max();
+    // find the position candidate with the least distances to anchors
+    for (const LatLong & c : positionCandidates) {
+        double distSum = 0;
+        for (const AnchorPositionTagDistance & a : inputAnchorPositionAndTagDistances) {
+            distSum += getHaversineDistance(c, a.anchorPosition);
+        }
+        if (distSum < distMin) {
+            bestCandidateSoFar = c;
+            distMin = distSum;
+        }
+    }
+    if (std::isnan(bestCandidateSoFar.latitude) || std::isnan(bestCandidateSoFar.longitude)) {
+        return false; // search above failed?, should be impossible
+    }
+    bestMatchingCandidate.latitude = bestCandidateSoFar.latitude;
+    bestMatchingCandidate.longitude = bestCandidateSoFar.longitude;
     return true;
 }
 

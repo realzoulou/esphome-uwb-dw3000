@@ -304,9 +304,9 @@ void UwbAnchorDevice::waitRecvFinal() {
         const uint32_t waitMicros = micros() - mEnteredWaitRecvFinalMicros;
         if (status_reg & SYS_STATUS_ALL_RX_TO) {
             if ((status_reg & SYS_STATUS_RXFTO_BIT_MASK) == SYS_STATUS_RXFTO_BIT_MASK)
-                ESP_LOGW(TAG, "waitRecvFinal RX Frame Wait timeout after %" PRIu32 " us", waitMicros);
+                ESP_LOGE(TAG, "waitRecvFinal RX Frame Wait timeout after %" PRIu32 " us", waitMicros);
             if ((status_reg & SYS_STATUS_RXPTO_BIT_MASK) == SYS_STATUS_RXPTO_BIT_MASK)
-                ESP_LOGW(TAG, "waitRecvFinal RX Preamble Detection timeout after %" PRIu32 " us", waitMicros);
+                ESP_LOGE(TAG, "waitRecvFinal RX Preamble Detection timeout after %" PRIu32 " us", waitMicros);
         } else if (status_reg & SYS_STATUS_ALL_RX_ERR) {
             ESP_LOGE(TAG, "waitRecvFinal RX error after %" PRIu32 " us", waitMicros);
             setMyState(MYSTATE_PREPARE_WAIT_RECV_INITIAL);
@@ -412,7 +412,7 @@ void UwbAnchorDevice::recvdFrameFinal() {
             ESP_LOGW(TAG, "DIST tag 0x%02X: %.2fm", otherDeviceId, distance);
         } else {
             ESP_LOGW(TAG, "DIST tag 0x%02X: %.2fm implausible (>%.0f)", otherDeviceId, distance, Location::UWB_MAX_REACH_METER);
-            distance = NAN; // Unavailable
+            distance = NAN;
         }
         /* Report distance sensor. */
         if (mDistSensor != nullptr) {

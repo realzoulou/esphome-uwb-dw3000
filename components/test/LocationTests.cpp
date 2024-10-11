@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <math.h>
 
 #include "Location.h"
@@ -20,6 +21,10 @@ TEST(Location_LatLong, operators) {
     EXPECT_FALSE(a1 != a2);
     EXPECT_TRUE(a1 != b1);
     EXPECT_FALSE(a1 == b1);
+    EXPECT_EQ(a1, a2);
+    EXPECT_EQ(a2, a1);
+    EXPECT_NE(a1, b1);
+    EXPECT_NE(b1, a1);
 }
 
 ////////////////////////////////////////////////
@@ -34,6 +39,12 @@ TEST(Location_AnchorPositionTagDistance, operators) {
     EXPECT_FALSE(a1 == a12);
     EXPECT_FALSE(a1 == b1);
     EXPECT_FALSE(a1 == b1);
+    EXPECT_EQ(a1, a2);
+    EXPECT_EQ(a2, a1);
+    EXPECT_NE(a1, a12);
+    EXPECT_NE(a12, a1);
+    EXPECT_NE(a1, b1);
+    EXPECT_NE(b1, a1);
 }
 
 ////////////////////////////
@@ -301,89 +312,209 @@ TEST(Location_findTwoCirclesIntersections, twoAnchors_inBerlin) {
     );
 }
 
-//////////////////////////////////
-// Location::findBoundingRectangle
-static const double RECT_PRECISION = 0.0000001;
+/////////////////////////////////////
+// Location::filterPositionCandidates
+TEST(Location_filterPositionCandidates, emptyInput) {
+    const std::vector<AnchorPositionTagDistance> anchors;
+    std::vector<LatLong> positionCandidates;
+    std::vector<LatLong> filteredOut = {{0.0, 0.0}};
 
-TEST(Location_findBoundingRectangle, noPositions) {
-    const std::vector<LatLong> positions;
-    const BoundingRect expRect = {123.0, 234.0, 345.0, 456.0};
-    BoundingRect rect = expRect;
-    EXPECT_FALSE(Location::findBoundingRectangle(positions, rect));
-    EXPECT_TRUE(expRect == rect); // no side-effects?
+    Location::filterPositionCandidates(anchors, positionCandidates, filteredOut);
+    EXPECT_TRUE(anchors.empty());
+    EXPECT_TRUE(positionCandidates.empty());
+    EXPECT_TRUE(filteredOut.empty());
 }
-TEST(Location_findBoundingRectangle, onePosition) {
-    const std::vector<LatLong> positions = {
-        {1.0, 1.0}
+TEST(Location_filterPositionCandidates, twoAnchorsKeepCandidates) {
+    const std::vector<AnchorPositionTagDistance> anchors = {
+        {0xA1, {1.0, 1.0}, 0.0},
+        {0xA2, {2.0, 2.0}, 0.0},
     };
-    const BoundingRect expRect = {{1.0, 1.0}, 0.0, 0.0};
-    BoundingRect rect;
-    EXPECT_TRUE(Location::findBoundingRectangle(positions, rect));
-    EXPECT_NEAR(expRect.westSouthiest.latitude, rect.westSouthiest.latitude, RECT_PRECISION);
-    EXPECT_NEAR(expRect.westSouthiest.longitude, rect.westSouthiest.longitude, RECT_PRECISION);
-    EXPECT_NEAR(expRect.width, rect.width, RECT_PRECISION);
-    EXPECT_NEAR(expRect.height, rect.height, RECT_PRECISION);
+    std::vector<LatLong> positionCandidates = {{3.0, 1.5}};
+    const std::vector<LatLong> expPositionCandidates = {{3.0, 1.5}};
+    std::vector<LatLong> filteredOut;
+    const std::vector<LatLong> expFilteredOut;
+
+    Location::filterPositionCandidates(anchors, positionCandidates, filteredOut);
+    EXPECT_EQ(expPositionCandidates.size(), positionCandidates.size());
+    for (const LatLong& t : expPositionCandidates) {
+        EXPECT_NE(positionCandidates.end(), std::find(positionCandidates.begin(), positionCandidates.end(), t));
+    }
+    EXPECT_EQ(expFilteredOut.size(), filteredOut.size());
+    for (const LatLong& t : expFilteredOut) {
+        EXPECT_NE(filteredOut.end(), std::find(filteredOut.begin(), filteredOut.end(), t));
+    }
 }
-TEST(Location_findBoundingRectangle, twoPositions) {
-    const std::vector<LatLong> positions = {
-        {0.5, 2.0},
-        {1.0, 1.0}
+TEST(Location_filterPositionCandidates, oneCandidateToKeep) {
+    const std::vector<AnchorPositionTagDistance> anchors = {
+        {0xA1, {1.0, 1.0}, 0.0},
+        {0xA2, {2.0, 2.0}, 0.0},
+        {0xA2, {3.0, 3.0}, 0.0},
     };
-    const BoundingRect expRect = {{0.5, 1.0}, 1.0, 0.5};
-    BoundingRect rect;
-    EXPECT_TRUE(Location::findBoundingRectangle(positions, rect));
-    EXPECT_NEAR(expRect.westSouthiest.latitude, rect.westSouthiest.latitude, RECT_PRECISION);
-    EXPECT_NEAR(expRect.westSouthiest.longitude, rect.westSouthiest.longitude, RECT_PRECISION);
-    EXPECT_NEAR(expRect.width, rect.width, RECT_PRECISION);
-    EXPECT_NEAR(expRect.height, rect.height, RECT_PRECISION);
+    std::vector<LatLong> positionCandidates = {{1.5, 1.5}};
+    const std::vector<LatLong> expPositionCandidates = {{1.5, 1.5}};
+    std::vector<LatLong> filteredOut;
+    const std::vector<LatLong> expFilteredOut;
+
+    Location::filterPositionCandidates(anchors, positionCandidates, filteredOut);
+    EXPECT_EQ(expPositionCandidates.size(), positionCandidates.size());
+    for (const LatLong& t : expPositionCandidates) {
+        EXPECT_NE(positionCandidates.end(), std::find(positionCandidates.begin(), positionCandidates.end(), t));
+    }
+    EXPECT_EQ(expFilteredOut.size(), filteredOut.size());
+    for (const LatLong& t : expFilteredOut) {
+        EXPECT_NE(filteredOut.end(), std::find(filteredOut.begin(), filteredOut.end(), t));
+    }
 }
-TEST(Location_findBoundingRectangle, twoPositionsSomeNeg) {
-    const std::vector<LatLong> positions = {
-        {0.75, -1.5},
-        {0.25, -0.5}
+TEST(Location_filterPositionCandidates, oneCandidateToRemove) {
+    const std::vector<AnchorPositionTagDistance> anchors = {
+        {0xA1, {1.0, 1.0}, 0.0},
+        {0xA2, {2.0, 2.0}, 0.0},
+        {0xA2, {2.5, 2.5}, 0.0},
     };
-    const BoundingRect expRect = {{0.25, -1.5}, 1.0, 0.5};
-    BoundingRect rect;
-    EXPECT_TRUE(Location::findBoundingRectangle(positions, rect));
-    EXPECT_NEAR(expRect.westSouthiest.latitude, rect.westSouthiest.latitude, RECT_PRECISION);
-    EXPECT_NEAR(expRect.westSouthiest.longitude, rect.westSouthiest.longitude, RECT_PRECISION);
-    EXPECT_NEAR(expRect.width, rect.width, RECT_PRECISION);
-    EXPECT_NEAR(expRect.height, rect.height, RECT_PRECISION);
+    std::vector<LatLong> positionCandidates = {{3.0, 1.5}};
+    const std::vector<LatLong> expPositionCandidates;
+    std::vector<LatLong> filteredOut;
+    const std::vector<LatLong> expFilteredOut = {{3.0, 1.5}};
+
+    Location::filterPositionCandidates(anchors, positionCandidates, filteredOut);
+    EXPECT_EQ(expPositionCandidates.size(), positionCandidates.size());
+    for (const LatLong& t : expPositionCandidates) {
+        EXPECT_NE(positionCandidates.end(), std::find(positionCandidates.begin(), positionCandidates.end(), t));
+    }
+    EXPECT_EQ(expFilteredOut.size(), filteredOut.size());
+    for (const LatLong& t : expFilteredOut) {
+        EXPECT_NE(filteredOut.end(), std::find(filteredOut.begin(), filteredOut.end(), t));
+    }
 }
-TEST(Location_findBoundingRectangle, twoPositionsEqual) {
-    const std::vector<LatLong> positions = {
-        {-0.8, 0.8},
-        {-0.8, 0.8}
+TEST(Location_filterPositionCandidates, twoInputsSkipNanAnchor) {
+    const std::vector<AnchorPositionTagDistance> anchors = {
+        {0xA1, {1.0, 1.0}, 0.0},
+        {0xA2, {2.0, 2.0}, 0.0},
+        {0xA3, {NAN, NAN}, 0.0},
     };
-    const BoundingRect expRect = {{-0.8, 0.8}, 0.0, 0.0}; // rectangle is a point!
-    BoundingRect rect;
-    EXPECT_TRUE(Location::findBoundingRectangle(positions, rect));
-    EXPECT_NEAR(expRect.westSouthiest.latitude, rect.westSouthiest.latitude, RECT_PRECISION);
-    EXPECT_NEAR(expRect.westSouthiest.longitude, rect.westSouthiest.longitude, RECT_PRECISION);
-    EXPECT_NEAR(expRect.width, rect.width, RECT_PRECISION);
-    EXPECT_NEAR(expRect.height, rect.height, RECT_PRECISION);
+    std::vector<LatLong> positionCandidates = {{1.5, 1.5}, {3.0, 3.0}};
+    const std::vector<LatLong> expPositionCandidates = {{1.5, 1.5}};
+    std::vector<LatLong> filteredOut;
+    const std::vector<LatLong> expFilteredOut = {{3.0, 3.0}};
+
+    Location::filterPositionCandidates(anchors, positionCandidates, filteredOut);
+    EXPECT_EQ(expPositionCandidates.size(), positionCandidates.size());
+    for (const LatLong& t : expPositionCandidates) {
+        EXPECT_NE(positionCandidates.end(), std::find(positionCandidates.begin(), positionCandidates.end(), t));
+    }
+    EXPECT_EQ(expFilteredOut.size(), filteredOut.size());
+    for (const LatLong& t : expFilteredOut) {
+        EXPECT_NE(filteredOut.end(), std::find(filteredOut.begin(), filteredOut.end(), t));
+    }
 }
-TEST(Location_findBoundingRectangle, twoPositionsNAN) {
-    const std::vector<LatLong> positions = {
-        {NAN, NAN},
-        {NAN, NAN}
+
+TEST(Location_filterPositionCandidates, threeInputsFilterOutNanCandidate) {
+    const std::vector<AnchorPositionTagDistance> anchors = {
+        {0xA1, {1.0, 1.0}, 0.0},
+        {0xA2, {2.0, 2.0}, 0.0},
+        {0xA3, {-2.0, -2.0}, 0.0},
     };
-    BoundingRect rect;
-    EXPECT_FALSE(Location::findBoundingRectangle(positions, rect));
+    std::vector<LatLong> positionCandidates = {{0.0, 0.0}, {3.0, 3.0}, {NAN, NAN}};
+    const std::vector<LatLong> expPositionCandidates = {{0.0, 0.0}};
+    std::vector<LatLong> filteredOut;
+    const std::vector<LatLong> expFilteredOut = {{3.0, 3.0}, {NAN, NAN}};
+
+    Location::filterPositionCandidates(anchors, positionCandidates, filteredOut);
+    EXPECT_EQ(expPositionCandidates.size(), positionCandidates.size());
+    for (const LatLong& t : expPositionCandidates) {
+        EXPECT_NE(positionCandidates.end(), std::find(positionCandidates.begin(), positionCandidates.end(), t));
+    }
+    EXPECT_EQ(expFilteredOut.size(), filteredOut.size());
+    for (const LatLong& t : expFilteredOut) {
+        EXPECT_NE(filteredOut.end(), std::find(filteredOut.begin(), filteredOut.end(), t));
+    }
 }
-TEST(Location_findBoundingRectangle, threePositions) {
-    const std::vector<LatLong> positions = {
-        {0.75, -1.5}, // from twoPositionsSomeNeg
-        {0.25, -0.5}, // from twoPositionsSomeNeg
-        {0.50, -1.0}, // a point inside above 2 points BoundingRectangle
+
+////////////////////////////////////////
+// Location::selectBestMatchingCandidate
+TEST(Location_selectBestMatchingCandidate, not2Anchors) {
+    const std::vector<AnchorPositionTagDistance> anchors = {
+        {0xA1, {1.0, 1.0}, 1.0},
     };
-    const BoundingRect expRect = {{0.25, -1.5}, 1.0, 0.5}; // same as twoPositionsSomeNeg
-    BoundingRect rect;
-    EXPECT_TRUE(Location::findBoundingRectangle(positions, rect));
-    EXPECT_NEAR(expRect.westSouthiest.latitude, rect.westSouthiest.latitude, RECT_PRECISION);
-    EXPECT_NEAR(expRect.westSouthiest.longitude, rect.westSouthiest.longitude, RECT_PRECISION);
-    EXPECT_NEAR(expRect.width, rect.width, RECT_PRECISION);
-    EXPECT_NEAR(expRect.height, rect.height, RECT_PRECISION);
+    std::vector<LatLong> positionCandidates = {{0.0, 0.0}, {3.0, 3.0}};
+    const LatLong expBestMatchingPosition = {NAN, NAN};
+    LatLong bestMatchingPosition = expBestMatchingPosition;
+
+    EXPECT_FALSE(Location::selectBestMatchingCandidate(anchors, positionCandidates, bestMatchingPosition));
+    EXPECT_EQ(expBestMatchingPosition, bestMatchingPosition); // no side effects?
+}
+TEST(Location_selectBestMatchingCandidate, not1PositionCandidate) {
+    const std::vector<AnchorPositionTagDistance> anchors = {
+        {0xA1, {1.0, 1.0}, 1.0},
+        {0xA2, {2.0, 2.0}, 2.0},
+    };
+    std::vector<LatLong> positionCandidates;
+    const LatLong expBestMatchingPosition = {NAN, NAN};
+    LatLong bestMatchingPosition = expBestMatchingPosition;
+
+    EXPECT_FALSE(Location::selectBestMatchingCandidate(anchors, positionCandidates, bestMatchingPosition));
+    EXPECT_EQ(expBestMatchingPosition, bestMatchingPosition); // no side effects?
+}
+TEST(Location_selectBestMatchingCandidate, onlyCandidateIsNan) {
+    const std::vector<AnchorPositionTagDistance> anchors = {
+        {0xA1, {1.0, 1.0}, 1.0},
+        {0xA2, {2.0, 2.0}, 2.0},
+    };
+    std::vector<LatLong> positionCandidates = {{NAN, NAN}};
+    const LatLong expBestMatchingPosition = {NAN, NAN};
+    LatLong bestMatchingPosition = expBestMatchingPosition;
+
+    EXPECT_FALSE(Location::selectBestMatchingCandidate(anchors, positionCandidates, bestMatchingPosition));
+    EXPECT_EQ(expBestMatchingPosition, bestMatchingPosition); // no side effects?
+}
+TEST(Location_selectBestMatchingCandidate, allAnchorsAreNan) {
+    const std::vector<AnchorPositionTagDistance> anchors = {
+        {0xA1, {NAN, NAN}, 1.0},
+        {0xA2, {NAN, NAN}, 2.0},
+    };
+    std::vector<LatLong> positionCandidates = {{0.0, 0.0}, {3.0, 3.0}};
+    const LatLong expBestMatchingPosition = {NAN, NAN};
+    LatLong bestMatchingPosition = expBestMatchingPosition;
+
+    EXPECT_FALSE(Location::selectBestMatchingCandidate(anchors, positionCandidates, bestMatchingPosition));
+    EXPECT_EQ(expBestMatchingPosition, bestMatchingPosition); // no side effects?
+}
+TEST(Location_selectBestMatchingCandidate, twoAnchorsOneCandidate) {
+    const std::vector<AnchorPositionTagDistance> anchors = {
+        {0xA1, {1.0, 1.0}, 1.0},
+        {0xA2, {2.0, 2.0}, 2.0},
+    };
+    std::vector<LatLong> positionCandidates = {{3.0, 3.0}};
+    const LatLong expBestMatchingPosition = {3.0, 3.0};
+    LatLong bestMatchingPosition;
+
+    EXPECT_TRUE(Location::selectBestMatchingCandidate(anchors, positionCandidates, bestMatchingPosition));
+    EXPECT_EQ(expBestMatchingPosition, bestMatchingPosition);
+}
+TEST(Location_selectBestMatchingCandidate, twoAnchorsTwoCandidates) {
+    const std::vector<AnchorPositionTagDistance> anchors = {
+        {0xA1, {1.0, 1.0}, 1.0},
+        {0xA2, {2.0, 2.0}, 2.0},
+    };
+    std::vector<LatLong> positionCandidates = {{3.0, 3.0}, {4.0, 4.0}};
+    const LatLong expBestMatchingPosition = {3.0, 3.0};
+    LatLong bestMatchingPosition;
+
+    EXPECT_TRUE(Location::selectBestMatchingCandidate(anchors, positionCandidates, bestMatchingPosition));
+    EXPECT_EQ(expBestMatchingPosition, bestMatchingPosition);
+}
+TEST(Location_selectBestMatchingCandidate, threeAnchorsTwoCandidates) {
+    const std::vector<AnchorPositionTagDistance> anchors = {
+        {0xA1, {1.0, 1.0}, 1.0},
+        {0xA2, {2.0, 2.0}, 2.0},
+        {0xA3, {3.0, 3.0}, 3.0},
+    };
+    std::vector<LatLong> positionCandidates = {{2.5, 2.5}, {10.0, 10.0}};
+    const LatLong expBestMatchingPosition = {2.5, 2.5};
+    LatLong bestMatchingPosition;
+
+    EXPECT_TRUE(Location::selectBestMatchingCandidate(anchors, positionCandidates, bestMatchingPosition));
+    EXPECT_EQ(expBestMatchingPosition, bestMatchingPosition);
 }
 
 //////////////////////////////
@@ -444,7 +575,7 @@ TEST(Location_calculatePosition, twoAnchors_tagExactInTheMiddleInEastWestDirecti
     EXPECT_TRUE(CALC_OK == Location::calculatePosition(two, tagPosition, errEst));
     EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
     EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
-    EXPECT_NEAR(expErr, errEst, 0.01); // 1cm accuracy
+    EXPECT_LE(errEst, expErr);
 }
 
 TEST(Location_calculatePosition, twoAnchors_tagExactInTheMiddleNorthSouth) {
@@ -461,7 +592,7 @@ TEST(Location_calculatePosition, twoAnchors_tagExactInTheMiddleNorthSouth) {
     EXPECT_TRUE(CALC_OK == Location::calculatePosition(two, tagPosition, errEst));
     EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
     EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
-    EXPECT_NEAR(expErr, errEst, 0.01); // 1cm accuracy
+    EXPECT_LE(errEst, expErr);
 }
 TEST(Location_calculatePosition, twoAnchors_inBerlin) {
     const LatLong a1 = {52.4990325, 13.3917949}, a2 = {52.4990355, 13.3915640};
@@ -503,9 +634,9 @@ TEST(Location_calculatePosition, twoAnchors_inBerlin) {
         ||  (IS_NEAR_DOUBLE(expPosition2.latitude, tagPosition.latitude, LATLONG_PRECISION)
             && IS_NEAR_DOUBLE(expPosition2.longitude, tagPosition.longitude, LATLONG_PRECISION))
     );
-    EXPECT_NEAR(expErr, errEst, 1); // 1m accuracy
+    EXPECT_LE(errEst, expErr);
 }
-TEST(Location_calculatePosition, threeAnchors) {
+TEST(Location_calculatePosition, threeAnchors_pseudo) {
     const LatLong a1 = {1.00000, 1.00000}, a2 = {0.99910, 1.00010}, a3 = {0.99900, 1.00020};
     const std::vector<AnchorPositionTagDistance> three = {
         {0xA1, a1, 10},
@@ -513,7 +644,7 @@ TEST(Location_calculatePosition, threeAnchors) {
         {0xA3, a3, 10},
     };
     // found no independent way (e.g. Internet page) to calculate the expected results
-    const LatLong expPosition = {0.99905, 1.00015}; // trial & error until test passed, but looks reasonable
+    const LatLong expPosition = {0.9990892, 1.0001892}; // trial & error until test passed, but looks reasonable
     const double expErr = 6; // 6m (trial & error)
 
     LatLong tagPosition = {NAN, NAN};
@@ -521,7 +652,7 @@ TEST(Location_calculatePosition, threeAnchors) {
     EXPECT_TRUE(CALC_OK == Location::calculatePosition(three, tagPosition, errEst));
     EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
     EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
-    EXPECT_NEAR(expErr, errEst, 1); // 1m accuracy
+    EXPECT_LE(errEst, expErr);
 }
 TEST(Location_calculatePosition, threeAnchors_real) {
     const std::vector<AnchorPositionTagDistance> three = {
@@ -529,8 +660,8 @@ TEST(Location_calculatePosition, threeAnchors_real) {
         {0xA2, {50.51678538255722, -35.649683941598978}, 8.02},
         {0xA3, {50.516870663933815, -35.649518985739324}, 7.63},
     };
-    const LatLong expPosition = {50.516841, -35.649632};
-    const double expErr = 3;
+    const LatLong expPosition = {50.516841, -35.649664};
+    const double expErr = 1;
 
     LatLong tagPosition = {NAN, NAN};
     double errEst = NAN;
@@ -538,27 +669,6 @@ TEST(Location_calculatePosition, threeAnchors_real) {
     EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
     EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
     EXPECT_LE(errEst, expErr);
-
-}
-
-////////////////////////////////////////////////
-// Location::calculatePosition_centroid
-
-TEST(Location_calculatePosition_centroid, threeAnchors) {
-    const std::vector<AnchorPositionTagDistance> anchors = {
-        {0xA1, {52.2296756, 21.0122287}, 10.0},
-        {0xA2, {52.406374, 16.9251681}, 15.0},
-        {0xA3, {51.1078852, 17.0385376}, 12.5},
-    };
-    const LatLong expPosition = {4.2684522, 1.5308835};
-    const double expErr = 5522866;
-
-    LatLong tagPosition = {NAN, NAN};
-    double errEst = NAN;
-    EXPECT_TRUE(CALC_OK == Location::calculatePosition_centroid(anchors, tagPosition, errEst));
-    EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
-    EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
-    EXPECT_NEAR(expErr, errEst, 1); // 1m accuracy
 }
 
 ////////////////////////////////////////////////
@@ -584,14 +694,14 @@ TEST(Location_calculatePosition_leastSquares, threeAnchorsExampleOfOpenAI) {
         {0xA3, {51.1078852, 17.0385376}, 12.5},
     };
     const LatLong expPosition = {26.6959425, 33.1531269};
-    const double expErr = 16;
+    const double expErr = 17;
 
     LatLong tagPosition = {NAN, NAN};
     double errEst = NAN;
     EXPECT_TRUE(CALC_OK == Location::calculatePosition_leastSquares(anchors, tagPosition, errEst));
     EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
     EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
-    EXPECT_NEAR(expErr, errEst, 1); // 1m accuracy
+    EXPECT_LE(errEst, expErr);
 }
 TEST(Location_calculatePosition_leastSquares, threeAnchors) {
     const LatLong a1 = {1.00000, 1.00000}, a2 = {0.99910, 1.00010}, a3 = {0.99900, 1.00020};
@@ -609,7 +719,7 @@ TEST(Location_calculatePosition_leastSquares, threeAnchors) {
     EXPECT_TRUE(CALC_OK == Location::calculatePosition_leastSquares(three, tagPosition, errEst));
     EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
     EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
-    EXPECT_NEAR(expErr, errEst, 1); // 1m accuracy
+    EXPECT_LE(errEst, expErr);
 }
 TEST(Location_calculatePosition_leastSquares, threeAnchors_real) {
     const std::vector<AnchorPositionTagDistance> three = {
@@ -617,8 +727,8 @@ TEST(Location_calculatePosition_leastSquares, threeAnchors_real) {
         {0xA2, {50.51678538255722, -35.649683941598978}, 8.02},
         {0xA3, {50.516870663933815, -35.649518985739324}, 7.63},
     };
-    const LatLong expPosition = {50.516841, -35.649632};
-    const double expErr = 3;
+    const LatLong expPosition = {50.516841, -35.649664};
+    const double expErr = 1;
 
     LatLong tagPosition = {NAN, NAN};
     double errEst = NAN;

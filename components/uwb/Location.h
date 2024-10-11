@@ -23,7 +23,10 @@ typedef struct sLatLong {
 } LatLong;
 
 inline static bool operator==(const LatLong& lhs, const LatLong& rhs) {
-    return lhs.latitude == rhs.latitude && lhs.longitude == rhs.longitude;
+    return (lhs.latitude == rhs.latitude && lhs.longitude == rhs.longitude)
+        // allow that NAN == NAN (other than the standard!)
+        || (std::isnan(lhs.latitude) && std::isnan(rhs.latitude))
+        || (std::isnan(lhs.longitude) && std::isnan(rhs.longitude));
 }
 inline static bool operator!=(const LatLong& lhs, const LatLong& rhs) {
     return !(lhs==rhs);
@@ -42,29 +45,11 @@ inline static bool operator!=(const AnchorPositionTagDistance& lhs, const Anchor
     return !(lhs==rhs);
 }
 
-typedef struct sBoundingRect {
-    /* LatLong of the most-western and most-southiest point of the rectangle. */
-    LatLong westSouthiest;
-    /* width = longitude [°]. */
-    double width;
-    /* height = latitude [°]. */
-    double height;
-} BoundingRect;
-
-inline bool operator==(const BoundingRect& lhs, const BoundingRect& rhs) {
-    return lhs.westSouthiest.latitude == rhs.westSouthiest.latitude
-        && lhs.westSouthiest.longitude == rhs.westSouthiest.longitude
-        &&  lhs.width == rhs.width && lhs.height == rhs.height;
-}
-inline bool operator!=(const BoundingRect& lhs, const BoundingRect& rhs) {
-    return !(lhs==rhs);
-}
-
 typedef enum eCalcResult {
     CALC_OK = 0,
     CALC_F_ANCHOR_COMBINATIONS = 10,
     CALC_F_NO_CANDIDATES = 20,
-    CALC_F_BOUNDING_BOX = 30
+    CALC_F_BEST_MATCH = 30,
 } CalcResult;
 
 typedef enum eCircleIntersectionResult {
@@ -105,10 +90,16 @@ UT_VISIBILITY_PRIVATE:
     static bool findAllAnchorCombinations(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
                                           std::vector<std::pair<AnchorPositionTagDistance, AnchorPositionTagDistance>> & outputAnchorCombinations);
 
-    static bool findBoundingRectangle(const std::vector<LatLong> inputPositions, BoundingRect & outRect);
     static CircleIntersectionResult findTwoCirclesIntersections(const AnchorPositionTagDistance a1t,
                                                                 const AnchorPositionTagDistance a2t,
                                                                 LatLong & t, LatLong & t_prime);
+    static void filterPositionCandidates(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
+                                         std::vector<LatLong> & positionCandidates,
+                                         std::vector<LatLong> & filteredOut);
+    static bool selectBestMatchingCandidate(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
+                                            const std::vector<LatLong> & positionCandidates,
+                                            LatLong & bestMatchingCandidate);
+
     static double METER_TO_DEGREE(const double latitude);
 
 private:
