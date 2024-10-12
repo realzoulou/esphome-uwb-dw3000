@@ -199,5 +199,11 @@ void Dw3000Device::maybeReportVoltageAndTemperature() {
     }
 }
 
+void Dw3000Device::sendLog(const std::string & str) const {
+    if (mLogSensor != nullptr) {
+        mLogSensor->publish_state(str);
+    }
+}
+
 }  // namespace uwb
 }  // namespace esphome

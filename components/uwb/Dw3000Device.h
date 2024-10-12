@@ -21,6 +21,15 @@ namespace uwb {
 #define TIME_CRITICAL_START()
 #define TIME_CRITICAL_END()
 
+/* Macro for formatting hex numbers to streams. */
+#define HEX_TO_STREAM(width, val) \
+    std::hex << std::setw(width) << std::setfill('0') << std::uppercase \
+    << +val << std::nouppercase << std::dec
+
+/* Macro for formatting float numbers to streams. */
+#define FLOAT_TO_STREAM(precision, val) \
+    std::setprecision(precision) << +val
+
 /* Diagnostic status */
 typedef enum _DiagStatus {
     DIAG_UNKNOWN,
@@ -48,6 +57,9 @@ public:
     inline void setVoltageSensor(sensor::Sensor* sensor) { mVoltageSensor = sensor; }
     inline void setTemperatureSensor(sensor::Sensor* sensor) { mTemperatureSensor = sensor; }
     inline void setDiagnosticStatusSensor(text_sensor::TextSensor* sensor) { mDiagnosticStatusSensor = sensor; }
+    inline void setLogSensor(text_sensor::TextSensor* sensor) { mLogSensor = sensor; }
+
+    virtual void sendLog(const std::string & str) const;
 
     virtual void maybeTurnLedsOff();
     virtual void maybeReportVoltageAndTemperature();
@@ -86,6 +98,9 @@ private:
     /* Diagnostic status. */
     DiagStatus mDiagStatus{DIAG_UNKNOWN};
     text_sensor::TextSensor * mDiagnosticStatusSensor{nullptr};
+
+    /* Send logs to HA. */
+    text_sensor::TextSensor * mLogSensor{nullptr};
 };
 
 }  // namespace uwb

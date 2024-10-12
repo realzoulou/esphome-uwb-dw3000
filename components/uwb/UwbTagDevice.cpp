@@ -168,7 +168,7 @@ void UwbTagDevice::waitNextAnchorRanging() {
             }
         }
         if (nextAnchorIndex >= mAnchors.size()) {
-            // ranging successfully done with all anchors, calculate resulting position
+            // ranging done with all anchors, calculate resulting position
             setMyState(MYSTATE_CALCULATE_LOCATION);
         } else {
             mCurrentAnchorIndex = nextAnchorIndex;
@@ -574,8 +574,11 @@ void UwbTagDevice::calculateLocation() {
                 if (timeDiffMs <= MAX_AGE_ANCHOR_DISTANCE_MS) {
                     anchorPositionAndTagDistances.push_back(anchorPosAndTagDist);
                 } else {
-                    ESP_LOGW(TAG, "anchor 0x%02X timeDiffMs %" PRIu32 " > %" PRIu32,
-                        anchorPosAndTagDist.anchorId, timeDiffMs, MAX_AGE_ANCHOR_DISTANCE_MS);
+                    std::ostringstream msg;
+                    msg << "anchor 0x" << HEX_TO_STREAM(2, anchorPosAndTagDist.anchorId)
+                        << " timeDiffMs " << +timeDiffMs << " > " +MAX_AGE_ANCHOR_DISTANCE_MS;
+                    ESP_LOGW(TAG, "%s", msg.str().c_str());
+                    sendLog(msg.str());
                 }
             } else {
                 std::ostringstream msg;
@@ -603,14 +606,21 @@ void UwbTagDevice::calculateLocation() {
                         const double distAnchor = Location::getHaversineDistance(tagPosition, anchorPosition);
                         if (distAnchor > Location::UWB_MAX_REACH_METER) {
                             isPositionNearAnchors = false;
-                            ESP_LOGW(TAG, "calculated position %.7f,%.7f errEst %.2fm implausible dist %.2fm (>%.0fm) from anchor 0x%02X",
-                                tagPosition.latitude, tagPosition.longitude, errorEstimateMeters,
-                                distAnchor, Location::UWB_MAX_REACH_METER, anchor->getId());
+                            std::ostringstream msg;
+                            msg << "calculated position " << FLOAT_TO_STREAM(7, tagPosition.latitude) << ","
+                                << FLOAT_TO_STREAM(7, tagPosition.longitude) << " errEst " << FLOAT_TO_STREAM(2, errorEstimateMeters)
+                                << " implausible dist " << FLOAT_TO_STREAM(2, distAnchor) << "m (>" << FLOAT_TO_STREAM(0, Location::UWB_MAX_REACH_METER)
+                                << " from anchor 0x" << HEX_TO_STREAM(2, anchor->getId());
+                            ESP_LOGW(TAG, "%s", msg.str().c_str());
+                            sendLog(msg.str());
                         }
                     }
                     if (isPositionNearAnchors) {
-                        ESP_LOGW(TAG, "POSITION %.7f,%.7f errEst %.2fm",
-                            tagPosition.latitude, tagPosition.longitude, errorEstimateMeters);
+                        std::ostringstream msg;
+                        msg << "POSITION " << FLOAT_TO_STREAM(7, tagPosition.latitude) << ","
+                            << FLOAT_TO_STREAM(7, tagPosition.longitude) << " " << FLOAT_TO_STREAM(2, errorEstimateMeters) << "m";
+                        ESP_LOGW(TAG, "%s", msg.str().c_str());
+                        sendLog(msg.str());
 
                         // report sensors
                         if (mLatitudeSensor != nullptr) {
@@ -627,11 +637,17 @@ void UwbTagDevice::calculateLocation() {
                         }
                     }
                 } else {
-                    ESP_LOGW(TAG, "calculated position invalid: %.7f,%.7f errEst %.2fm",
-                        tagPosition.latitude, tagPosition.longitude, errorEstimateMeters);
+                    std::ostringstream msg;
+                    msg << "INVALID: " << FLOAT_TO_STREAM(7, tagPosition.latitude) << ","
+                        << FLOAT_TO_STREAM(7, tagPosition.longitude) << " errEst " << FLOAT_TO_STREAM(2, errorEstimateMeters) << "m";
+                    ESP_LOGW(TAG, "%s", msg.str().c_str());
+                    sendLog(msg.str());
                 }
             } else {
-                ESP_LOGW(TAG, "calculate position failed: 0x%02X", res);
+                std::ostringstream msg;
+                msg << "FAILED: " << toString(res);
+                ESP_LOGW(TAG, "%s", msg.str().c_str());
+                sendLog(msg.str());
             }
         }
     }

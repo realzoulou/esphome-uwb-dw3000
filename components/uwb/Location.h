@@ -51,6 +51,15 @@ typedef enum eCalcResult {
     CALC_F_NO_CANDIDATES = 20,
     CALC_F_BEST_MATCH = 30,
 } CalcResult;
+inline static const char* toString(const CalcResult & res) {
+    switch(res) {
+        case CALC_OK: return "OK";
+        case CALC_F_ANCHOR_COMBINATIONS: return "not enough anchor combinations";
+        case CALC_F_NO_CANDIDATES: return "no candidates";
+        case CALC_F_BEST_MATCH: return "no best matching position candidate";
+        default: return "?!?";
+    }
+}
 
 typedef enum eCircleIntersectionResult {
     CIRCLE_INTERSECT_OK,
@@ -58,6 +67,15 @@ typedef enum eCircleIntersectionResult {
     CIRCLE_INTERSECT_ERROR_NO_INTERSECTION,
     CIRCLE_INTERSECT_ERROR_CONTAINED,
 } CircleIntersectionResult;
+inline static const char* toString(const CircleIntersectionResult & res) {
+    switch(res) {
+        case CIRCLE_INTERSECT_OK: return "OK";
+        case CIRCLE_INTERSECT_ERROR_INPUT: return "input error";
+        case CIRCLE_INTERSECT_ERROR_NO_INTERSECTION: return "circles do not intersect";
+        case CIRCLE_INTERSECT_ERROR_CONTAINED: return "circle contained in each other";
+        default: return "?!?";
+    }
+}
 
 class Location {
 

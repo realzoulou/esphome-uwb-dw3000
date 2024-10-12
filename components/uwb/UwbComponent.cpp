@@ -56,6 +56,7 @@ void UwbComponent::setup() {
         mDevice->setVoltageSensor(mVoltageSensor);
         mDevice->setTemperatureSensor(mTemperatureSensor);
         mDevice->setDiagnosticStatusSensor(mDiagnosticStatusSensor);
+        mDevice->setLogSensor(mLogSensor);
         // done with preparations, run device setup
         mDevice->setup();
     }
@@ -107,6 +108,9 @@ void UwbComponent::setTemperatureSensor(const sensor::Sensor* sensor) {
 
 void UwbComponent::setDiagnosticStatusSensor(const text_sensor::TextSensor* sensor) {
     mDiagnosticStatusSensor = const_cast<text_sensor::TextSensor*>(sensor);
+}
+void UwbComponent::setLogSensor(const text_sensor::TextSensor* sensor) {
+    mLogSensor = const_cast<text_sensor::TextSensor*>(sensor);
 }
 
 std::string UwbComponent::roleToString(const eUwbRole role) {
