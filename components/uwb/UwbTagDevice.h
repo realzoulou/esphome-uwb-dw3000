@@ -159,6 +159,8 @@ protected:
     /* micros() of when entered waiting for Final response. */
     uint32_t mEnteredWaitRecvFinalMicros{0};
 
+    /* millis() of when last reported a location. */
+    uint32_t mLastLocationReportMillis{0};
 };
 
 }  // namespace uwb

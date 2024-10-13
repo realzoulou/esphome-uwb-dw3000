@@ -558,8 +558,11 @@ void UwbTagDevice::rangingDone(bool success, double distance) {
 }
 
 void UwbTagDevice::calculateLocation() {
+    const uint32_t startedMs = millis();
+    bool isLocationGood = false;
+    float reportLatitude = NAN, reportLongitude = NAN, reportErrEst = NAN, reportAnchorNum = NAN;
+
     if (mAnchors.size() > 1) {
-        const uint32_t now = millis();
         // collect all distances to anchors
         std::vector<AnchorPositionTagDistance> anchorPositionAndTagDistances;
         for(const auto anchor: mAnchors) {
@@ -570,7 +573,7 @@ void UwbTagDevice::calculateLocation() {
             uint32_t millisDistance;
             anchorPosAndTagDist.tagDistance = anchor->getDistance(&millisDistance);
             if (Location::isValid(anchorPosAndTagDist)) {
-                const uint32_t timeDiffMs = now - millisDistance;
+                const uint32_t timeDiffMs = startedMs - millisDistance;
                 if (timeDiffMs <= MAX_AGE_ANCHOR_DISTANCE_MS) {
                     anchorPositionAndTagDistances.push_back(anchorPosAndTagDist);
                 } else {
@@ -616,25 +619,17 @@ void UwbTagDevice::calculateLocation() {
                         }
                     }
                     if (isPositionNearAnchors) {
+                        isLocationGood = true;
+                        reportLatitude = tagPosition.latitude;
+                        reportLongitude = tagPosition.longitude;
+                        reportErrEst = errorEstimateMeters;
+                        reportAnchorNum = (float)anchorNum;
+
                         std::ostringstream msg;
-                        msg << "POSITION " << FLOAT_TO_STREAM(7, tagPosition.latitude) << ","
-                            << FLOAT_TO_STREAM(7, tagPosition.longitude) << " " << FLOAT_TO_STREAM(2, errorEstimateMeters) << "m";
+                        msg << "POSITION " << FLOAT_TO_STREAM(7, reportLatitude) << ","
+                            << FLOAT_TO_STREAM(7, reportLongitude) << " " << FLOAT_TO_STREAM(2, reportErrEst) << "m";
                         ESP_LOGW(TAG, "%s", msg.str().c_str());
                         sendLog(msg.str());
-
-                        // report sensors
-                        if (mLatitudeSensor != nullptr) {
-                            mLatitudeSensor->publish_state(tagPosition.latitude);
-                        }
-                        if (mLongitudeSensor != nullptr) {
-                            mLongitudeSensor->publish_state(tagPosition.longitude);
-                        }
-                        if (mLocationErrorEstimateSensor != nullptr) {
-                            mLocationErrorEstimateSensor->publish_state(errorEstimateMeters);
-                        }
-                        if (mAnchorsInUseSensor != nullptr) {
-                            mAnchorsInUseSensor->publish_state((float)anchorNum);
-                        }
                     }
                 } else {
                     std::ostringstream msg;
@@ -650,6 +645,30 @@ void UwbTagDevice::calculateLocation() {
                 sendLog(msg.str());
             }
         }
+    }
+
+    if (isLocationGood
+       || (!isLocationGood && (startedMs - mLastLocationReportMillis >= 30000U))) {
+        if (!isLocationGood) {
+            // invalidate previously reported location after 30s long failure period
+            std::ostringstream msg;
+            msg << "INVALIDATE POSITION after " << +((startedMs - mLastLocationReportMillis +500U)/1000U) << "s";
+            ESP_LOGW(TAG, "%s", msg.str().c_str());
+            sendLog(msg.str());
+        }
+        if (mLatitudeSensor != nullptr) {
+            mLatitudeSensor->publish_state(reportLatitude);
+        }
+        if (mLongitudeSensor != nullptr) {
+            mLongitudeSensor->publish_state(reportLongitude);
+        }
+        if (mLocationErrorEstimateSensor != nullptr) {
+            mLocationErrorEstimateSensor->publish_state(reportErrEst);
+        }
+        if (mAnchorsInUseSensor != nullptr) {
+            mAnchorsInUseSensor->publish_state(reportAnchorNum);
+        }
+        mLastLocationReportMillis = startedMs;
     }
     // next ranging cycle
     setMyState(MYSTATE_WAIT_NEXT_RANGING_INTERVAL);
