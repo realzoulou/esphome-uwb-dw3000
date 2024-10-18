@@ -297,7 +297,7 @@ TEST(Location_findTwoCirclesIntersections, twoAnchors_inBerlin) {
 
     LatLong t, t_prime;
     EXPECT_EQ(CIRCLE_INTERSECT_OK, Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
-    // cannot know if t or t_prime could match expected values
+    // cannot know if t or t_prime could match expected exp_t and exp_t_prime
     EXPECT_TRUE(
            (IS_NEAR_DOUBLE(exp_t.latitude, t.latitude, INTERSECTION_PRECISION)
             && IS_NEAR_DOUBLE(exp_t.longitude, t.longitude, INTERSECTION_PRECISION))
@@ -666,73 +666,6 @@ TEST(Location_calculatePosition, threeAnchors_real) {
     LatLong tagPosition = {NAN, NAN};
     double errEst = NAN;
     EXPECT_TRUE(CALC_OK == Location::calculatePosition(three, tagPosition, errEst));
-    EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
-    EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
-    EXPECT_LE(errEst, expErr);
-}
-
-////////////////////////////////////////////////
-// Location::solveLinearSystem_leastSquares
-
-TEST(Location_solveLinearSystem_leastSquares, einval) {
-    double x, y;
-    double A_nok[1][2]; // [*][1] would not compile
-    double b_nok[1];
-    std::ostringstream msg;
-    EXPECT_FALSE(Location::solveLinearSystem_leastSquares(2, nullptr, nullptr, x, y, msg));
-    EXPECT_FALSE(Location::solveLinearSystem_leastSquares(2, A_nok, nullptr, x, y, msg));
-    EXPECT_FALSE(Location::solveLinearSystem_leastSquares(2, nullptr, b_nok, x, y, msg));
-    EXPECT_FALSE(Location::solveLinearSystem_leastSquares(2, A_nok, b_nok, x, y, msg));
-}
-
-////////////////////////////////////////////////
-// Location::calculatePosition_leastSquares
-TEST(Location_calculatePosition_leastSquares, threeAnchorsExampleOfOpenAI) {
-    const std::vector<AnchorPositionTagDistance> anchors = {
-        {0xA1, {52.2296756, 21.0122287}, 10.0},
-        {0xA2, {52.406374, 16.9251681}, 15.0},
-        {0xA3, {51.1078852, 17.0385376}, 12.5},
-    };
-    const LatLong expPosition = {26.6959425, 33.1531269};
-    const double expErr = 17;
-
-    LatLong tagPosition = {NAN, NAN};
-    double errEst = NAN;
-    EXPECT_TRUE(CALC_OK == Location::calculatePosition_leastSquares(anchors, tagPosition, errEst));
-    EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
-    EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
-    EXPECT_LE(errEst, expErr);
-}
-TEST(Location_calculatePosition_leastSquares, threeAnchors) {
-    const LatLong a1 = {1.00000, 1.00000}, a2 = {0.99910, 1.00010}, a3 = {0.99900, 1.00020};
-    const std::vector<AnchorPositionTagDistance> three = {
-        {0xA1, a1, 10},
-        {0xA2, a2, 10},
-        {0xA3, a3, 10},
-    };
-    // found no independent way (e.g. Internet page) to calculate the expected results
-    const LatLong expPosition = {0.999625, 1.000725}; // trial & error until test passed, but looks reasonable
-    const double expErr = 10; // trial & error
-
-    LatLong tagPosition = {NAN, NAN};
-    double errEst = NAN;
-    EXPECT_TRUE(CALC_OK == Location::calculatePosition_leastSquares(three, tagPosition, errEst));
-    EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
-    EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
-    EXPECT_LE(errEst, expErr);
-}
-TEST(Location_calculatePosition_leastSquares, threeAnchors_real) {
-    const std::vector<AnchorPositionTagDistance> three = {
-        {0xA1, {50.51695017092124, -35.649778489469757}, 16.59},
-        {0xA2, {50.51678538255722, -35.649683941598978}, 8.02},
-        {0xA3, {50.516870663933815, -35.649518985739324}, 7.63},
-    };
-    const LatLong expPosition = {50.516841, -35.649664};
-    const double expErr = 1;
-
-    LatLong tagPosition = {NAN, NAN};
-    double errEst = NAN;
-    EXPECT_TRUE(CALC_OK == Location::calculatePosition_leastSquares(three, tagPosition, errEst));
     EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
     EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
     EXPECT_LE(errEst, expErr);

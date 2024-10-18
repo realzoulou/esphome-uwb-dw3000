@@ -85,10 +85,6 @@ public:
 public:
     static CalcResult calculatePosition(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
                                         LatLong & outputTagPosition, double & outputTagPositionErrorEstimate);
-    static CalcResult calculatePosition_leastSquares(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
-                                                     LatLong & outputTagPosition, double & outputTagPositionErrorEstimate);
-    static CalcResult calculatePosition_centroid(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
-                                                 LatLong & outputTagPosition, double & outputTagPositionErrorEstimate);
     static bool isValid(const AnchorPositionTagDistance & a);
     static bool isValid(const LatLong & a);
     static void LOG_ANCHOR_TO_STREAM(std::ostringstream & ostream, const AnchorPositionTagDistance & anchor);
@@ -97,10 +93,6 @@ public:
     static double getHaversineDistance(const LatLong & from, const LatLong & to);
 
 UT_VISIBILITY_PRIVATE:
-    /* solve a system of >= 2 linear equations using least squares. */
-    static bool solveLinearSystem_leastSquares(const uint32_t N_EQN, const double A[][2], const double b[], double & x, double & y,
-                                               std::ostringstream & errMsg);
-
     /* find all distinct combinations of two anchors from given set of >= 2 anchors.
        distinct means that no combination of two anchors shall appear >1 in the output.
        e.g. (A1, A2) shall not appear again as (A2, A1)

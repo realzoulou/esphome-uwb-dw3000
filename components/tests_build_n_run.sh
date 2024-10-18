@@ -10,5 +10,8 @@ rm -rf test/build
 cmake -S test -B test/build
 cmake --build test/build
 
-# run
+# run all tests
 ./test/build/ut_uwb
+
+# or run a specific test
+# ./test/build/ut_uwb --gtest_filter=Location_calculatePosition.threeAnchors_real
