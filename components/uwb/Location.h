@@ -87,6 +87,9 @@ public:
                                         LatLong & outputTagPosition, double & outputTagPositionErrorEstimate);
     static bool isValid(const AnchorPositionTagDistance & a);
     static bool isValid(const LatLong & a);
+    inline static bool isDistancePlausible(const double distance) {
+        return (!std::isnan(distance) && (distance> 0) && (distance <= UWB_MAX_REACH_METER));
+    }
     static void LOG_ANCHOR_TO_STREAM(std::ostringstream & ostream, const AnchorPositionTagDistance & anchor);
 
     /* get squerical distance between 2 points on earth in [m] using Haversine formula. */

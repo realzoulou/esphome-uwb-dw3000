@@ -81,12 +81,27 @@ TEST(Location_isValid, validities) {
     EXPECT_FALSE(Location::isValid(a));
     a = {0x00, {  5.0,  5.0}, 0.0};
     EXPECT_FALSE(Location::isValid(a));
-    a = {0x00, {  5.0,  5.0}, 500.0};
+    a = {0x00, {  5.0,  5.0}, 501.0};
     EXPECT_FALSE(Location::isValid(a));
     a = {0x00, {  5.0,  5.0}, -5.0};
     EXPECT_FALSE(Location::isValid(a));
     a = {0x00, {  5.0,  5.0}, 5.0};
     EXPECT_TRUE(Location::isValid(a));
+}
+
+////////////////////////
+// Location::isDistancePlausible
+TEST(Location_isDistancePlausible, plausibleDistance) {
+    EXPECT_FALSE(Location::isDistancePlausible(0));
+    EXPECT_FALSE(Location::isDistancePlausible(-1));
+    EXPECT_FALSE(Location::isDistancePlausible(NAN));
+    EXPECT_TRUE(Location::isDistancePlausible(1));
+    EXPECT_TRUE(Location::isDistancePlausible(10));
+    EXPECT_TRUE(Location::isDistancePlausible(50));
+    EXPECT_TRUE(Location::isDistancePlausible(100));
+    EXPECT_TRUE(Location::isDistancePlausible(500));
+    EXPECT_FALSE(Location::isDistancePlausible(1000));
+    EXPECT_FALSE(Location::isDistancePlausible(500000));
 }
 
 ////////////////////////

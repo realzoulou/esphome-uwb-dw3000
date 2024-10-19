@@ -64,7 +64,7 @@ public:
         const double minDistance = MIN_DISTANCE_CHANGE_DEFAULT,
         const double maxSpeed = MAX_SPEED_DEFAULT
     );
-    void addDistanceSensor(const uint8_t targetDeviceId, const sensor::Sensor* sensor);
+    void addDistanceSensor(const uint8_t targetDeviceId, sensor::Sensor* sensor);
     void addLatitudeSensor(const sensor::Sensor* sensor);
     void addLongitudeSensor(const sensor::Sensor* sensor);
     void addErrorEstimateSensor(const sensor::Sensor* sensor);
@@ -89,7 +89,7 @@ private:
     sensor::Sensor * mTemperatureSensor{nullptr};
     text_sensor::TextSensor * mDiagnosticStatusSensor{nullptr};
     text_sensor::TextSensor * mLogSensor{nullptr};
-    std::map<const uint8_t, const sensor::Sensor*> mDistanceSensors;
+    std::map<const uint8_t, sensor::Sensor*> mDistanceSensors;
     // data only for tag
     std::vector<std::shared_ptr<UwbAnchorData>> mAnchors;
     uint32_t mRangingIntervalMs{RANGING_INTERVAL_TIME_DEFAULT};

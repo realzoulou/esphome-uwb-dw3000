@@ -372,6 +372,25 @@ void UwbAnchorDevice::recvdFrameFinal() {
                                           (uint32_t)final_response_tx_ts);
         mFinalFrame.setTargetId(otherDeviceId);
         mFinalFrame.setSourceId(thisDeviceId);
+
+        /* Compute time of flight. */
+        const double Ra = (double)(resp_rx_time - initial_tx_time);
+        const double Rb = (double)(final_rx_ts - response_tx_ts);
+        const double Da = (double)(final_tx_time - resp_rx_time);
+        const double Db = (double)(response_tx_ts - mInitial_rx_ts);
+        const int64_t tof_dtu = (int64_t)((Ra * Rb - Da * Db) / (Ra + Rb + Da + Db));
+        const double tof = tof_dtu * DWT_TIME_UNITS;
+        double distance = tof * SPEED_OF_LIGHT;
+        if (Location::isDistancePlausible(distance)) {
+            // set TOF in [cm] to Final frame
+            const uint16_t dist_cm = (uint16_t)(distance * 100.0); // [m] -> [cm]
+            const uint8_t fctData[FinalMsg::FINAL_DATA_SIZE] = {
+                (uint8_t)((dist_cm & 0xFF00U) >> 8),
+                (uint8_t)((dist_cm & 0x00FFU))
+            };
+            mFinalFrame.setFunctionCodeAndData(FinalMsg::FINAL_FCT_CODE_RANGING_DIST, fctData, FinalMsg::FINAL_DATA_SIZE);
+        }
+
         /* Write and send Final response message. */
         // not checking mFinalFrame.isValid() in order to save processing time
         uint8_t* txbuffer = mFinalFrame.getBytes().data();
@@ -398,16 +417,8 @@ void UwbAnchorDevice::recvdFrameFinal() {
             setMyState(MYSTATE_SEND_ERROR_FINAL);
         }
 
-        /* after(!) trying to send Final frame, Compute time of flight. */
-        const double Ra = (double)(resp_rx_time - initial_tx_time);
-        const double Rb = (double)(final_rx_ts - response_tx_ts);
-        const double Da = (double)(final_tx_time - resp_rx_time);
-        const double Db = (double)(response_tx_ts - mInitial_rx_ts);
-        const int64_t tof_dtu = (int64_t)((Ra * Rb - Da * Db) / (Ra + Rb + Da + Db));
-        const double tof = tof_dtu * DWT_TIME_UNITS;
-        double distance = tof * SPEED_OF_LIGHT;
-
-        if (distance > 0.0 && distance <= Location::UWB_MAX_REACH_METER) {
+        /* Plausibility check. */
+        if (Location::isDistancePlausible(distance)) {
             /* Display computed distance. */
             ESP_LOGW(TAG, "DIST tag 0x%02X: %.2fm", otherDeviceId, distance);
         } else {

@@ -11,6 +11,8 @@ const char* FinalMsg::TAG = "FinalMsg";
 
 #define COMMON_PAYLOAD_START_BYTES_RESERVED {'F', 'I'}
 
+#define FINAL_FCT_DATA_DEFAULT { (uint8_t) 0x00, (uint8_t) 0x00 }
+
 static const FinalMsg::sFinalFrame DEFAULT_FINAL_FRAME = {
     .mhr = {
         .frameControl_lsb = UwbMessage::FRAME_CONTROL_LSB,
@@ -24,7 +26,8 @@ static const FinalMsg::sFinalFrame DEFAULT_FINAL_FRAME = {
         .sourceId = 0x00,
         .reserved = COMMON_PAYLOAD_START_BYTES_RESERVED,
     },
-    .functionCode = FinalMsg::FINAL_FCT_CODE_RANGING,
+    .functionCode = FinalMsg::FINAL_FCT_CODE_NO_DATA,
+    .functionData = FINAL_FCT_DATA_DEFAULT,
     .initial_ts = 0,
     .response_ts = 0,
     .final_ts = 0,
@@ -54,7 +57,8 @@ bool FinalMsg::isValid() const {
         return false;
     }
     // check functionCode
-    if (frame->functionCode != FinalMsg::FINAL_FCT_CODE_RANGING) {
+    if (   (frame->functionCode != FinalMsg::FINAL_FCT_CODE_NO_DATA)
+        && (frame->functionCode != FinalMsg::FINAL_FCT_CODE_RANGING_DIST)) {
         return false;
     }
     // check payload start
@@ -99,6 +103,28 @@ void FinalMsg::setTimestamps(uint32_t initial, uint32_t response, uint32_t final
     frame->initial_ts = initial;
     frame->response_ts = response;
     frame->final_ts = final;
+}
+bool FinalMsg::setFunctionCodeAndData(const uint8_t fctCode, const uint8_t* data, const std::size_t dataSize) {
+    if (data == nullptr || dataSize != FINAL_DATA_SIZE) {
+        ESP_LOGE(TAG, "setFunctionCodeAndData null or invalid dataSize %zu (exp %zu)", dataSize, FINAL_DATA_SIZE);
+        return false;
+    }
+    const auto frame = reinterpret_cast<FinalMsg::sFinalFrame*>(mBytes.data());
+    frame->functionCode = fctCode;
+    std::memcpy(frame->functionData, data, dataSize);
+    return true;
+}
+
+bool FinalMsg::getFunctionCodeAndData(uint8_t* fctCode, uint8_t* data, const std::size_t dataSize, std::size_t *actualDataSize) const {
+    if (fctCode == nullptr || data == nullptr || actualDataSize == nullptr || dataSize < FINAL_DATA_SIZE) {
+        ESP_LOGE(TAG, "getFunctionCodeAndData null's or invalid dataSize %zu (exp %zu)", dataSize, FINAL_DATA_SIZE);
+        return false;
+    }
+    const auto frame = reinterpret_cast<const FinalMsg::sFinalFrame*>(mBytes.data());
+    *fctCode = frame->functionCode;
+    *actualDataSize = FINAL_DATA_SIZE;
+    std::memcpy(data, frame->functionData, FINAL_DATA_SIZE);
+    return true;
 }
 
 }  // namespace uwb

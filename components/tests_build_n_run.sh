@@ -4,7 +4,7 @@
 set -eu"$VERBOSE"
 
 # clean
-rm -rf test/build
+# rm -rf test/build
 
 # build
 cmake -S test -B test/build

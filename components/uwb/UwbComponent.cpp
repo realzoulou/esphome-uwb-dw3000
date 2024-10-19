@@ -77,7 +77,7 @@ void UwbComponent::addAnchor(const uint8_t id, const double latitude, const doub
     mAnchors.push_back(anchor);
 }
 
-void UwbComponent::addDistanceSensor(const uint8_t targetDeviceId, const sensor::Sensor* sensor) {
+void UwbComponent::addDistanceSensor(const uint8_t targetDeviceId, sensor::Sensor* sensor) {
     auto pair = std::make_pair(targetDeviceId, sensor);
     mDistanceSensors.insert(pair);
 }

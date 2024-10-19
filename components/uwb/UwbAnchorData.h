@@ -19,15 +19,16 @@ public:
                   const double minDistance, const double maxSpeed)
     : mId(id), mLatitude(latitude), mLongitude(longitude), MIN_DISTANCE(minDistance), MAX_SPEED(maxSpeed) {}
 
-    inline void setSensor(const sensor::Sensor* sensor) { mSensor = sensor; }
-    inline const sensor::Sensor* getSensor() const { return mSensor; }
+    inline void setSensor(sensor::Sensor* sensor) { mSensor = sensor; }
+    inline sensor::Sensor* getSensor() const { return mSensor; }
 
     inline uint8_t getId() const { return mId; }
     inline double getLatitude() const { return mLatitude; }
     inline double getLongitude() const { return mLongitude; }
 
-    void setDistance(double distanceMeters);
+    void setDistance(double distanceMeters, double distanceErrorEstimate = NAN);
     double getDistance(uint32_t* millis) const;
+    inline double getDistanceErrorEstimate() const { return mDistanceToTagErrorEstimate; }
 
 private:
     static const char* TAG;
@@ -42,18 +43,21 @@ private:
     const double mLongitude;
 
     /* Distance sensor. */
-    const sensor::Sensor* mSensor;
+    sensor::Sensor* mSensor;
 
     /* Minimum absolute difference of a new distance to be reported. */
     const double MIN_DISTANCE;
 
-    /* maximum speed in [m/s] that a tag can change its location typically. */
+    /* Maximum speed in [m/s] that a tag can change its location typically. */
     const double MAX_SPEED;
 
-    /* Latest Distance in [m] to tag. */
+    /* Distance in [m] to tag. */
     double mDistanceToTag{NAN};
 
-    /* Latest millis() when distance was set. */
+    /* Distance error estimate in [m] to tag. */
+    double mDistanceToTagErrorEstimate{NAN};
+
+    /* millis() when distance was set. */
     uint32_t mMillisDistanceToTag{0};
 };
 

@@ -484,15 +484,26 @@ void UwbTagDevice::recvdFrameFinal() {
         const double tof = tof_dtu * DWT_TIME_UNITS;
         const double distance = tof * SPEED_OF_LIGHT;
 
-        if (distance > 0.0 && distance <= Location::UWB_MAX_REACH_METER) {
+        /* Retrieve anchor calculated TOF from Final frame. */
+        double anchorCalculatedDistance = NAN;
+        uint8_t fctCode;
+        uint8_t fctData[FinalMsg::FINAL_DATA_SIZE];
+        std::size_t actualFctDataLen;
+        if (mFinalFrame.getFunctionCodeAndData(&fctCode, fctData, FinalMsg::FINAL_DATA_SIZE, &actualFctDataLen)) {
+            anchorCalculatedDistance = ((double) ((uint16_t) ((fctData[0] << 8) + fctData[1]))) / 100.0; // [cm] -> [m]
+            if (!Location::isDistancePlausible(anchorCalculatedDistance)) {
+                anchorCalculatedDistance = NAN;
+            }
+        }
+
+        if (Location::isDistancePlausible(distance)) {
             /* Display computed distance. */
-            ESP_LOGW(TAG, "DIST anchor 0x%02X: %.2fm", anchorId, distance);
-            rangingDone(true, distance);
+            ESP_LOGW(TAG, "DIST anchor 0x%02X: %.2fm (from anchor %.2fm)", anchorId, distance, anchorCalculatedDistance);
+            rangingDone(true, distance, anchorCalculatedDistance);
         } else {
             ESP_LOGW(TAG, "DIST anchor 0x%02X: %.2fm implausible (>%.0f)", anchorId, distance, Location::UWB_MAX_REACH_METER);
             rangingDone(false);
         }
-
     } else {
         const uint8_t anchorId = mAnchors.at(mCurrentAnchorIndex)->getId();
         ESP_LOGW(TAG, "0x%02X: recvdFrameFinal invalid", anchorId);
@@ -532,13 +543,21 @@ void UwbTagDevice::recvdInvalidFinal() {
     rangingDone(false);
 }
 
-void UwbTagDevice::rangingDone(bool success, double distance) {
+void UwbTagDevice::rangingDone(bool success, double distance, double otherDistance) {
      // if running with high-frequency loop(), go back to normal frequency
     mHighFreqLoopRequester.stop();
 
     if (success) {
         mAnchorCurrentRangingSuccess[mCurrentAnchorIndex] = 0; // no more attempts
-        (mAnchors[mCurrentAnchorIndex])->setDistance(distance);
+        if (!std::isnan(otherDistance)) {
+            // Use the mean distance of the two distances
+            const double meanDistance = (distance + otherDistance) / 2.0;
+            // and set the error estimate as the difference between the mean and the original distance
+            const double distanceErrEst = std::fabs(meanDistance - distance);
+            (mAnchors[mCurrentAnchorIndex])->setDistance(meanDistance, distanceErrEst);
+        } else {
+            (mAnchors[mCurrentAnchorIndex])->setDistance(distance);
+        }
     } else {
         const uint8_t attempts = mAnchorCurrentRangingSuccess[mCurrentAnchorIndex] -1;
         mAnchorCurrentRangingSuccess[mCurrentAnchorIndex] = attempts;
@@ -607,7 +626,7 @@ void UwbTagDevice::calculateLocation() {
                     for(const auto anchor: mAnchors) {
                         const LatLong anchorPosition = {anchor->getLatitude(), anchor->getLongitude()};
                         const double distAnchor = Location::getHaversineDistance(tagPosition, anchorPosition);
-                        if (distAnchor > Location::UWB_MAX_REACH_METER) {
+                        if (Location::isDistancePlausible(distAnchor)) {
                             isPositionNearAnchors = false;
                             std::ostringstream msg;
                             msg << "calculated position " << FLOAT_TO_STREAM(7, tagPosition.latitude) << ","

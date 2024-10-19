@@ -157,10 +157,7 @@ CalcResult Location::calculatePosition(const std::vector<AnchorPositionTagDistan
 }
 
 bool Location::isValid(const AnchorPositionTagDistance & a) {
-    return (   isValid(a.anchorPosition)
-            && (a.tagDistance > 0.0)
-            && (a.tagDistance < UWB_MAX_REACH_METER)
-           );
+    return (isValid(a.anchorPosition) && isDistancePlausible(a.tagDistance));
 }
 
 bool Location::isValid(const LatLong & a) {
