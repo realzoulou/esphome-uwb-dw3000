@@ -6,14 +6,6 @@
 #include <sstream>
 #include <vector>
 
-#ifndef __UT_TEST__
-#define UT_VISIBILITY_PRIVATE   private
-#define UT_VISIBILITY_PROTECTED protected
-#else
-#define UT_VISIBILITY_PRIVATE   public
-#define UT_VISIBILITY_PROTECTED public
-#endif
-
 namespace esphome {
 namespace uwb {
 
@@ -47,6 +39,7 @@ inline static bool operator!=(const AnchorPositionTagDistance& lhs, const Anchor
 
 typedef enum eCalcResult {
     CALC_OK = 0,
+    CALC_PHASE_OK = 5,
     CALC_F_ANCHOR_COMBINATIONS = 10,
     CALC_F_NO_CANDIDATES = 20,
     CALC_F_BEST_MATCH = 30,
@@ -77,14 +70,25 @@ inline static const char* toString(const CircleIntersectionResult & res) {
     }
 }
 
+typedef uint8_t CalculationPhase;
+constexpr static CalculationPhase CALC_RUN_ALL_PHASES_AT_ONCE            = 0x01;
+constexpr static CalculationPhase CALC_PHASE_INIT                        = 0x80;
+constexpr static CalculationPhase CALC_PHASE_DONE_ANCHOR_COMBINATIONS    = 0x02;
+constexpr static CalculationPhase CALC_PHASE_DONE_COLLECT_CANDIDATES     = 0x04;
+constexpr static CalculationPhase CALC_PHASE_DONE_FILTER_CANDIDATES      = 0x08;
+constexpr static CalculationPhase CALC_PHASE_DONE_SELECT_BEST_CANDIDATE  = 0x10;
+constexpr static CalculationPhase CALC_ALL_PHASES_DONE =
+      CALC_PHASE_DONE_ANCHOR_COMBINATIONS
+    + CALC_PHASE_DONE_COLLECT_CANDIDATES
+    + CALC_PHASE_DONE_FILTER_CANDIDATES
+    + CALC_PHASE_DONE_SELECT_BEST_CANDIDATE;
+
 class Location {
 
-public:
+public: // constants
     constexpr static double UWB_MAX_REACH_METER = 500.0; // don't think that UWB reaches > 500m
 
-public:
-    static CalcResult calculatePosition(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
-                                        LatLong & outputTagPosition, double & outputTagPositionErrorEstimate);
+public: // static methods
     static bool isValid(const AnchorPositionTagDistance & a);
     static bool isValid(const LatLong & a);
     inline static bool isDistancePlausible(const double distance) {
@@ -92,10 +96,12 @@ public:
     }
     static void LOG_ANCHOR_TO_STREAM(std::ostringstream & ostream, const AnchorPositionTagDistance & anchor);
 
+    static CalcResult calculatePosition(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
+                                        LatLong & outputTagPosition, double & outputTagPositionErrorEstimate);
+
     /* get squerical distance between 2 points on earth in [m] using Haversine formula. */
     static double getHaversineDistance(const LatLong & from, const LatLong & to);
 
-UT_VISIBILITY_PRIVATE:
     /* find all distinct combinations of two anchors from given set of >= 2 anchors.
        distinct means that no combination of two anchors shall appear >1 in the output.
        e.g. (A1, A2) shall not appear again as (A2, A1)
@@ -115,8 +121,19 @@ UT_VISIBILITY_PRIVATE:
 
     static double METER_TO_DEGREE(const double latitude);
 
+public: // instance methods
+    Location() {}
+    Location(const Location&) = delete; // forbid copy constructor
+
+    CalcResult calculatePosition(CalculationPhase & phase,
+                                 const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
+                                 LatLong & outputTagPosition, double & outputTagPositionErrorEstimate);
+
 private:
     static const char* TAG;
+
+    std::vector<std::pair<AnchorPositionTagDistance, AnchorPositionTagDistance>> pairOfTwoAnchorsAndTheirDistanceToTag;
+    std::vector<LatLong> positionCandidates;
 };
 
 }  // namespace uwb

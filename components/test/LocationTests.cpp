@@ -544,7 +544,7 @@ TEST(Location_calculatePosition, noAnchor) {
 
     LatLong tagPosition = expPosition;
     double errEst = expErr;
-    EXPECT_FALSE(CALC_OK == Location::calculatePosition(empty, tagPosition, errEst));
+    EXPECT_EQ(CALC_F_ANCHOR_COMBINATIONS, Location::calculatePosition(empty, tagPosition, errEst));
     EXPECT_EQ(expPosition, tagPosition); // no side-effects?
     EXPECT_EQ(expErr, errEst); // no side-effects?
 }
@@ -557,7 +557,7 @@ TEST(Location_calculatePosition, oneAnchor) {
 
     LatLong tagPosition = expPosition;
     double errEst = expErr;
-    EXPECT_FALSE(CALC_OK == Location::calculatePosition(one, tagPosition, errEst));
+    EXPECT_NE(CALC_OK, Location::calculatePosition(one, tagPosition, errEst));
     EXPECT_EQ(expPosition, tagPosition); // no side-effects?
     EXPECT_EQ(expErr, errEst); // no side-effects?
 }
@@ -571,7 +571,7 @@ TEST(Location_calculatePosition, twoAnchorsEqual) {
 
     LatLong tagPosition = expPosition;
     double errEst = expErr;
-    EXPECT_FALSE(CALC_OK == Location::calculatePosition(two, tagPosition, errEst));
+    EXPECT_NE(CALC_OK, Location::calculatePosition(two, tagPosition, errEst));
     EXPECT_EQ(expPosition, tagPosition); // no side-effects?
     EXPECT_EQ(expErr, errEst); // no side-effects?
 }
@@ -587,7 +587,7 @@ TEST(Location_calculatePosition, twoAnchors_tagExactInTheMiddleInEastWestDirecti
     const double expErr = 0.001; // 1mm
     LatLong tagPosition;
     double errEst;
-    EXPECT_TRUE(CALC_OK == Location::calculatePosition(two, tagPosition, errEst));
+    EXPECT_EQ(CALC_OK, Location::calculatePosition(two, tagPosition, errEst));
     EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
     EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
     EXPECT_LE(errEst, expErr);
@@ -604,7 +604,7 @@ TEST(Location_calculatePosition, twoAnchors_tagExactInTheMiddleNorthSouth) {
     const double expErr = 0.001; // 1mm
     LatLong tagPosition = expPosition;
     double errEst;
-    EXPECT_TRUE(CALC_OK == Location::calculatePosition(two, tagPosition, errEst));
+    EXPECT_EQ(CALC_OK, Location::calculatePosition(two, tagPosition, errEst));
     EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
     EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
     EXPECT_LE(errEst, expErr);
@@ -664,7 +664,7 @@ TEST(Location_calculatePosition, threeAnchors_pseudo) {
 
     LatLong tagPosition = {NAN, NAN};
     double errEst = NAN;
-    EXPECT_TRUE(CALC_OK == Location::calculatePosition(three, tagPosition, errEst));
+    EXPECT_EQ(CALC_OK, Location::calculatePosition(three, tagPosition, errEst));
     EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
     EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
     EXPECT_LE(errEst, expErr);
@@ -680,7 +680,45 @@ TEST(Location_calculatePosition, threeAnchors_real) {
 
     LatLong tagPosition = {NAN, NAN};
     double errEst = NAN;
-    EXPECT_TRUE(CALC_OK == Location::calculatePosition(three, tagPosition, errEst));
+    EXPECT_EQ(CALC_OK, Location::calculatePosition(three, tagPosition, errEst));
+    EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
+    EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
+    EXPECT_LE(errEst, expErr);
+}
+TEST(Location_calculatePosition, threeAnchors_real_in_phases) {
+    const std::vector<AnchorPositionTagDistance> three = {
+        {0xA1, {50.51695017092124, -35.649778489469757}, 16.59},
+        {0xA2, {50.51678538255722, -35.649683941598978}, 8.02},
+        {0xA3, {50.516870663933815, -35.649518985739324}, 7.63},
+    };
+    const LatLong expPosition = {50.516841, -35.649664};
+    const double expErr = 1;
+
+    LatLong tagPosition = {NAN, NAN};
+    double errEst = NAN;
+    Location l;
+    CalculationPhase phase = CALC_PHASE_INIT;
+
+    ASSERT_EQ(CALC_PHASE_OK, l.calculatePosition(phase, three, tagPosition, errEst));
+    ASSERT_EQ(CALC_PHASE_DONE_ANCHOR_COMBINATIONS, (phase & CALC_PHASE_DONE_ANCHOR_COMBINATIONS));
+
+    ASSERT_EQ(CALC_PHASE_OK, l.calculatePosition(phase, three, tagPosition, errEst));
+    ASSERT_EQ(CALC_PHASE_DONE_ANCHOR_COMBINATIONS, (phase & CALC_PHASE_DONE_ANCHOR_COMBINATIONS));
+    ASSERT_EQ(CALC_PHASE_DONE_COLLECT_CANDIDATES, (phase & CALC_PHASE_DONE_COLLECT_CANDIDATES));
+
+    ASSERT_EQ(CALC_PHASE_OK, l.calculatePosition(phase, three, tagPosition, errEst));
+    ASSERT_EQ(CALC_PHASE_DONE_ANCHOR_COMBINATIONS, (phase & CALC_PHASE_DONE_ANCHOR_COMBINATIONS));
+    ASSERT_EQ(CALC_PHASE_DONE_COLLECT_CANDIDATES, (phase & CALC_PHASE_DONE_COLLECT_CANDIDATES));
+    ASSERT_EQ(CALC_PHASE_DONE_FILTER_CANDIDATES, (phase & CALC_PHASE_DONE_FILTER_CANDIDATES));
+
+    ASSERT_EQ(CALC_OK, l.calculatePosition(phase, three, tagPosition, errEst));
+    ASSERT_EQ(CALC_PHASE_DONE_ANCHOR_COMBINATIONS, (phase & CALC_PHASE_DONE_ANCHOR_COMBINATIONS));
+    ASSERT_EQ(CALC_PHASE_DONE_COLLECT_CANDIDATES, (phase & CALC_PHASE_DONE_COLLECT_CANDIDATES));
+    ASSERT_EQ(CALC_PHASE_DONE_FILTER_CANDIDATES, (phase & CALC_PHASE_DONE_FILTER_CANDIDATES));
+    ASSERT_EQ(CALC_PHASE_DONE_SELECT_BEST_CANDIDATE, (phase & CALC_PHASE_DONE_SELECT_BEST_CANDIDATE));
+
+    ASSERT_EQ(CALC_ALL_PHASES_DONE, phase);
+
     EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
     EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
     EXPECT_LE(errEst, expErr);

@@ -6,7 +6,6 @@
 #include "InitialMsg.h"
 #include "ResponseMsg.h"
 #include "FinalMsg.h"
-#include "Location.h"
 
 #include "esphome/core/log.h"
 
@@ -95,7 +94,9 @@ void UwbTagDevice::setMyState(const eMyState newState) {
             case MYSTATE_RECVD_VALID_FINAL:         newStateStr = "RECVD_VALID_FINAL"; logLvl = ESPHOME_LOG_LEVEL_INFO; break;
             case MYSTATE_RECVD_INVALID_FINAL:       newStateStr = "RECVD_INVALID_FINAL"; logLvl = ESPHOME_LOG_LEVEL_WARN; break;
             case MYSTATE_RANGING_DONE:              newStateStr = "RANGING_DONE"; logLvl = ESPHOME_LOG_LEVEL_INFO; break;
-            case MYSTATE_CALCULATE_LOCATION:        newStateStr = "CALCULATE_LOCATION"; logLvl = ESPHOME_LOG_LEVEL_INFO; break;
+            case MYSTATE_CALCULATE_LOCATION_PREPARE:newStateStr = "CALCULATE_LOCATION_PREPARE"; logLvl = ESPHOME_LOG_LEVEL_INFO; break;
+            case MYSTATE_CALCULATE_LOCATION_PHASES: newStateStr = "CALCULATE_LOCATION_PHASES"; logLvl = ESPHOME_LOG_LEVEL_INFO; break;
+            case MYSTATE_CALCULATE_LOCATION_POST:   newStateStr = "CALCULATE_LOCATION_POST"; logLvl = ESPHOME_LOG_LEVEL_INFO; break;
             default:                                newStateStr = "?!?"; logLvl = ESPHOME_LOG_LEVEL_ERROR; break;
         }
         switch (logLvl) {
@@ -137,7 +138,9 @@ void UwbTagDevice::do_ranging() {
         case MYSTATE_RECVD_VALID_FINAL:          recvdValidFinal(); break; // should not occur because direct call
         case MYSTATE_RECVD_INVALID_FINAL:        recvdInvalidFinal(); break;
         case MYSTATE_RANGING_DONE:               rangingDone(false); break; // // should not occur because direct call
-        case MYSTATE_CALCULATE_LOCATION:         calculateLocation(); break;
+        case MYSTATE_CALCULATE_LOCATION_PREPARE: calculateLocationPrepare(); break;
+        case MYSTATE_CALCULATE_LOCATION_PHASES:  calculateLocationInPhases(); break;
+        case MYSTATE_CALCULATE_LOCATION_POST:    locationPostProcessing(); break;
         default:
             ESP_LOGE(TAG, "unhandled state %d", currState);
             // reset state machine
@@ -169,7 +172,7 @@ void UwbTagDevice::waitNextAnchorRanging() {
         }
         if (nextAnchorIndex >= mAnchors.size()) {
             // ranging done with all anchors, calculate resulting position
-            setMyState(MYSTATE_CALCULATE_LOCATION);
+            setMyState(MYSTATE_CALCULATE_LOCATION_PREPARE);
         } else {
             mCurrentAnchorIndex = nextAnchorIndex;
             setMyState(MYSTATE_PREPARE_SEND_INITIAL);
@@ -576,14 +579,11 @@ void UwbTagDevice::rangingDone(bool success, double distance, double otherDistan
     setMyState(MYSTATE_WAIT_NEXT_ANCHOR_RANGING);
 }
 
-void UwbTagDevice::calculateLocation() {
-    const uint32_t startedMs = millis();
-    bool isLocationGood = false;
-    float reportLatitude = NAN, reportLongitude = NAN, reportErrEst = NAN, reportAnchorNum = NAN;
-
+void UwbTagDevice::calculateLocationPrepare() {
+    mLocationCalculationStartedMs = millis();
     if (mAnchors.size() > 1) {
         // collect all distances to anchors
-        std::vector<AnchorPositionTagDistance> anchorPositionAndTagDistances;
+        mAnchorPositionAndTagDistances.clear();
         for(const auto anchor: mAnchors) {
             AnchorPositionTagDistance anchorPosAndTagDist;
             anchorPosAndTagDist.anchorId = anchor->getId();
@@ -592,9 +592,9 @@ void UwbTagDevice::calculateLocation() {
             uint32_t millisDistance;
             anchorPosAndTagDist.tagDistance = anchor->getDistance(&millisDistance);
             if (Location::isValid(anchorPosAndTagDist)) {
-                const uint32_t timeDiffMs = startedMs - millisDistance;
+                const uint32_t timeDiffMs = mLocationCalculationStartedMs - millisDistance;
                 if (timeDiffMs <= MAX_AGE_ANCHOR_DISTANCE_MS) {
-                    anchorPositionAndTagDistances.push_back(anchorPosAndTagDist);
+                    mAnchorPositionAndTagDistances.push_back(anchorPosAndTagDist);
                 } else {
                     std::ostringstream msg;
                     msg << "anchor 0x" << HEX_TO_STREAM(2, anchorPosAndTagDist.anchorId)
@@ -609,69 +609,90 @@ void UwbTagDevice::calculateLocation() {
             }
         }
 
-        const std::size_t anchorNum = anchorPositionAndTagDistances.size();
+        const std::size_t anchorNum = mAnchorPositionAndTagDistances.size();
         if (anchorNum >= 2) { // min 2 anchors needed
-            // calculate location and its error estimate
-            LatLong tagPosition;
-            double errorEstimateMeters;
-            CalcResult res;
-
-            res = Location::calculatePosition(anchorPositionAndTagDistances, tagPosition, errorEstimateMeters);
-
-            if (CALC_OK == res) {
-                // quick check against bounds of latitude and longitude
-                if (Location::isValid(tagPosition)) {
-                    // even if tag position may be a valid position, check distances to anchors for plausibility
-                    bool isPositionNearAnchors = true;
-                    for(const auto anchor: mAnchors) {
-                        const LatLong anchorPosition = {anchor->getLatitude(), anchor->getLongitude()};
-                        const double distAnchor = Location::getHaversineDistance(tagPosition, anchorPosition);
-                        if (Location::isDistancePlausible(distAnchor)) {
-                            isPositionNearAnchors = false;
-                            std::ostringstream msg;
-                            msg << "calculated position " << FLOAT_TO_STREAM(7, tagPosition.latitude) << ","
-                                << FLOAT_TO_STREAM(7, tagPosition.longitude) << " errEst " << FLOAT_TO_STREAM(2, errorEstimateMeters)
-                                << " implausible dist " << FLOAT_TO_STREAM(2, distAnchor) << "m (>" << FLOAT_TO_STREAM(0, Location::UWB_MAX_REACH_METER)
-                                << " from anchor 0x" << HEX_TO_STREAM(2, anchor->getId());
-                            ESP_LOGW(TAG, "%s", msg.str().c_str());
-                            sendLog(msg.str());
-                        }
-                    }
-                    if (isPositionNearAnchors) {
-                        isLocationGood = true;
-                        reportLatitude = tagPosition.latitude;
-                        reportLongitude = tagPosition.longitude;
-                        reportErrEst = errorEstimateMeters;
-                        reportAnchorNum = (float)anchorNum;
-
-                        std::ostringstream msg;
-                        msg << "POSITION " << FLOAT_TO_STREAM(7, reportLatitude) << ","
-                            << FLOAT_TO_STREAM(7, reportLongitude) << " " << FLOAT_TO_STREAM(2, reportErrEst) << "m";
-                        ESP_LOGW(TAG, "%s", msg.str().c_str());
-                        sendLog(msg.str());
-                    }
-                } else {
-                    std::ostringstream msg;
-                    msg << "INVALID: " << FLOAT_TO_STREAM(7, tagPosition.latitude) << ","
-                        << FLOAT_TO_STREAM(7, tagPosition.longitude) << " errEst " << FLOAT_TO_STREAM(2, errorEstimateMeters) << "m";
-                    ESP_LOGW(TAG, "%s", msg.str().c_str());
-                    sendLog(msg.str());
-                }
-            } else {
-                std::ostringstream msg;
-                msg << "FAILED: " << toString(res);
-                ESP_LOGW(TAG, "%s", msg.str().c_str());
-                sendLog(msg.str());
-            }
+            mLocationCalculationPhase = CALC_PHASE_INIT;
+            setMyState(MYSTATE_CALCULATE_LOCATION_PHASES);
+            return;
         }
     }
+    // next ranging cycle
+    setMyState(MYSTATE_WAIT_NEXT_RANGING_INTERVAL);
+}
 
+void UwbTagDevice::calculateLocationInPhases() {
+    LatLong tagPosition;
+    double errorEstimateMeters;
+    CalcResult res;
+    res = mLocation.calculatePosition(mLocationCalculationPhase, mAnchorPositionAndTagDistances, tagPosition, errorEstimateMeters);
+
+    if (CALC_PHASE_OK == res) {
+        return; // phase successful, next phase in next loop()
+    } else
+    if (CALC_OK == res) {
+        // quick check against bounds of latitude and longitude
+        if (Location::isValid(tagPosition)) {
+            mTagPosition = tagPosition;
+            mTagPositionErrorEstimate = errorEstimateMeters;
+            // further post-processing in next loop
+            setMyState(MYSTATE_CALCULATE_LOCATION_POST);
+            return;
+        } else {
+            std::ostringstream msg;
+            msg << "INVALID: " << FLOAT_TO_STREAM(7, tagPosition.latitude) << ","
+                << FLOAT_TO_STREAM(7, tagPosition.longitude) << " errEst " << FLOAT_TO_STREAM(2, errorEstimateMeters) << "m";
+            ESP_LOGW(TAG, "%s", msg.str().c_str());
+            sendLog(msg.str());
+        }
+    } else {
+        std::ostringstream msg;
+        msg << "FAILED: " << toString(res);
+        ESP_LOGW(TAG, "%s", msg.str().c_str());
+        sendLog(msg.str());
+    }
+    // next ranging cycle
+    setMyState(MYSTATE_WAIT_NEXT_RANGING_INTERVAL);
+}
+
+void UwbTagDevice::locationPostProcessing() {
+    bool isLocationGood = false;
+    float reportLatitude = NAN, reportLongitude = NAN, reportErrEst = NAN, reportAnchorNum = NAN;
+    // check distances to anchors for plausibility
+    bool isPositionNearAnchors = true;
+    for(const auto anchor: mAnchors) {
+        const LatLong anchorPosition = {anchor->getLatitude(), anchor->getLongitude()};
+        const double distAnchor = Location::getHaversineDistance(mTagPosition, anchorPosition);
+        if (!Location::isDistancePlausible(distAnchor)) {
+            isPositionNearAnchors = false;
+            std::ostringstream msg;
+            msg << "calculated position " << FLOAT_TO_STREAM(7, mTagPosition.latitude) << ","
+                << FLOAT_TO_STREAM(7, mTagPosition.longitude) << " errEst " << FLOAT_TO_STREAM(2, mTagPositionErrorEstimate)
+                << " IMPLAUSIBLE dist " << FLOAT_TO_STREAM(2, distAnchor) << "m (>" << FLOAT_TO_STREAM(0, Location::UWB_MAX_REACH_METER)
+                << " from anchor 0x" << HEX_TO_STREAM(2, anchor->getId());
+            ESP_LOGW(TAG, "%s", msg.str().c_str());
+            sendLog(msg.str());
+            break;
+        }
+    }
+    if (isPositionNearAnchors) {
+        isLocationGood = true;
+        reportLatitude = mTagPosition.latitude;
+        reportLongitude = mTagPosition.longitude;
+        reportErrEst = mTagPositionErrorEstimate;
+        reportAnchorNum = (float)mAnchorPositionAndTagDistances.size();
+
+        std::ostringstream msg;
+        msg << "POSITION " << FLOAT_TO_STREAM(7, reportLatitude) << ","
+            << FLOAT_TO_STREAM(7, reportLongitude) << " " << FLOAT_TO_STREAM(2, reportErrEst) << "m";
+        ESP_LOGW(TAG, "%s", msg.str().c_str());
+        sendLog(msg.str());
+    }
     if (isLocationGood
-       || (!isLocationGood && (startedMs - mLastLocationReportMillis >= 30000U))) {
+       || (!isLocationGood && (mLocationCalculationStartedMs - mLastLocationReportMillis >= 30000U))) {
         if (!isLocationGood) {
             // invalidate previously reported location after 30s long failure period
             std::ostringstream msg;
-            msg << "INVALIDATE POSITION after " << +((startedMs - mLastLocationReportMillis +500U)/1000U) << "s";
+            msg << "INVALIDATE position after " << +((mLocationCalculationStartedMs - mLastLocationReportMillis +500U)/1000U) << "s";
             ESP_LOGW(TAG, "%s", msg.str().c_str());
             sendLog(msg.str());
         }
@@ -687,7 +708,7 @@ void UwbTagDevice::calculateLocation() {
         if (mAnchorsInUseSensor != nullptr) {
             mAnchorsInUseSensor->publish_state(reportAnchorNum);
         }
-        mLastLocationReportMillis = startedMs;
+        mLastLocationReportMillis = mLocationCalculationStartedMs;
     }
     // next ranging cycle
     setMyState(MYSTATE_WAIT_NEXT_RANGING_INTERVAL);

@@ -63,96 +63,129 @@ double Location::METER_TO_DEGREE(const double latitude) {
 
 CalcResult Location::calculatePosition(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
                                        LatLong & outputTagPosition, double & outputTagPositionErrorEstimate) {
+    Location l;
+    CalculationPhase phase = CALC_RUN_ALL_PHASES_AT_ONCE;
+    return l.calculatePosition(phase, inputAnchorPositionAndTagDistances, outputTagPosition, outputTagPositionErrorEstimate);
+}
+
+CalcResult Location::calculatePosition(CalculationPhase & phase,
+                                       const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
+                                       LatLong & outputTagPosition, double & outputTagPositionErrorEstimate) {
+    bool ok;
+    if ((phase & CALC_PHASE_INIT) == CALC_PHASE_INIT) {
+        pairOfTwoAnchorsAndTheirDistanceToTag.clear();
+        positionCandidates.clear();
+        phase &= ~CALC_PHASE_INIT; // remove CALC_PHASE_INIT
+    }
 
     /* Find all distinct combinations of two inputAnchorLocations. */
-    std::vector<std::pair<AnchorPositionTagDistance, AnchorPositionTagDistance>> pairOfTwoAnchorsAndTheirDistanceToTag;
-    bool ok = findAllAnchorCombinations(inputAnchorPositionAndTagDistances, pairOfTwoAnchorsAndTheirDistanceToTag);
-    if (!ok) return CALC_F_ANCHOR_COMBINATIONS;
-
+    if ((phase & CALC_PHASE_DONE_ANCHOR_COMBINATIONS) != CALC_PHASE_DONE_ANCHOR_COMBINATIONS) {
+        ok = findAllAnchorCombinations(inputAnchorPositionAndTagDistances, pairOfTwoAnchorsAndTheirDistanceToTag);
+        if (!ok) {
+            return CALC_F_ANCHOR_COMBINATIONS;
+        } else if ((phase & CALC_RUN_ALL_PHASES_AT_ONCE) != CALC_RUN_ALL_PHASES_AT_ONCE) {
+            phase += CALC_PHASE_DONE_ANCHOR_COMBINATIONS;
+            return CALC_PHASE_OK;
+        }
+    }
     /* For each pair of anchors with their tag distance, find the intersection positions of 2 circles.
        Each circle's center is the anchor position and circle radius is the distance to tag.
        The usually 2 positions are 'candidates' of the tag position relative to this pair of anchors.
     */
-    std::vector<LatLong> positionCandidates;
-    for (const auto & p : pairOfTwoAnchorsAndTheirDistanceToTag) {
-        LatLong t, t_prime;
-        if (CIRCLE_INTERSECT_OK == findTwoCirclesIntersections(p.first, p.second, t, t_prime)) {
-            positionCandidates.push_back(t);
-            if ((t != t_prime)) {
-                positionCandidates.push_back(t_prime);
+    if ((phase & CALC_PHASE_DONE_COLLECT_CANDIDATES) != CALC_PHASE_DONE_COLLECT_CANDIDATES) {
+        for (const auto & p : pairOfTwoAnchorsAndTheirDistanceToTag) {
+            LatLong t, t_prime;
+            if (CIRCLE_INTERSECT_OK == findTwoCirclesIntersections(p.first, p.second, t, t_prime)) {
+                positionCandidates.push_back(t);
+                if ((t != t_prime)) {
+                    positionCandidates.push_back(t_prime);
+                }
             }
         }
-    }
-    // need at least 1 candidate
-    if (positionCandidates.empty()) {
+        // need at least 1 candidate
+        if (positionCandidates.empty()) {
 #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_WARN
-        std::ostringstream msg;
-        msg << "no position candidates found from anchor pairs:";
-        LOC_LOGW(msg);
-        unsigned cnt = 0;
-        for (const auto & p : pairOfTwoAnchorsAndTheirDistanceToTag) {
-            cnt++;
-            msg = std::ostringstream();
-            msg << " pair " << +cnt << ": ";
-            LOG_ANCHOR_TO_STREAM(msg, p.first);
-            LOG_ANCHOR_TO_STREAM(msg, p.second);
+            std::ostringstream msg;
+            msg << "no position candidates found from anchor pairs:";
             LOC_LOGW(msg);
-        }
+            unsigned cnt = 0;
+            for (const auto & p : pairOfTwoAnchorsAndTheirDistanceToTag) {
+                cnt++;
+                msg = std::ostringstream();
+                msg << " pair " << +cnt << ": ";
+                LOG_ANCHOR_TO_STREAM(msg, p.first);
+                LOG_ANCHOR_TO_STREAM(msg, p.second);
+                LOC_LOGW(msg);
+            }
 #endif // ESPHOME_LOG_LEVEL_WARN
-        return CALC_F_NO_CANDIDATES;
-    }
-
+            return CALC_F_NO_CANDIDATES;
+        }
 #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_INFO
-    {
-        std::ostringstream msg;
-        msg << +positionCandidates.size() <<  " position candidates:";
-        LOC_LOGI(msg);
-        unsigned cnt = 0;
-        for (const auto & p : positionCandidates) {
-            cnt++;
-            msg = std::ostringstream();
-            msg << std::fixed << std::setprecision(LOG_DEGREE_PRECISION);
-            msg << " " << +cnt << ": " << +p.latitude << "," << +p.longitude;
+        {
+            std::ostringstream msg;
+            msg << +positionCandidates.size() <<  " position candidates:";
             LOC_LOGI(msg);
+            unsigned cnt = 0;
+            for (const auto & p : positionCandidates) {
+                cnt++;
+                msg = std::ostringstream();
+                msg << std::fixed << std::setprecision(LOG_DEGREE_PRECISION);
+                msg << " " << +cnt << ": " << +p.latitude << "," << +p.longitude;
+                LOC_LOGI(msg);
+            }
+        }
+#endif // ESPHOME_LOG_LEVEL_INFO
+        if ((phase & CALC_RUN_ALL_PHASES_AT_ONCE) != CALC_RUN_ALL_PHASES_AT_ONCE) {
+            phase += CALC_PHASE_DONE_COLLECT_CANDIDATES;
+            return CALC_PHASE_OK;
         }
     }
-#endif // ESPHOME_LOG_LEVEL_INFO
-
-    /* Filter position candidates that are not within the anchors area. */
-    std::vector<LatLong> filteredOut;
-    filterPositionCandidates(inputAnchorPositionAndTagDistances, positionCandidates, filteredOut);
-
+    if ((phase & CALC_PHASE_DONE_FILTER_CANDIDATES) != CALC_PHASE_DONE_FILTER_CANDIDATES) {
+        /* Filter position candidates that are not within the anchors area. */
+        std::vector<LatLong> filteredOut;
+        filterPositionCandidates(inputAnchorPositionAndTagDistances, positionCandidates, filteredOut);
 #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_INFO
-    if (!filteredOut.empty()) {
-        std::ostringstream msg;
-        msg << +filteredOut.size() <<  " filtered out position candidates:";
-        LOC_LOGI(msg);
-        unsigned cnt = 0;
-        for (const auto & p : filteredOut) {
-            cnt++;
-            msg = std::ostringstream();
-            msg << " " << +cnt << ": " << std::fixed << std::setprecision(LOG_DEGREE_PRECISION)
-                << +p.latitude << "," << +p.longitude;
+        if (!filteredOut.empty()) {
+            std::ostringstream msg;
+            msg << +filteredOut.size() <<  " filtered out position candidates:";
             LOC_LOGI(msg);
+            unsigned cnt = 0;
+            for (const auto & p : filteredOut) {
+                cnt++;
+                msg = std::ostringstream();
+                msg << " " << +cnt << ": " << std::fixed << std::setprecision(LOG_DEGREE_PRECISION)
+                    << +p.latitude << "," << +p.longitude;
+                LOC_LOGI(msg);
+            }
+        }
+#endif // ESPHOME_LOG_LEVEL_INFO
+        if ((phase & CALC_RUN_ALL_PHASES_AT_ONCE) != CALC_RUN_ALL_PHASES_AT_ONCE) {
+            phase += CALC_PHASE_DONE_FILTER_CANDIDATES;
+            return CALC_PHASE_OK;
         }
     }
-#endif // ESPHOME_LOG_LEVEL_INFO
-    LatLong bestMatchingCandidate = {NAN, NAN};
-    ok = selectBestMatchingCandidate(inputAnchorPositionAndTagDistances, positionCandidates, bestMatchingCandidate);
-    if (!ok) {
-        std::ostringstream msg;
-        msg << "failed to find a best matching position candidate";
-        LOC_LOGW(msg);
-        return CALC_F_BEST_MATCH;
-    }
-    outputTagPosition.latitude = bestMatchingCandidate.latitude;
-    outputTagPosition.longitude = bestMatchingCandidate.longitude;
-    outputTagPositionErrorEstimate = 0; // if distances would be accurate then the resulting position has no error
+
+    if ((phase & CALC_PHASE_DONE_SELECT_BEST_CANDIDATE) != CALC_PHASE_DONE_SELECT_BEST_CANDIDATE) {
+        LatLong bestMatchingCandidate = {NAN, NAN};
+        ok = selectBestMatchingCandidate(inputAnchorPositionAndTagDistances, positionCandidates, bestMatchingCandidate);
+        if (!ok) {
+            std::ostringstream msg;
+            msg << "failed finding best matching position candidate";
+            LOC_LOGW(msg);
+            return CALC_F_BEST_MATCH;
+        }
+        if ((phase & CALC_RUN_ALL_PHASES_AT_ONCE) != CALC_RUN_ALL_PHASES_AT_ONCE) {
+            phase += CALC_PHASE_DONE_SELECT_BEST_CANDIDATE;
+        }
+        outputTagPosition.latitude = bestMatchingCandidate.latitude;
+        outputTagPosition.longitude = bestMatchingCandidate.longitude;
+        outputTagPositionErrorEstimate = 0; // if distances would be accurate then the resulting position has no error
 #ifdef __UT_TEST__ // extra log in unit tests
-    std::cout << "outputTagPosition (lat/lng)=" << +outputTagPosition.latitude << "/" << +outputTagPosition.longitude
-              << " errEst:" << +outputTagPositionErrorEstimate << "m"
-              << std::endl;
+        std::cout << "outputTagPosition (lat/lng)=" << +outputTagPosition.latitude << "/" << +outputTagPosition.longitude
+                << " errEst:" << +outputTagPositionErrorEstimate << "m"
+                << std::endl;
 #endif
+    }
     return CALC_OK;
 }
 

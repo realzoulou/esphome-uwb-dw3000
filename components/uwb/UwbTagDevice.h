@@ -5,6 +5,7 @@
 #include "InitialMsg.h"
 #include "FinalMsg.h"
 #include "ResponseMsg.h"
+#include "Location.h"
 
 namespace esphome {
 namespace uwb {
@@ -36,8 +37,12 @@ class UwbTagDevice : public Dw3000Device {
         MYSTATE_RECVD_INVALID_FINAL,
         // Ranging is done (may or may not be successful)
         MYSTATE_RANGING_DONE,
-        // if ranging was successful, calculate location
-        MYSTATE_CALCULATE_LOCATION,
+        // if ranging was successful, prepare calculation of location
+        MYSTATE_CALCULATE_LOCATION_PREPARE,
+        // calculation of location in phases
+        MYSTATE_CALCULATE_LOCATION_PHASES,
+        // analyse location and report
+        MYSTATE_CALCULATE_LOCATION_POST,
     } eMyState;
     static const eMyState MY_DEFAULT_STATE = MYSTATE_WAIT_NEXT_RANGING_INTERVAL;
 
@@ -102,7 +107,9 @@ protected:
     virtual void recvdValidFinal();
     virtual void recvdInvalidFinal();
     virtual void rangingDone(bool success, double distance=NAN, double otherDistance=NAN);
-    virtual void calculateLocation();
+    virtual void calculateLocationPrepare();
+    virtual void calculateLocationInPhases();
+    virtual void locationPostProcessing();
 protected:
     static const char* TAG;
     static const char* STATE_TAG;
@@ -161,6 +168,16 @@ protected:
 
     /* millis() of when last reported a location. */
     uint32_t mLastLocationReportMillis{0};
+
+    /* Location calculation in phases */
+    uint32_t mLocationCalculationStartedMs{0};
+    Location mLocation;
+    CalculationPhase mLocationCalculationPhase{CALC_PHASE_INIT};
+    std::vector<AnchorPositionTagDistance> mAnchorPositionAndTagDistances;
+
+    /* Tag position */
+    LatLong mTagPosition{NAN,NAN};
+    double mTagPositionErrorEstimate{NAN};
 };
 
 }  // namespace uwb
