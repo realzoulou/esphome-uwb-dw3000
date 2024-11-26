@@ -30,6 +30,17 @@ target_link_libraries(${PROJECT_NAME}
   GTest::gtest_main
 )
 
+# sanitizers
+set(SANITIZERS "")
+string(APPEND SANITIZERS "-fsanitize=address ")
+string(APPEND SANITIZERS "-fsanitize=pointer-subtract ")
+string(APPEND SANITIZERS "-fsanitize=pointer-compare ")
+string(APPEND SANITIZERS "-fsanitize=leak ")
+string(APPEND SANITIZERS "-fsanitize=undefined ")
+string(APPEND SANITIZERS "-fno-omit-frame-pointer ")
+string(APPEND CMAKE_CXX_FLAGS "${SANITIZERS}")
+string(APPEND CMAKE_LINKER_FLAGS "${SANITIZERS} -static-libasan")
+
 include(GoogleTest)
 gtest_discover_tests(${PROJECT_NAME})
 

@@ -10,8 +10,8 @@
     #define LOC_LOGW(ostringstream) ESP_LOGW(TAG, "%s", ostringstream.str().c_str());
     #define LOC_LOGI(ostringstream) ESP_LOGI(TAG, "%s", ostringstream.str().c_str());
 #else
-    #define LOC_LOGW(ostringstream) std::clog << msg.str() << std::endl;
-    #define LOC_LOGI(ostringstream) std::cout << msg.str() << std::endl;
+    #define LOC_LOGW(ostringstream) std::clog << ostringstream.str() << std::endl;
+    #define LOC_LOGI(ostringstream) std::cout << ostringstream.str() << std::endl;
 #endif
 
 namespace esphome {
@@ -298,7 +298,7 @@ bool Location::selectBestMatchingCandidate(const std::vector<AnchorPositionTagDi
         return false;
     // if only 1 candidate, this is the best we have
     if (positionCandidates.size() == 1) {
-        if (std::isnan(bestMatchingCandidate.latitude) || std::isnan(bestMatchingCandidate.longitude)) {
+        if (std::isnan(positionCandidates[0].latitude) || std::isnan(positionCandidates[0].longitude)) {
             // NAN is not a position candidate
             return false;
         }
