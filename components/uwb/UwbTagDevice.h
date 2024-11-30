@@ -1,11 +1,13 @@
 #pragma once
 
 #include "Dw3000Device.h"
-#include "UwbAnchorData.h"
+
+#include "AntDelayCalibration.h"
 #include "InitialMsg.h"
 #include "FinalMsg.h"
-#include "ResponseMsg.h"
 #include "Location.h"
+#include "ResponseMsg.h"
+#include "UwbAnchorData.h"
 
 namespace esphome {
 namespace uwb {
@@ -75,6 +77,9 @@ class UwbTagDevice : public Dw3000Device {
     /*  How long to wait in MYSTATE_WAIT_RECV_RESPONSE/FINAL */
     static const uint32_t WAIT_RX_TIMEOUT_MS = 100;
 
+    /* number of rounds to repeat antenna delay calibration. */
+    constexpr static uint32_t ANT_CALIB_MAX_ROUNDS = 5;
+
 public:
     UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & anchors,
                  const uint32_t rangingIntervalMs, const uint32_t maxAgeAnchorDistanceMs,
@@ -90,6 +95,8 @@ protected:
     virtual void setMyState(const eMyState state);
 
     virtual void do_ranging();
+
+    virtual uint32_t getRangingInterval() const;
 
     virtual void waitNextRangingInterval();
     virtual void waitNextAnchorRanging();
@@ -119,12 +126,14 @@ protected:
     /* Maximum age of distance to anchor until anchor is considered 'away'. */
     const uint32_t MAX_AGE_ANCHOR_DISTANCE_MS;
 
-    /* Array of all Anchors that this tag shall do ranging with. */
+    /* Array of all Anchors. */
     std::vector<std::shared_ptr<UwbAnchorData>> mAnchors;
     /* Array of all Anchors: count of remaining attempts. */
     std::vector<uint8_t> mAnchorCurrentRangingSuccess;
     /* Index into mAnchors of current Anchor to do ranging with. -1 if there is no Anchor configured. */
     int mCurrentAnchorIndex{-1};
+    /* Index into mAnchors of current Anchor to do antenna calibration with. -1 if there is no Anchor configured. */
+    int mCurrentAntCalibAnchorIndex{-1};
 
     /* Sensors. */
     sensor::Sensor *mLatitudeSensor,
@@ -175,9 +184,14 @@ protected:
     CalculationPhase mLocationCalculationPhase{CALC_PHASE_INIT};
     std::vector<AnchorPositionTagDistance> mAnchorPositionAndTagDistances;
 
-    /* Tag position */
+     /* Tag position */
     LatLong mTagPosition{NAN,NAN};
     double mTagPositionErrorEstimate{NAN};
+
+    /* Antenna Delay Calibration */
+    AntDelayCalibration mAntDelayCalibration;
+    /* Per round: result of antenna calibration (stored as double for standard deviation/mean calculation). */
+    std::vector<double> mAntDelayCalibrationResultPerRound;
 };
 
 }  // namespace uwb

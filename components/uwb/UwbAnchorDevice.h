@@ -67,9 +67,9 @@ public:
 
 public:
     UwbAnchorDevice(const double latitude, const double longitude,
-                    const sensor::Sensor* latitudeSensor,
-                    const sensor::Sensor* longitudeSensor,
-                    const sensor::Sensor* distSensor);
+                    sensor::Sensor* latitudeSensor,
+                    sensor::Sensor* longitudeSensor,
+                    sensor::Sensor* distSensor);
     ~UwbAnchorDevice();
 
     virtual void setup();
@@ -104,9 +104,9 @@ protected:
     const double mLongitude;
 
     /* Sensors, nullptr if not configured in YAML. */
-    const sensor::Sensor* mLatitudeSensor;
-    const sensor::Sensor* mLongitudeSensor;
-    const sensor::Sensor* mDistSensor;
+    sensor::Sensor* mLatitudeSensor;
+    sensor::Sensor* mLongitudeSensor;
+    sensor::Sensor* mDistSensor;
 
     uint8_t mCurrentTagId{0xFF};
 

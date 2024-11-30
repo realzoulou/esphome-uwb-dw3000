@@ -17,7 +17,7 @@ void UwbComponent::setup() {
     switch (mRole) {
         case UWB_ROLE_ANCHOR:
         {
-            const sensor::Sensor *distSensor;
+            sensor::Sensor *distSensor;
             const auto search = mDistanceSensors.find(mDeviceId);
             if (search != mDistanceSensors.cend()) {
                 distSensor = search->second;

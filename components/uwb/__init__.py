@@ -1,3 +1,4 @@
+# pylint: disable=line-too-long, invalid-name, missing-function-docstring, missing-module-docstring, too-many-branches
 import re
 
 import esphome.codegen as cg
@@ -109,7 +110,7 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_UWB_LED_OFF_AFTER): cv.int_range(min=0),
     }
 ).extend(cv.COMPONENT_SCHEMA)
-cv.only_with_arduino
+cv.only_with_arduino # pylint: disable=pointless-statement
 
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
@@ -126,7 +127,7 @@ async def to_code(config):
         if ledOffDuration := config[CONF_UWB_LED_OFF_AFTER]:
             cg.add(var.setLedsOffAfter(ledOffDuration))
     except KeyError:
-        True
+        True # pylint: disable=pointless-statement
 
     if role == CONF_UWB_ROLE_TAG:
         minDistanceChange = MIN_DISTANCE_CHANGE_DEFAULT
@@ -137,19 +138,19 @@ async def to_code(config):
         try:
             if config[CONF_TAG_MIN_DISTANCE_CHANGE]:
                 minDistanceChange = config[CONF_TAG_MIN_DISTANCE_CHANGE]
-        finally: True
+        finally: True # pylint: disable=pointless-statement
         try:
             if config[CONF_TAG_MAX_SPEED]:
                 maxSpeed = config[CONF_TAG_MAX_SPEED]
-        finally: True
+        finally: True # pylint: disable=pointless-statement
         try:
             if ranging_interval := config[CONF_TAG_RANGING_INTERVAL]:
                 cg.add(var.setRangingInterval(ranging_interval))
-        finally: True
+        finally: True # pylint: disable=pointless-statement
         try:
             if anchor_away_duration := config[CONF_TAG_ANCHOR_AWAY_DURATION]:
                 cg.add(var.setMaxAgeAnchorDistance(anchor_away_duration))
-        finally: True
+        finally: True # pylint: disable=pointless-statement
 
         for anchor in config[CONF_TAG_ANCHORS]:
             cg.add(var.addAnchor(anchor[CONF_UWB_DEVICE_ID], anchor[CONF_LATITUDE], anchor[CONF_LONGITUDE],
@@ -161,7 +162,7 @@ async def to_code(config):
             longitude = config[CONF_LONGITUDE]
             if latitude and longitude:
                 cg.add(var.setAnchorPosition(latitude, longitude))
-        finally: True
+        finally: True # pylint: disable=pointless-statement
 
     # ----- General compiler settings
     # treat warnings as error, abort compilation on the first error, check printf format and arguments
@@ -171,3 +172,6 @@ async def to_code(config):
     # src/esphome/core/time.cpp: In member function 'size_t esphome::ESPTime::strftime(char*, size_t, const char*)':
     # src/esphome/core/time.cpp:20:54: error: format not a string literal, format string not checked [-Werror=format-nonliteral]
     cg.add_build_flag("-Wno-format-nonliteral")
+    # sanitizers
+    #cg.add_build_flag("-fsanitize=undefined -fno-sanitize=shift-base")
+    cg.add_build_flag("-fstack-protector-all")

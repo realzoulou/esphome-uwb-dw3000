@@ -7,16 +7,26 @@ namespace uwb {
 
 const char* UwbAnchorData::TAG = "tag"; // running in role=tag context
 
-void UwbAnchorData::setDistance(double distanceMeters, double distErrorEstimate) {
+void UwbAnchorData::setDistance(double distanceMeters, double distErrorEstimate, bool enforce) {
     const uint32_t now = millis();
+
+    if (enforce) {
+        // enforced setting of distance
+        mMillisDistanceToTag = now;
+        mDistanceToTag = distanceMeters;
+        mDistanceToTagErrorEstimate = distErrorEstimate;
+        if (mSensor != nullptr) {
+            mSensor->publish_state(mDistanceToTag);
+        }
+        return;
+    }
 
     if (std::isnan(distanceMeters)) {
         if (mSensor != nullptr) {
-            auto sensor = const_cast<sensor::Sensor*>(mSensor); // remove 'const' in order to publish_state
             // don't update mMillisDistanceToTag to now
             mDistanceToTag = NAN;
             mDistanceToTagErrorEstimate = NAN;
-            sensor->publish_state(NAN);
+            mSensor->publish_state(NAN);
         }
         std::ostringstream msg;
         msg << "anchor 0x" << std::hex << +mId << std::dec << " away";

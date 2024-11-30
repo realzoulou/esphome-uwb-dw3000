@@ -42,6 +42,8 @@ UwbTagDevice::UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & a
     mLongitudeSensor = longitudeSensor;
     mLocationErrorEstimateSensor = locationErrorEstimateSensor;
     mAnchorsInUseSensor = anchorsInUseSensor;
+    mAntDelayCalibrationResultPerRound.reserve(ANT_CALIB_MAX_ROUNDS);
+    mAntDelayCalibrationResultPerRound.clear();
 }
 
 UwbTagDevice::~UwbTagDevice() {
@@ -51,13 +53,16 @@ void UwbTagDevice::setup() {
     Dw3000Device::setup();
 
     setMyState(MY_DEFAULT_STATE);
+    setMode(UWB_MODE_ANT_DELAY_CALIBRATION);
 }
 
 void UwbTagDevice::loop() {
     Dw3000Device::loop();
 
     if (getDiagnosticStatus() == DIAG_OK) {
-        do_ranging();
+        if (getMode() != UWB_MODE_ANT_DELAY_CALIBRATION_DONE) {
+            do_ranging();
+        }
     }
 }
 
@@ -120,7 +125,9 @@ void UwbTagDevice::do_ranging() {
     if (mAnchors.empty()) {
         return; // no anchors configured, nothing to do
     }
-
+    if (getMode() == UWB_MODE_ANT_DELAY_CALIBRATION) {
+        mCurrentAntCalibAnchorIndex = 0; // TODO make anchor device_id configurable
+    }
     switch (currState) {
         case MYSTATE_WAIT_NEXT_RANGING_INTERVAL: waitNextRangingInterval(); break;
         case MYSTATE_WAIT_NEXT_ANCHOR_RANGING:   waitNextAnchorRanging(); break;
@@ -149,9 +156,17 @@ void UwbTagDevice::do_ranging() {
     }
 }
 
+uint32_t UwbTagDevice::getRangingInterval() const {
+    if (getMode() == UWB_MODE_ANT_DELAY_CALIBRATION) {
+        return INTER_ANCHOR_RANGING_INTERVAL;
+    } else {
+        return RANGING_INTERVAL_MS;
+    }
+}
+
 void UwbTagDevice::waitNextRangingInterval() {
     const uint32_t now = millis();
-    if ((now - mLastRangingIntervalStartedMillis) >= RANGING_INTERVAL_MS) {
+    if ((now - mLastRangingIntervalStartedMillis) >= getRangingInterval()) {
         mLastRangingIntervalStartedMillis = now;
         mCurrentAnchorIndex = 0;
         mAnchorCurrentRangingSuccess.assign(mAnchors.size(), PER_ANCHOR_ATTEMPTS);
@@ -163,22 +178,84 @@ void UwbTagDevice::waitNextRangingInterval() {
 void UwbTagDevice::waitNextAnchorRanging() {
     const uint32_t now = millis();
     if ((now - mLastInitialSentMillis) >= INTER_ANCHOR_RANGING_INTERVAL) {
-        // find next anchor to do ranging with. There is at least 1 anchor, otherwise we would not be here
-        unsigned nextAnchorIndex;
-        for (nextAnchorIndex = 0; nextAnchorIndex < mAnchors.size(); nextAnchorIndex++) {
-            if (mAnchorCurrentRangingSuccess[nextAnchorIndex] > 0) {
-                break; // found next one
+        switch(getMode()) {
+
+            case UWB_MODE_ANT_DELAY_CALIBRATION:
+            {
+                if (mAntDelayCalibration.isDone()) {
+                    // store store result of this round
+                    const uint16_t adelay = mAntDelayCalibration.getAntennaDelay();
+                    mAntDelayCalibrationResultPerRound.push_back((double)adelay);
+
+                    if (mAntDelayCalibrationResultPerRound.size() < ANT_CALIB_MAX_ROUNDS) {
+                        // prepare next round
+                        mAntDelayCalibration.resetState();
+                    } else {
+                        // all rounds finished
+                        double meanCalibrationResult;
+                        const double stdDevCalibrationResults =
+                            AntDelayCalibration::getStandardDeviationAndMeanValue(mAntDelayCalibrationResultPerRound, meanCalibrationResult);
+                        const uint16_t calibrationResult = (uint16_t) std::round(meanCalibrationResult);
+                        // report result
+                        ESP_LOGW(TAG, "==========================");
+                        ESP_LOGW(TAG, "ANTENNA DELAY CALIBRATION: %" PRIu16 " (StdDev: %.2f) @ distance %.2fm",
+                            calibrationResult, stdDevCalibrationResults, mAntDelayCalibration.getCalibrationDistance());
+                        ESP_LOGW(TAG, "==========================");
+
+                        // reset my variables
+                        mAntDelayCalibration.resetState();
+                        mAntDelayCalibrationResultPerRound.clear();
+
+                        // Done
+                        setMyState(MY_DEFAULT_STATE);
+                        setMode(UWB_MODE_ANT_DELAY_CALIBRATION_DONE);
+                        return;
+                    }
+                }
+                // always choose the same anchor for antenna delay calibration
+                if ((mCurrentAntCalibAnchorIndex >=0) && (mCurrentAntCalibAnchorIndex < mAnchors.size())) {
+                    mCurrentAnchorIndex = mCurrentAntCalibAnchorIndex;
+                    setMyState(MYSTATE_PREPARE_SEND_INITIAL);
+                    // don't wait until next loop() but start immediately
+                    prepareSendInitial();
+                } else {
+                    ESP_LOGE(TAG, "mode ANT_DELAY_CALIBRATION but anchor index %u", mCurrentAntCalibAnchorIndex);
+                    // w.t.f. get out of here, but don't flood the log
+                    delay(500);
+                    return;
+                }
             }
-        }
-        if (nextAnchorIndex >= mAnchors.size()) {
-            // ranging done with all anchors, calculate resulting position
-            setMyState(MYSTATE_CALCULATE_LOCATION_PREPARE);
-        } else {
-            mCurrentAnchorIndex = nextAnchorIndex;
-            setMyState(MYSTATE_PREPARE_SEND_INITIAL);
-            // don't wait until next loop() but start immediately
-            prepareSendInitial();
-        }
+            break;
+
+            case UWB_MODE_RANGING:
+            {
+                // find next anchor to do ranging with. There is at least 1 anchor, otherwise we would not be here
+                unsigned nextAnchorIndex;
+                for (nextAnchorIndex = 0; nextAnchorIndex < mAnchors.size(); nextAnchorIndex++) {
+                    if (mAnchorCurrentRangingSuccess[nextAnchorIndex] > 0) {
+                        break; // found next one
+                    }
+                }
+                if (nextAnchorIndex >= mAnchors.size()) {
+                    // ranging done with all anchors, calculate resulting position
+                    setMyState(MYSTATE_CALCULATE_LOCATION_PREPARE);
+                } else {
+                    mCurrentAnchorIndex = nextAnchorIndex;
+                    setMyState(MYSTATE_PREPARE_SEND_INITIAL);
+                    // don't wait until next loop() but start immediately
+                    prepareSendInitial();
+                }
+            }
+            break;
+
+            case UWB_MODE_ANT_DELAY_CALIBRATION_DONE:
+            default:
+            {
+                // should not happen
+                setMyState(MY_DEFAULT_STATE);
+                return;
+            }
+        } // switch getMode()
     }
     // else continue waiting
 }
@@ -203,6 +280,31 @@ void UwbTagDevice::prepareSendInitial() {
     mInitialFrame.setSequenceNumber(getNextTxSequenceNumberAndIncrease());
     mInitialFrame.setTargetId(anchorId);
     mInitialFrame.setSourceId(getDeviceId());
+    switch (getMode()) {
+        case UWB_MODE_ANT_DELAY_CALIBRATION:
+        {
+            if (mAntDelayCalibration.isDone()) {
+                // new calibration round
+                mAntDelayCalibration.resetState();
+            }
+            const uint16_t nextCalibAntennaDelay = mAntDelayCalibration.getNextAntennaDelay();
+            mInitialFrame.setFunctionCodeAndData(InitialMsg::INITIAL_FCT_CODE_ANT_DELAY_CALIBRATION, nextCalibAntennaDelay);
+            setCalibrationAntennaDelays(nextCalibAntennaDelay);
+        }
+        break;
+        case UWB_MODE_RANGING:
+        {
+            mInitialFrame.setFunctionCodeAndData(InitialMsg::INITIAL_FCT_CODE_RANGING, 0);
+        }
+        break;
+        case UWB_MODE_ANT_DELAY_CALIBRATION_DONE:
+        default:
+        {
+            // should not happen
+            setMyState(MY_DEFAULT_STATE);
+            return;
+        }
+    } // switch
     if (mInitialFrame.isValid()) {
         uint8_t* tx_buffer = mInitialFrame.getBytes().data();
         /* Clear Transmit Frame Sent. */
@@ -487,6 +589,11 @@ void UwbTagDevice::recvdFrameFinal() {
         const double tof = tof_dtu * DWT_TIME_UNITS;
         const double distance = tof * SPEED_OF_LIGHT;
 
+        if (getMode() == UWB_MODE_ANT_DELAY_CALIBRATION) {
+            // not checking distance plausibility when playing around with antenna delay
+            mAntDelayCalibration.addDistanceMeasurement(distance);
+        }
+
         /* Retrieve anchor calculated TOF from Final frame. */
         double anchorCalculatedDistance = NAN;
         uint8_t fctCode;
@@ -498,10 +605,19 @@ void UwbTagDevice::recvdFrameFinal() {
                 anchorCalculatedDistance = NAN;
             }
         }
-
-        if (Location::isDistancePlausible(distance)) {
-            /* Display computed distance. */
-            ESP_LOGW(TAG, "DIST anchor 0x%02X: %.2fm (from anchor %.2fm)", anchorId, distance, anchorCalculatedDistance);
+        /* Display computed distance. */
+        const UwbMode mode = getMode();
+        if (Location::isDistancePlausible(distance) || mode == UWB_MODE_ANT_DELAY_CALIBRATION) {
+            if (mode == UWB_MODE_ANT_DELAY_CALIBRATION) {
+                const double calibrationProgress = mAntDelayCalibration.getProgressPercent();
+                const uint16_t antDelay = mAntDelayCalibration.getAntennaDelay();
+                ESP_LOGW(TAG, "ANTDLY_CALIB %.1f%% #%" PRIu32 "/%" PRIu32 " AntDelay=%" PRIu16 " : DIST anchor 0x%02X: %.2fm (from anchor %.2fm)",
+                    calibrationProgress, (mAntDelayCalibrationResultPerRound.size()+1), ANT_CALIB_MAX_ROUNDS, antDelay,
+                    anchorId, distance, anchorCalculatedDistance);
+            } else {
+                ESP_LOGW(TAG, "DIST anchor 0x%02X: %.2fm (from anchor %.2fm)",
+                    anchorId, distance, anchorCalculatedDistance);
+            }
             rangingDone(true, distance, anchorCalculatedDistance);
         } else {
             ESP_LOGW(TAG, "DIST anchor 0x%02X: %.2fm implausible (>%.0f)", anchorId, distance, Location::UWB_MAX_REACH_METER);
@@ -552,14 +668,15 @@ void UwbTagDevice::rangingDone(bool success, double distance, double otherDistan
 
     if (success) {
         mAnchorCurrentRangingSuccess[mCurrentAnchorIndex] = 0; // no more attempts
+        const bool isCalibrating = getMode() == UWB_MODE_ANT_DELAY_CALIBRATION;
         if (!std::isnan(otherDistance)) {
             // Use the mean distance of the two distances
             const double meanDistance = (distance + otherDistance) / 2.0;
             // and set the error estimate as the difference between the mean and the original distance
             const double distanceErrEst = std::fabs(meanDistance - distance);
-            (mAnchors[mCurrentAnchorIndex])->setDistance(meanDistance, distanceErrEst);
+            (mAnchors[mCurrentAnchorIndex])->setDistance(meanDistance, distanceErrEst, isCalibrating);
         } else {
-            (mAnchors[mCurrentAnchorIndex])->setDistance(distance);
+            (mAnchors[mCurrentAnchorIndex])->setDistance(distance, isCalibrating);
         }
     } else {
         const uint8_t attempts = mAnchorCurrentRangingSuccess[mCurrentAnchorIndex] -1;

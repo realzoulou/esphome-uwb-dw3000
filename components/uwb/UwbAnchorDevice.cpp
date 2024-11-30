@@ -18,9 +18,9 @@ const char* UwbAnchorDevice::TAG = "anchor";
 const char* UwbAnchorDevice::STATE_TAG = "anchor_STATE";
 
 UwbAnchorDevice::UwbAnchorDevice(const double latitude, const double longitude,
-                                 const sensor::Sensor* latitudeSensor,
-                                 const sensor::Sensor* longitudeSensor,
-                                 const sensor::Sensor* distSensor)
+                                 sensor::Sensor* latitudeSensor,
+                                 sensor::Sensor* longitudeSensor,
+                                 sensor::Sensor* distSensor)
 : mLatitude(latitude), mLongitude(longitude)
 , mLatitudeSensor(latitudeSensor), mLongitudeSensor(longitudeSensor), mDistSensor(distSensor)
 , RX_BUF_LEN(std::max(InitialMsg::FRAME_SIZE, FinalMsg::FRAME_SIZE)) {
@@ -105,10 +105,10 @@ void UwbAnchorDevice::maybe_reportPosition() {
         mLastPositionReportedMs = uptime;
 
         if (mLatitudeSensor != nullptr) {
-            (const_cast<sensor::Sensor*>(mLatitudeSensor))->publish_state(mLatitude);
+            mLatitudeSensor->publish_state(mLatitude);
         }
         if (mLongitudeSensor != nullptr) {
-            (const_cast<sensor::Sensor*>(mLongitudeSensor))->publish_state(mLongitude);
+            mLongitudeSensor->publish_state(mLongitude);
         }
     }
 }
@@ -223,6 +223,24 @@ void UwbAnchorDevice::recvdFrameInitial() {
     if (proceed) {
         /* Yes, it is the frame we are expecting. */
         setMyState(MYSTATE_RECVD_FRAME_VALID_INITIAL);
+
+        uint8_t fctCode;
+        uint16_t fctData;
+        mInitialFrame.getFunctionCodeAndData(fctCode, fctData);
+        switch (fctCode) {
+            case InitialMsg::INITIAL_FCT_CODE_ANT_DELAY_CALIBRATION:
+                if (getMode() != UWB_MODE_ANT_DELAY_CALIBRATION) {
+                    setMode(UWB_MODE_ANT_DELAY_CALIBRATION);
+                }
+                setCalibrationAntennaDelays(fctData);
+                break;
+            case InitialMsg::INITIAL_FCT_CODE_RANGING:
+            default:
+                if (getMode() != UWB_MODE_RANGING) {
+                    setMode(UWB_MODE_RANGING); // also resets antenna delays back to default
+                }
+                break;
+        }
 
         TIME_CRITICAL_START();
 
@@ -381,9 +399,9 @@ void UwbAnchorDevice::recvdFrameFinal() {
         const int64_t tof_dtu = (int64_t)((Ra * Rb - Da * Db) / (Ra + Rb + Da + Db));
         const double tof = tof_dtu * DWT_TIME_UNITS;
         double distance = tof * SPEED_OF_LIGHT;
-        if (Location::isDistancePlausible(distance)) {
+        if (Location::isDistancePlausible(distance) || getMode() == UWB_MODE_ANT_DELAY_CALIBRATION) {
             // set TOF in [cm] to Final frame
-            const uint16_t dist_cm = (uint16_t)(distance * 100.0); // [m] -> [cm]
+            const uint16_t dist_cm = (uint16_t)(std::fabs(distance) * 100.0); // [m] -> [cm]
             const uint8_t fctData[FinalMsg::FINAL_DATA_SIZE] = {
                 (uint8_t)((dist_cm & 0xFF00U) >> 8),
                 (uint8_t)((dist_cm & 0x00FFU))
@@ -418,7 +436,7 @@ void UwbAnchorDevice::recvdFrameFinal() {
         }
 
         /* Plausibility check. */
-        if (Location::isDistancePlausible(distance)) {
+        if (Location::isDistancePlausible(distance) || getMode() == UWB_MODE_ANT_DELAY_CALIBRATION) {
             /* Display computed distance. */
             ESP_LOGW(TAG, "DIST tag 0x%02X: %.2fm", otherDeviceId, distance);
         } else {

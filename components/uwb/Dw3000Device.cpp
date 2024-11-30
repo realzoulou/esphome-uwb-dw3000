@@ -146,6 +146,7 @@ void Dw3000Device::setDiagnosticStatus(DiagStatus status) {
     }
 }
 
+/* static */
 const char* Dw3000Device::diagStatusToString(const DiagStatus status) {
     switch(status) {
         case DIAG_OK:                return "OK";
@@ -154,6 +155,23 @@ const char* Dw3000Device::diagStatusToString(const DiagStatus status) {
         case DIAG_REBOOTING:         return "REBOOTING";
         case DIAG_UNKNOWN:           return "UNKNOWN";
         default:                     return "?!?";
+    }
+}
+
+void Dw3000Device::setMode(const UwbMode mode) {
+    if (mode == UWB_MODE_RANGING) {
+        /* Apply default antenna delay value. */
+        dwt_settxantennadelay(TX_ANT_DLY);
+        dwt_setrxantennadelay(RX_ANT_DLY);
+    }
+    mUwbMode = mode;
+}
+
+void Dw3000Device::setCalibrationAntennaDelays(const uint16_t delay) const {
+    if (mUwbMode == UWB_MODE_ANT_DELAY_CALIBRATION) {
+        /* Apply antenna delay for calibration. */
+        dwt_settxantennadelay(delay);
+        dwt_setrxantennadelay(delay);
     }
 }
 

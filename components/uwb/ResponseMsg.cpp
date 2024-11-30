@@ -7,6 +7,7 @@ namespace uwb {
 
 const char* ResponseMsg::TAG = "ResponseMsg";
 const uint8_t ResponseMsg::RESPONSE_FCT_CODE_RANGING = 0x10;
+const uint8_t ResponseMsg::RESPONSE_FCT_CODE_ANT_DELAY_CALIBRATION = 0x11;
 
 static const ResponseMsg::sResponseFrame DEFAULT_RESPONSE_FRAME = {
     .mhr = {

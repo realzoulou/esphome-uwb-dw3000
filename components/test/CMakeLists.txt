@@ -22,15 +22,17 @@ enable_testing()
 set(UWB_SOURCE_DIR ../uwb)
 
 add_executable(${PROJECT_NAME}
+  AntDelayCalibrationTests.cpp
   LocationTests.cpp
-  UwbMessageTests.cpp
   UwbAnchorDataTests.cpp
-  ${UWB_SOURCE_DIR}/Location.cpp
-  ${UWB_SOURCE_DIR}/UwbMessage.cpp
+  UwbMessageTests.cpp
+  ${UWB_SOURCE_DIR}/AntDelayCalibration.cpp
   ${UWB_SOURCE_DIR}/InitialMsg.cpp
-  ${UWB_SOURCE_DIR}/ResponseMsg.cpp
   ${UWB_SOURCE_DIR}/FinalMsg.cpp
+  ${UWB_SOURCE_DIR}/Location.cpp
+  ${UWB_SOURCE_DIR}/ResponseMsg.cpp
   ${UWB_SOURCE_DIR}/UwbAnchorData.cpp
+  ${UWB_SOURCE_DIR}/UwbMessage.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}

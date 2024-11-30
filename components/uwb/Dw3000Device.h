@@ -39,6 +39,12 @@ typedef enum _DiagStatus {
     DIAG_REBOOTING,
 } DiagStatus;
 
+typedef enum _UwbMode {
+    UWB_MODE_RANGING,
+    UWB_MODE_ANT_DELAY_CALIBRATION,
+    UWB_MODE_ANT_DELAY_CALIBRATION_DONE,
+} UwbMode;
+
 class Dw3000Device {
 public:
     static uint8_t getNextTxSequenceNumberAndIncrease();
@@ -70,6 +76,10 @@ protected:
     void setDiagnosticStatus(DiagStatus status);
     inline DiagStatus getDiagnosticStatus() const { return mDiagStatus; }
 
+    void setMode(const UwbMode mode);
+    inline UwbMode getMode() const { return mUwbMode; }
+    void setCalibrationAntennaDelays(const uint16_t delay) const;
+
 protected:
     static const char* TAG;
 
@@ -92,10 +102,13 @@ protected:
     HighFrequencyLoopRequester mHighFreqLoopRequester;
 
 private:
-    const char* diagStatusToString(const DiagStatus status);
+    static const char* diagStatusToString(const DiagStatus status);
 
 private:
     static uint8_t txSequenceNumber;
+
+    /* Mode: Ranging (default) or Antenna Delay Calibration. */
+    UwbMode mUwbMode{UWB_MODE_RANGING};
 
     /* Diagnostic status. */
     DiagStatus mDiagStatus{DIAG_UNKNOWN};

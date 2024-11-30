@@ -21,6 +21,7 @@ static const InitialMsg::sInitialFrame DEFAULT_INITIAL_FRAME = {
         .reserved = INITIAL_PAYLOAD_START_BYTES_RESERVED,
     },
     .functionCode = InitialMsg::INITIAL_FCT_CODE_RANGING,
+    .functionData = 0,
     .mfr = {
         .frameCheckingSequence = 0 // CRC will be filled by the DW IC
     }
@@ -60,7 +61,8 @@ bool InitialMsg::isValid() const {
         return false;
     }
     // check functionCode
-    if (frame->functionCode != InitialMsg::INITIAL_FCT_CODE_RANGING) {
+    if ((frame->functionCode != InitialMsg::INITIAL_FCT_CODE_RANGING) &&
+        (frame->functionCode != InitialMsg::INITIAL_FCT_CODE_ANT_DELAY_CALIBRATION)) {
         std::ostringstream msg;
         msg << "recvd functionCode 0x" << std::hex << +(frame->functionCode) << " != 0x" << +InitialMsg::INITIAL_FCT_CODE_RANGING << std::dec;
         MSG_LOGW(msg);
@@ -98,6 +100,18 @@ bool InitialMsg::fromIncomingBytes(const uint8_t* bytes, std::size_t sizeBytes) 
         MSG_LOGI(msg);
         return false;
     }
+}
+
+void InitialMsg::setFunctionCodeAndData(const uint8_t fctCode, const uint16_t data) {
+    const auto frame = reinterpret_cast<InitialMsg::sInitialFrame*>(mBytes.data());
+    frame->functionCode = fctCode;
+    frame->functionData = data;
+}
+
+void InitialMsg::getFunctionCodeAndData(uint8_t & fctCode, uint16_t & data) const {
+    const auto frame = reinterpret_cast<const InitialMsg::sInitialFrame*>(mBytes.data());
+    fctCode = frame->functionCode;
+    data = frame->functionData;
 }
 
 }  // namespace uwb

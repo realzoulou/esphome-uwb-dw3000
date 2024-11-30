@@ -18,7 +18,7 @@ public:
     static constexpr std::size_t RESPONSE_DATA_SIZE = 2;
     static const std::size_t FRAME_SIZE = MHR_SIZE + COMMON_PAYLOAD_START_SIZE + 2 + RESPONSE_DATA_SIZE + MFR_SIZE;
     static const uint8_t RESPONSE_FCT_CODE_RANGING;
-
+    static const uint8_t RESPONSE_FCT_CODE_ANT_DELAY_CALIBRATION;
     typedef struct {
         UwbMessage::sMacHeader mhr;
         UwbMessage::sPayloadCommon payloadCommon;

@@ -44,7 +44,7 @@ public:
     inline double getLatitude() const { return mLatitude; }
     inline double getLongitude() const { return mLongitude; }
 
-    void setDistance(double distanceMeters, double distanceErrorEstimate = NAN);
+    void setDistance(double distanceMeters, double distanceErrorEstimate = NAN, bool enforce = false);
     double getDistance(uint32_t* millis) const;
     inline double getDistanceErrorEstimate() const { return mDistanceToTagErrorEstimate; }
 
