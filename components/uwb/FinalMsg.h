@@ -4,15 +4,18 @@
 
 #include "UwbMessage.h"
 
+#define FINAL_PAYLOAD_START_BYTES_RESERVED {'F', 'I'}
+#define FINAL_FCT_DATA_DEFAULT             { (uint8_t) 0x00, (uint8_t) 0x00 }
+
 namespace esphome {
 namespace uwb {
 
 class FinalMsg : public UwbMessage {
 
 public:
-    static const uint8_t FINAL_FCT_CODE_NO_DATA = 0x00;
-    static const uint8_t FINAL_FCT_CODE_RANGING_DIST = 0x23;
-    static const std::size_t FINAL_DATA_SIZE = 2;
+    static const uint8_t FINAL_FCT_CODE_NO_DATA;
+    static const uint8_t FINAL_FCT_CODE_RANGING_DIST;
+    static constexpr std::size_t FINAL_DATA_SIZE = 2;
 
     /* Definition of the Final frame structure */
     static const std::size_t FRAME_SIZE = MHR_SIZE + COMMON_PAYLOAD_START_SIZE + 1 + FINAL_DATA_SIZE + 3*sizeof(uint32_t) + MFR_SIZE;

@@ -17,3 +17,4 @@ ${BUILD_DIR}/ut_uwb
 
 # or run specific test(s)
 # ${BUILD_DIR}/ut_uwb --gtest_filter=Location_calculatePosition.threeAnchors_real
+# ${BUILD_DIR}/ut_uwb --gtest_filter=UwbMessage.*

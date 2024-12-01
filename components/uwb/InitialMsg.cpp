@@ -2,14 +2,10 @@
 
 #include <cstring>
 
-#include "esphome/core/log.h"
-
 namespace esphome {
 namespace uwb {
 
 const char* InitialMsg::TAG = "InitialMsg";
-
-#define COMMON_PAYLOAD_START_BYTES_RESERVED { 'I', 'N'}
 
 static const InitialMsg::sInitialFrame DEFAULT_INITIAL_FRAME = {
     .mhr = {
@@ -22,7 +18,7 @@ static const InitialMsg::sInitialFrame DEFAULT_INITIAL_FRAME = {
     .payloadCommon = {
         .targetId = 0x00,
         .sourceId = 0x00,
-        .reserved = COMMON_PAYLOAD_START_BYTES_RESERVED,
+        .reserved = INITIAL_PAYLOAD_START_BYTES_RESERVED,
     },
     .functionCode = InitialMsg::INITIAL_FCT_CODE_RANGING,
     .mfr = {
@@ -42,32 +38,43 @@ bool InitialMsg::isValid() const {
     const auto & bytes = mBytes;
     if (bytes.size() != InitialMsg::FRAME_SIZE) {
         // likely a Final frame between other devices
-        ESP_LOGV(TAG, "recvd bytes %zu != %zu", bytes.size(), InitialMsg::FRAME_SIZE);
+        std::ostringstream msg;
+        msg << "recvd bytes " << +(bytes.size()) << " != " << +InitialMsg::FRAME_SIZE;
+        MSG_LOGV(msg);
         ESP_LOG_BUFFER_HEXDUMP(TAG, bytes.data(), bytes.size(), ESP_LOG_VERBOSE);
+
         return false;
     }
     const auto frame = reinterpret_cast<const InitialMsg::sInitialFrame*>(bytes.data());
     // check PAN-ID
     if (frame->mhr.panId_lsb != UwbMessage::PAN_ID_LSB) {
-        ESP_LOGW(TAG, "recvd panId_lsb 0x%02x != 0x%02x", frame->mhr.panId_lsb, UwbMessage::PAN_ID_LSB);
+        std::ostringstream msg;
+        msg << "recvd panId_lsb 0x" << std::hex << +(frame->mhr.panId_lsb) << " != 0x" << +UwbMessage::PAN_ID_LSB << std::dec;
+        MSG_LOGW(msg);
         return false;
     }
     if (frame->mhr.panId_msb != UwbMessage::PAN_ID_MSB) {
-        ESP_LOGW(TAG, "recvd panId_msb 0x%02x != 0x%02x", frame->mhr.panId_msb, UwbMessage::PAN_ID_MSB);
+        std::ostringstream msg;
+        msg << "recvd panId_msb 0x" << std::hex << +(frame->mhr.panId_msb) << " != 0x" << +UwbMessage::PAN_ID_MSB << std::dec;
+        MSG_LOGW(msg);
         return false;
     }
     // check functionCode
     if (frame->functionCode != InitialMsg::INITIAL_FCT_CODE_RANGING) {
-        ESP_LOGW(TAG, "recvd functionCode 0x%02x != 0x%02x", frame->functionCode, InitialMsg::INITIAL_FCT_CODE_RANGING);
+        std::ostringstream msg;
+        msg << "recvd functionCode 0x" << std::hex << +(frame->functionCode) << " != 0x" << +InitialMsg::INITIAL_FCT_CODE_RANGING << std::dec;
+        MSG_LOGW(msg);
         return false;
     }
     // check payload start
-    const uint8_t expectedCommonPayloadReserved[] = COMMON_PAYLOAD_START_BYTES_RESERVED;
+    const uint8_t expectedCommonPayloadReserved[] = INITIAL_PAYLOAD_START_BYTES_RESERVED;
     static_assert(UwbMessage::COMMON_PAYLOAD_RESERVED_SIZE == sizeof(expectedCommonPayloadReserved), "COMMON_PAYLOAD_START_BYTES_RESERVED: size mismatch");
     if (std::memcmp(expectedCommonPayloadReserved,
                     frame->payloadCommon.reserved,
                     UwbMessage::COMMON_PAYLOAD_RESERVED_SIZE) != 0) {
-        ESP_LOGW(TAG, "payloadCommon.reserved mismatch recvd vs. expected:");
+        std::ostringstream msg;
+        msg << "payloadCommon.reserved mismatch recvd vs. expected:";
+        MSG_LOGW(msg);
         ESP_LOG_BUFFER_HEXDUMP(TAG, frame->payloadCommon.reserved, UwbMessage::COMMON_PAYLOAD_RESERVED_SIZE, ESP_LOG_ERROR);
         ESP_LOG_BUFFER_HEXDUMP(TAG, expectedCommonPayloadReserved, UwbMessage::COMMON_PAYLOAD_RESERVED_SIZE, ESP_LOG_ERROR);
         return false;
@@ -86,7 +93,9 @@ bool InitialMsg::fromIncomingBytes(const uint8_t* bytes, std::size_t sizeBytes) 
         return true;
     } else {
         // not a warning, this could be a Final message to a different anchor
-        ESP_LOGI(TAG, "Incoming InitialMsg size mismatch: got %zu, exp %zu", sizeBytes, InitialMsg::FRAME_SIZE);
+        std::ostringstream msg;
+        msg << "Incoming InitialMsg size mismatch: got " << +sizeBytes << " exp " << +InitialMsg::FRAME_SIZE;
+        MSG_LOGI(msg);
         return false;
     }
 }

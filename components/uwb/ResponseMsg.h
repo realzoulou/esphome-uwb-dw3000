@@ -6,6 +6,8 @@
 
 #include "UwbMessage.h"
 
+#define RESPONSE_PAYLOAD_START_BYTES_RESERVED {'R', 'P'}
+
 namespace esphome {
 namespace uwb {
 
@@ -13,8 +15,10 @@ class ResponseMsg : public UwbMessage {
 
 public:
     /* Definition of the Response frame structure */
-    static const std::size_t RESPONSE_DATA_SIZE = 2;
+    static constexpr std::size_t RESPONSE_DATA_SIZE = 2;
     static const std::size_t FRAME_SIZE = MHR_SIZE + COMMON_PAYLOAD_START_SIZE + 2 + RESPONSE_DATA_SIZE + MFR_SIZE;
+    static const uint8_t RESPONSE_FCT_CODE_RANGING;
+
     typedef struct {
         UwbMessage::sMacHeader mhr;
         UwbMessage::sPayloadCommon payloadCommon;
@@ -24,8 +28,6 @@ public:
         UwbMessage::sMacFooter mfr;
     } __attribute__((packed)) sResponseFrame;
     static_assert(sizeof(sResponseFrame) == FRAME_SIZE, "sResponseFrame: size mismatch");
-
-    static const uint8_t RESPONSE_FCT_CODE_RANGING = 0x10;
 
 public:
     ResponseMsg();

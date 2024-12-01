@@ -4,6 +4,28 @@
 #include <memory>
 #include <vector>
 #include <stddef.h>
+#include <sstream>
+
+#ifdef ESP32
+#include "esphome/core/log.h"
+    #define MSG_LOGE(ostringstream) ESP_LOGE(TAG, "%s", ostringstream.str().c_str())
+    #define MSG_LOGW(ostringstream) ESP_LOGW(TAG, "%s", ostringstream.str().c_str())
+    #define MSG_LOGI(ostringstream) ESP_LOGI(TAG, "%s", ostringstream.str().c_str())
+    #define MSG_LOGV(ostringstream) ESP_LOGV(TAG, "%s", ostringstream.str().c_str())
+#else
+    #include <iostream>
+    #define MSG_LOGE(ostringstream) std::cerr << TAG << ": " << ostringstream.str() << std::endl
+    #define MSG_LOGW(ostringstream) std::clog << TAG << ": " << ostringstream.str() << std::endl
+    #define MSG_LOGI(ostringstream) std::cout << TAG << ": " << ostringstream.str() << std::endl
+    #define MSG_LOGV(ostringstream) std::cout << TAG << ": " << ostringstream.str() << std::endl
+    #define ESP_LOG_BUFFER_HEXDUMP(tag, bytes, size, level)
+    #define ESP_LOG_NONE    (0)
+    #define ESP_LOG_ERROR   (1)
+    #define ESP_LOG_WARN    (2)
+    #define ESP_LOG_INFO    (3)
+    #define ESP_LOG_DEBUG   (4)
+    #define ESP_LOG_VERBOSE (5)
+#endif
 
 namespace esphome {
 namespace uwb {

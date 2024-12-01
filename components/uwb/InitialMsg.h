@@ -5,6 +5,8 @@
 
 #include "UwbMessage.h"
 
+#define INITIAL_PAYLOAD_START_BYTES_RESERVED { 'I', 'N'}
+
 namespace esphome {
 namespace uwb {
 

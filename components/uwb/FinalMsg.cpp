@@ -2,16 +2,12 @@
 
 #include <cstring>
 
-#include "esphome/core/log.h"
-
 namespace esphome {
 namespace uwb {
 
 const char* FinalMsg::TAG = "FinalMsg";
-
-#define COMMON_PAYLOAD_START_BYTES_RESERVED {'F', 'I'}
-
-#define FINAL_FCT_DATA_DEFAULT { (uint8_t) 0x00, (uint8_t) 0x00 }
+const uint8_t FinalMsg::FINAL_FCT_CODE_NO_DATA      = 0x00;
+const uint8_t FinalMsg::FINAL_FCT_CODE_RANGING_DIST = 0x23;
 
 static const FinalMsg::sFinalFrame DEFAULT_FINAL_FRAME = {
     .mhr = {
@@ -24,7 +20,7 @@ static const FinalMsg::sFinalFrame DEFAULT_FINAL_FRAME = {
     .payloadCommon = {
         .targetId = 0x00,
         .sourceId = 0x00,
-        .reserved = COMMON_PAYLOAD_START_BYTES_RESERVED,
+        .reserved = FINAL_PAYLOAD_START_BYTES_RESERVED,
     },
     .functionCode = FinalMsg::FINAL_FCT_CODE_NO_DATA,
     .functionData = FINAL_FCT_DATA_DEFAULT,
@@ -62,7 +58,7 @@ bool FinalMsg::isValid() const {
         return false;
     }
     // check payload start
-    const uint8_t expectedCommonPayloadReserved[] = COMMON_PAYLOAD_START_BYTES_RESERVED;
+    const uint8_t expectedCommonPayloadReserved[] = FINAL_PAYLOAD_START_BYTES_RESERVED;
     static_assert(UwbMessage::COMMON_PAYLOAD_RESERVED_SIZE == sizeof(expectedCommonPayloadReserved), "COMMON_PAYLOAD_RESERVED_SIZE: size mismatch");
     if (std::memcmp(expectedCommonPayloadReserved,
                     frame->payloadCommon.reserved,
@@ -86,7 +82,9 @@ bool FinalMsg::fromIncomingBytes(const uint8_t* bytes, std::size_t sizeBytes) {
         mBytes.assign(bytes, bytes + sizeBytes);
         return true;
     } else {
-        ESP_LOGW(TAG, "Incoming FinalMsg size mismatch: got %zu, exp %zu", sizeBytes, FinalMsg::FRAME_SIZE);
+        std::ostringstream msg;
+        msg << "Incoming FinalMsg size mismatch: got " << +sizeBytes << ", exp " << +FinalMsg::FRAME_SIZE;
+        MSG_LOGW(msg);
         return false;
     }
 }
@@ -106,7 +104,9 @@ void FinalMsg::setTimestamps(uint32_t initial, uint32_t response, uint32_t final
 }
 bool FinalMsg::setFunctionCodeAndData(const uint8_t fctCode, const uint8_t* data, const std::size_t dataSize) {
     if (data == nullptr || dataSize != FINAL_DATA_SIZE) {
-        ESP_LOGE(TAG, "setFunctionCodeAndData null or invalid dataSize %zu (exp %zu)", dataSize, FINAL_DATA_SIZE);
+        std::ostringstream msg;
+        msg << "setFunctionCodeAndData null or invalid dataSize " << +dataSize << " (exp " << +FINAL_DATA_SIZE << ")";
+        MSG_LOGE(msg);
         return false;
     }
     const auto frame = reinterpret_cast<FinalMsg::sFinalFrame*>(mBytes.data());
@@ -117,7 +117,9 @@ bool FinalMsg::setFunctionCodeAndData(const uint8_t fctCode, const uint8_t* data
 
 bool FinalMsg::getFunctionCodeAndData(uint8_t* fctCode, uint8_t* data, const std::size_t dataSize, std::size_t *actualDataSize) const {
     if (fctCode == nullptr || data == nullptr || actualDataSize == nullptr || dataSize < FINAL_DATA_SIZE) {
-        ESP_LOGE(TAG, "getFunctionCodeAndData null's or invalid dataSize %zu (exp %zu)", dataSize, FINAL_DATA_SIZE);
+        std::ostringstream msg;
+        msg << "getFunctionCodeAndData null's or invalid dataSize " << +dataSize << " (exp " << +FINAL_DATA_SIZE << ")";
+        MSG_LOGE(msg);
         return false;
     }
     const auto frame = reinterpret_cast<const FinalMsg::sFinalFrame*>(mBytes.data());
