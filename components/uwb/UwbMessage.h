@@ -7,7 +7,7 @@
 #include <sstream>
 
 #ifdef ESP32
-#include "esphome/core/log.h"
+    #include "esphome/core/log.h"
     #define MSG_LOGE(ostringstream) ESP_LOGE(TAG, "%s", ostringstream.str().c_str())
     #define MSG_LOGW(ostringstream) ESP_LOGW(TAG, "%s", ostringstream.str().c_str())
     #define MSG_LOGI(ostringstream) ESP_LOGI(TAG, "%s", ostringstream.str().c_str())

@@ -18,7 +18,9 @@ void UwbAnchorData::setDistance(double distanceMeters, double distErrorEstimate)
             mDistanceToTagErrorEstimate = NAN;
             sensor->publish_state(NAN);
         }
-        ESP_LOGW(TAG, "anchor 0x%02X away", mId);
+        std::ostringstream msg;
+        msg << "anchor 0x" << std::hex << +mId << std::dec << " away";
+        MSG_LOGW(msg);
         return;
     }
 
@@ -37,7 +39,9 @@ void UwbAnchorData::setDistance(double distanceMeters, double distErrorEstimate)
         diffMillis = NAN;
         if (!std::isnan(distanceMeters)) {
             // changed from 'away' to 'back'
-            ESP_LOGW(TAG, "anchor 0x%02X back", mId);
+            std::ostringstream msg;
+            msg << "anchor 0x" << std::hex << +mId << std::dec << " back";
+            MSG_LOGW(msg);
         }
     }
 
@@ -51,8 +55,13 @@ void UwbAnchorData::setDistance(double distanceMeters, double distErrorEstimate)
                 mSensor->publish_state(mDistanceToTag);
             }
         } else {
-            ESP_LOGW(TAG, "anchor 0x%02X: dist %.2fm (Δ%.2fm in %.0fms) speed %.2fm/s > threshold %.2fm/s, keep %.2fm",
-                mId, distanceMeters, diffToPrevDistance, diffMillis, speed, MAX_SPEED, mDistanceToTag);
+            std::ostringstream msg;
+            msg << "anchor 0x" << std::hex << +mId << std::dec
+                << ": dist " << std::fixed << std::setprecision(2) << +distanceMeters << "m (Δ"
+                << +diffToPrevDistance << "m in " << std::setprecision(0) << +diffMillis << "ms) speed "
+                << std::setprecision(2) << +speed << "m/s > threshold " << +MAX_SPEED << "m/s, keep "
+                << +mDistanceToTag << "m";
+            MSG_LOGW(msg);
         }
     } else {
         /* Minimal change in distance to tag happened. Just store. */

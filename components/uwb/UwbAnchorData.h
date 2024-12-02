@@ -1,12 +1,30 @@
 #pragma once
 
 #include <cinttypes>
+#include <cmath>
+#include <iomanip>
+#include <sstream>
 
-#ifndef __UT_TEST__
-#include "esphome/components/sensor/sensor.h"
-#include "esphome/core/hal.h"
+#ifdef ESP32
+    #include "esphome/components/sensor/sensor.h"
+    #include "esphome/core/hal.h"
+    #define MSG_LOGE(ostringstream) ESP_LOGE(TAG, "%s", ostringstream.str().c_str())
+    #define MSG_LOGW(ostringstream) ESP_LOGW(TAG, "%s", ostringstream.str().c_str())
+    #define MSG_LOGI(ostringstream) ESP_LOGI(TAG, "%s", ostringstream.str().c_str())
+    #define MSG_LOGV(ostringstream) ESP_LOGV(TAG, "%s", ostringstream.str().c_str())
 #else
-namespace sensor { class Sensor; }
+    namespace sensor {
+        class Sensor {
+            public:
+            void publish_state(double) {}
+        };
+    }
+    #include <iostream>
+    #define MSG_LOGE(ostringstream) std::cerr << TAG << ": " << ostringstream.str() << std::endl
+    #define MSG_LOGW(ostringstream) std::clog << TAG << ": " << ostringstream.str() << std::endl
+    #define MSG_LOGI(ostringstream) std::cout << TAG << ": " << ostringstream.str() << std::endl
+    #define MSG_LOGV(ostringstream) std::cout << TAG << ": " << ostringstream.str() << std::endl
+    #define millis() (4711U)
 #endif
 
 namespace esphome {
