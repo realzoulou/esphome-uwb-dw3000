@@ -43,6 +43,8 @@ class Dw3000Device {
 public:
     static uint8_t getNextTxSequenceNumberAndIncrease();
     static dwt_config_t* getConfig();
+    static uint8_t* getRxBuffer();
+    static uint16_t getRxBufferSize();
 
     Dw3000Device();
 

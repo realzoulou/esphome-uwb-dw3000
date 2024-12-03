@@ -15,6 +15,10 @@ extern SPISettings _fastSPI; // from dw3000_port.cpp
 namespace esphome {
 namespace uwb {
 
+/* buffer for reading an incoming UWBMessage from DW3000 IC. */
+#define UWB_RX_BUFFER_SIZE (128)
+static uint8_t UWB_RX_BUFFER[UWB_RX_BUFFER_SIZE];
+
 const char* Dw3000Device::TAG = "dw3000";
 
 #define SPI_SPEED_HZ 16000000
@@ -62,6 +66,9 @@ Dw3000Device::Dw3000Device() {}
 dwt_config_t* Dw3000Device::getConfig() {
     return &config;
 }
+
+uint8_t* Dw3000Device::getRxBuffer() { return UWB_RX_BUFFER; }
+uint16_t Dw3000Device::getRxBufferSize() { return UWB_RX_BUFFER_SIZE; }
 
 void Dw3000Device::setup() {
 
