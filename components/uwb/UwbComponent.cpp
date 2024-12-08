@@ -39,7 +39,8 @@ void UwbComponent::setup() {
             }
             UwbTagDevice* tagDevice = new UwbTagDevice(mAnchors, mRangingIntervalMs, mMaxAgeAnchorDistanceMs,
                 mLatitudeSensor, mLongitudeSensor, mLocationErrorEstimateSensor, mAnchorsInUseSensor,
-                mAntDelayCalibrationDistanceNumber, mAntDelayCalibrationDeviceSelect, mAntDelayStartButton);
+                mAntDelayCalibrationDistanceNumber, mAntDelayCalibrationDeviceSelect, mAntDelayStartButton,
+                mAntDelayProgressSensor);
 
             // set callbacks for User initiated actions
             if (mAntDelayCalibrationDeviceSelect != nullptr) {
@@ -122,6 +123,7 @@ void UwbComponent::setTemperatureSensor(const sensor::Sensor* sensor) {
 void UwbComponent::setDiagnosticStatusSensor(const text_sensor::TextSensor* sensor) {
     mDiagnosticStatusSensor = const_cast<text_sensor::TextSensor*>(sensor);
 }
+
 void UwbComponent::setLogSensor(const text_sensor::TextSensor* sensor) {
     mLogSensor = const_cast<text_sensor::TextSensor*>(sensor);
 }
@@ -136,6 +138,10 @@ void UwbComponent::setAntennaCalibrationDevice(const AntDelayCalibDeviceSelect* 
 
 void UwbComponent::setAntennaCalibrationStartButton(const AntDelayCalibStartButton* button) {
     mAntDelayStartButton = const_cast<AntDelayCalibStartButton*>(button);
+}
+
+void UwbComponent::setAntennaCalibrationProgress(const sensor::Sensor* sensor) {
+    mAntDelayProgressSensor = const_cast<sensor::Sensor*>(sensor);
 }
 
 std::string UwbComponent::roleToString(const eUwbRole role) {

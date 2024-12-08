@@ -79,6 +79,7 @@ public:
     void setAntennaCalibrationDistance(const AntDelayCalibDistanceNumber* number);
     void setAntennaCalibrationDevice(const AntDelayCalibDeviceSelect* select);
     void setAntennaCalibrationStartButton(const AntDelayCalibStartButton* button);
+    void setAntennaCalibrationProgress(const sensor::Sensor* sensor);
 
 private:
     static std::string roleToString(const eUwbRole role);
@@ -108,6 +109,7 @@ private:
     AntDelayCalibDistanceNumber * mAntDelayCalibrationDistanceNumber{nullptr};
     AntDelayCalibDeviceSelect* mAntDelayCalibrationDeviceSelect{nullptr};
     AntDelayCalibStartButton* mAntDelayStartButton{nullptr};
+    sensor::Sensor* mAntDelayProgressSensor{nullptr};
 };
 
 }  // namespace uwb

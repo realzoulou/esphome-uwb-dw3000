@@ -93,7 +93,8 @@ public:
                  sensor::Sensor* locationErrorEstimateSensor, sensor::Sensor* anchorsInUseSensor,
                  AntDelayCalibDistanceNumber* antennaCalibrationDistanceNumber,
                  AntDelayCalibDeviceSelect* antennaCalibrationDeviceSelect,
-                 AntDelayCalibStartButton* antennaCalibrationStartButton);
+                 AntDelayCalibStartButton* antennaCalibrationStartButton,
+                 sensor::Sensor* antennaCalibrationProgress);
 
     ~UwbTagDevice();
 
@@ -157,7 +158,8 @@ protected:
     sensor::Sensor *mLatitudeSensor,
                    *mLongitudeSensor,
                    *mLocationErrorEstimateSensor,
-                   *mAnchorsInUseSensor;
+                   *mAnchorsInUseSensor,
+                   *mAntennaCalibrationProgress;
 
     eMyState prevState{MYSTATE_UNKNOWN};
     eMyState currState{MYSTATE_UNKNOWN};

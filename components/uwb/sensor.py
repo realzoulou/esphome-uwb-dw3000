@@ -2,6 +2,7 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import sensor
 from esphome.const import (
+    CONF_DISABLED_BY_DEFAULT,
     CONF_DISTANCE,
     CONF_LATITUDE,
     CONF_LONGITUDE,
@@ -11,12 +12,15 @@ from esphome.const import (
     DEVICE_CLASS_EMPTY,
     DEVICE_CLASS_TEMPERATURE,
     DEVICE_CLASS_VOLTAGE,
+    ENTITY_CATEGORY_DIAGNOSTIC,
     ICON_THERMOMETER,
+    ICON_TIMELAPSE,
     STATE_CLASS_MEASUREMENT,
     UNIT_CELSIUS,
     UNIT_DEGREES,
     UNIT_EMPTY,
     UNIT_METER,
+    UNIT_PERCENT,
     UNIT_VOLT,
 )
 from . import UWB_COMPONENT, CONF_UWB_ID, CONF_UWB_DEVICE_ID
@@ -25,6 +29,7 @@ AUTO_LOAD = ["uwb"]
 
 CONF_UWB_POSITION_ERROR_ESTIMATE = "error_estimate"
 CONF_UWB_ANCHORS_IN_USE = "anchors_in_use"
+CONF_ANTDELAY_PROGRESS = "antenna_calibration_progress"
 
 CONFIG_SCHEMA = cv.Schema(
     {
@@ -78,6 +83,18 @@ CONFIG_SCHEMA = cv.Schema(
             device_class=DEVICE_CLASS_TEMPERATURE,
             state_class=STATE_CLASS_MEASUREMENT,
         ),
+        cv.Optional(CONF_ANTDELAY_PROGRESS): sensor.sensor_schema(
+            unit_of_measurement=UNIT_PERCENT,
+            icon=ICON_TIMELAPSE,
+            accuracy_decimals=0,
+            device_class=DEVICE_CLASS_EMPTY,
+            state_class=STATE_CLASS_MEASUREMENT, # not STATE_CLASS_TOTAL_INCREASING because progress may decrease
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+        ).extend(
+            {
+                cv.Optional(CONF_DISABLED_BY_DEFAULT, default=True): cv.boolean,
+            }
+        ),
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -105,3 +122,6 @@ async def to_code(config):
     if temperature_config := config.get(CONF_TEMPERATURE):
         sens = await sensor.new_sensor(temperature_config)
         cg.add(uwb.setTemperatureSensor(sens))
+    if antdelay_progress := config.get(CONF_ANTDELAY_PROGRESS):
+        sens = await sensor.new_sensor(antdelay_progress)
+        cg.add(uwb.setAntennaCalibrationProgress(sens))
