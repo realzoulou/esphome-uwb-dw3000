@@ -30,6 +30,7 @@ AUTO_LOAD = ["uwb"]
 CONF_UWB_POSITION_ERROR_ESTIMATE = "error_estimate"
 CONF_UWB_ANCHORS_IN_USE = "anchors_in_use"
 CONF_ANTDELAY_PROGRESS = "antenna_calibration_progress"
+CONF_ANTDELAY_RESULT = "antenna_calibration_delay_result"
 
 CONFIG_SCHEMA = cv.Schema(
     {
@@ -95,6 +96,18 @@ CONFIG_SCHEMA = cv.Schema(
                 cv.Optional(CONF_DISABLED_BY_DEFAULT, default=True): cv.boolean,
             }
         ),
+        cv.Optional(CONF_ANTDELAY_RESULT): sensor.sensor_schema(
+            unit_of_measurement=UNIT_EMPTY,
+            icon="mdi:antenna",
+            accuracy_decimals=0,
+            device_class=DEVICE_CLASS_EMPTY,
+            state_class=STATE_CLASS_MEASUREMENT,
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+        ).extend(
+            {
+                cv.Optional(CONF_DISABLED_BY_DEFAULT, default=True): cv.boolean,
+            }
+        ),
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -125,3 +138,6 @@ async def to_code(config):
     if antdelay_progress := config.get(CONF_ANTDELAY_PROGRESS):
         sens = await sensor.new_sensor(antdelay_progress)
         cg.add(uwb.setAntennaCalibrationProgress(sens))
+    if antdelay_result := config.get(CONF_ANTDELAY_RESULT):
+        sens = await sensor.new_sensor(antdelay_result)
+        cg.add(uwb.setAntennaCalibrationDelayResult(sens))

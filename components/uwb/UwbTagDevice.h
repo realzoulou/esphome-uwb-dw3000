@@ -94,7 +94,8 @@ public:
                  AntDelayCalibDistanceNumber* antennaCalibrationDistanceNumber,
                  AntDelayCalibDeviceSelect* antennaCalibrationDeviceSelect,
                  AntDelayCalibStartButton* antennaCalibrationStartButton,
-                 sensor::Sensor* antennaCalibrationProgress);
+                 sensor::Sensor* antennaCalibrationProgress,
+                 sensor::Sensor* antennaCalibrationDelayResultSensor);
 
     ~UwbTagDevice();
 
@@ -159,7 +160,8 @@ protected:
                    *mLongitudeSensor,
                    *mLocationErrorEstimateSensor,
                    *mAnchorsInUseSensor,
-                   *mAntennaCalibrationProgress;
+                   *mAntennaCalibrationProgressSensor,
+                   *mAntennaCalibrationDelayResultSensor;
 
     eMyState prevState{MYSTATE_UNKNOWN};
     eMyState currState{MYSTATE_UNKNOWN};

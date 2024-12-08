@@ -32,7 +32,8 @@ UwbTagDevice::UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & a
                            AntDelayCalibDistanceNumber* antennaCalibrationDistanceNumber,
                            AntDelayCalibDeviceSelect* antennaCalibrationDeviceSelect,
                            AntDelayCalibStartButton* antennaCalibrationStartButton,
-                           sensor::Sensor* antennaCalibrationProgress)
+                           sensor::Sensor* antennaCalibrationProgress,
+                           sensor::Sensor* antennaCalibrationDelayResultSensor)
 : RX_BUF_LEN(std::max(ResponseMsg::FRAME_SIZE, FinalMsg::FRAME_SIZE)),
   RANGING_INTERVAL_MS(rangingIntervalMs),
   MAX_AGE_ANCHOR_DISTANCE_MS(maxAgeAnchorDistanceMs)
@@ -51,7 +52,8 @@ UwbTagDevice::UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & a
     mAntennaCalibrationDistanceNumber = antennaCalibrationDistanceNumber;
     mAntDelayCalibDeviceSelect = antennaCalibrationDeviceSelect;
     mAntDelayStartButton = antennaCalibrationStartButton;
-    mAntennaCalibrationProgress = antennaCalibrationProgress;
+    mAntennaCalibrationProgressSensor = antennaCalibrationProgress;
+    mAntennaCalibrationDelayResultSensor = antennaCalibrationDelayResultSensor;
 }
 
 UwbTagDevice::~UwbTagDevice() {
@@ -203,6 +205,9 @@ void UwbTagDevice::waitNextRangingInterval() {
             currentDevice << std::uppercase << std::hex << +id << std::dec;
             mAntDelayCalibDeviceSelect->publish_state(currentDevice.str());
         }
+        if ((!mAntDelayCalibration.isDone()) && mAntennaCalibrationDelayResultSensor != nullptr) {
+            mAntennaCalibrationDelayResultSensor->publish_state(NAN);
+        }
     }
 }
 
@@ -240,8 +245,11 @@ void UwbTagDevice::waitNextAnchorRanging() {
                         // Done
                         setMyState(MY_DEFAULT_STATE);
                         setMode(UWB_MODE_ANT_DELAY_CALIBRATION_DONE);
-                        if (mAntennaCalibrationProgress != nullptr) {
-                            mAntennaCalibrationProgress->publish_state(100.0);
+                        if (mAntennaCalibrationProgressSensor != nullptr) {
+                            mAntennaCalibrationProgressSensor->publish_state(100.0);
+                        }
+                        if (mAntennaCalibrationDelayResultSensor != nullptr) {
+                            mAntennaCalibrationDelayResultSensor->publish_state((float)calibrationResult);
                         }
                         return;
                     }
@@ -648,10 +656,10 @@ void UwbTagDevice::recvdFrameFinal() {
                 ESP_LOGW(TAG, "ANTDLY_CALIB %.1f%% #%" PRIu32 "/%" PRIu32 " AntDelay=%" PRIu16 " : DIST anchor 0x%02X: %.2fm (from anchor %.2fm)",
                     calibrationProgress, (mAntDelayCalibrationResultPerRound.size()+1), ANT_CALIB_MAX_ROUNDS, antDelay,
                     anchorId, distance, anchorCalculatedDistance);
-                if (mAntennaCalibrationProgress != nullptr) {
+                if (mAntennaCalibrationProgressSensor != nullptr) {
                     const double totalProgress = ((double)mAntDelayCalibrationResultPerRound.size() * 100.0 + calibrationProgress)
                                                 / ((double)ANT_CALIB_MAX_ROUNDS);
-                    mAntennaCalibrationProgress->publish_state((float)totalProgress);
+                    mAntennaCalibrationProgressSensor->publish_state((float)totalProgress);
                 }
 
             } else {
