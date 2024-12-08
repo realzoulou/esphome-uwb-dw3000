@@ -19,6 +19,8 @@ public: // constants
     const static uint16_t START_ANTENNA_DELAY;
     /* number of distance samples in a set. */
     constexpr static uint32_t DISTANCE_SAMPLES_PER_ANT_DELAY = 10;
+    /* default target distance to reach. */
+    constexpr static float DEFAULT_CALIBRATION_DISTANCE = 8;
 
 public:
     AntDelayCalibration();
@@ -54,7 +56,7 @@ protected:
 
 private:
     /* target distance to reach. */
-    double mCalibrationDistance{8.0};
+    double mCalibrationDistance{DEFAULT_CALIBRATION_DISTANCE};
 
     /* current distance. */
     double mCurrentDistance{NAN};

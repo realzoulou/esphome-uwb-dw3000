@@ -3,6 +3,7 @@
 #include "Dw3000Device.h"
 
 #include "AntDelayCalibration.h"
+#include "AntDelayCalibDistanceNumber.h"
 #include "InitialMsg.h"
 #include "FinalMsg.h"
 #include "Location.h"
@@ -12,7 +13,7 @@
 namespace esphome {
 namespace uwb {
 
-class UwbTagDevice : public Dw3000Device {
+class UwbTagDevice : public Dw3000Device, public AntDelayCalibDistanceNumberCallback {
 
     typedef enum _eMyState {
         MYSTATE_UNKNOWN,
@@ -84,12 +85,16 @@ public:
     UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & anchors,
                  const uint32_t rangingIntervalMs, const uint32_t maxAgeAnchorDistanceMs,
                  sensor::Sensor* latitudeSensor, sensor::Sensor* longitudeSensor,
-                 sensor::Sensor* locationErrorEstimateSensor, sensor::Sensor* anchorsInUseSensor);
+                 sensor::Sensor* locationErrorEstimateSensor, sensor::Sensor* anchorsInUseSensor,
+                 AntDelayCalibDistanceNumber* antennaCalibrationDistanceNumber);
 
     ~UwbTagDevice();
 
     virtual void setup();
     virtual void loop();
+
+    // from AntDelayCalibDistanceNumberCallback
+    virtual void controlAntennaDelayCalibrationDistance(float distanceMeters);
 
 protected:
     virtual void setMyState(const eMyState state);
@@ -192,6 +197,8 @@ protected:
     AntDelayCalibration mAntDelayCalibration;
     /* Per round: result of antenna calibration (stored as double for standard deviation/mean calculation). */
     std::vector<double> mAntDelayCalibrationResultPerRound;
+    /* User controllable antenna delay calibration distance. */
+    AntDelayCalibDistanceNumber* mAntennaCalibrationDistanceNumber{nullptr};
 };
 
 }  // namespace uwb

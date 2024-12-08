@@ -9,7 +9,7 @@ from esphome.const import (
     CONF_LONGITUDE,
 )
 
-AUTO_LOAD = ["spi", "sensor", "text_sensor"]
+AUTO_LOAD = ["spi", "sensor", "text_sensor", "number"]
 
 MULTI_CONF = True
 

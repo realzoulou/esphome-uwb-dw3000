@@ -28,7 +28,8 @@ UwbTagDevice::UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & a
                            sensor::Sensor* latitudeSensor,
                            sensor::Sensor* longitudeSensor,
                            sensor::Sensor* locationErrorEstimateSensor,
-                           sensor::Sensor* anchorsInUseSensor)
+                           sensor::Sensor* anchorsInUseSensor,
+                           AntDelayCalibDistanceNumber* antennaCalibrationDistanceNumber)
 : RX_BUF_LEN(std::max(ResponseMsg::FRAME_SIZE, FinalMsg::FRAME_SIZE)),
   RANGING_INTERVAL_MS(rangingIntervalMs),
   MAX_AGE_ANCHOR_DISTANCE_MS(maxAgeAnchorDistanceMs)
@@ -44,6 +45,7 @@ UwbTagDevice::UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & a
     mAnchorsInUseSensor = anchorsInUseSensor;
     mAntDelayCalibrationResultPerRound.reserve(ANT_CALIB_MAX_ROUNDS);
     mAntDelayCalibrationResultPerRound.clear();
+    mAntennaCalibrationDistanceNumber = antennaCalibrationDistanceNumber;
 }
 
 UwbTagDevice::~UwbTagDevice() {
@@ -53,7 +55,13 @@ void UwbTagDevice::setup() {
     Dw3000Device::setup();
 
     setMyState(MY_DEFAULT_STATE);
-    setMode(UWB_MODE_ANT_DELAY_CALIBRATION);
+
+    ESP_LOGE(TAG, "DEFAULTING to UWB_MODE_RANGING");
+    setMode(UWB_MODE_ANT_DELAY_CALIBRATION); // TODO change this back to UWB_MODE_RANGING
+
+    if (mAntennaCalibrationDistanceNumber != nullptr) {
+        mAntennaCalibrationDistanceNumber->publish_state(mAntDelayCalibration.getCalibrationDistance());
+    }
 }
 
 void UwbTagDevice::loop() {
@@ -829,6 +837,21 @@ void UwbTagDevice::locationPostProcessing() {
     }
     // next ranging cycle
     setMyState(MYSTATE_WAIT_NEXT_RANGING_INTERVAL);
+}
+
+void UwbTagDevice::controlAntennaDelayCalibrationDistance(float distanceMeters) {
+    if (mAntennaCalibrationDistanceNumber != nullptr) {
+        if (getMode() != UWB_MODE_ANT_DELAY_CALIBRATION) {
+            ESP_LOGW(TAG, "setCalibrationDistance %.2fm", distanceMeters);
+            mAntDelayCalibration.setCalibrationDistance(distanceMeters);
+            mAntennaCalibrationDistanceNumber->publish_state(distanceMeters); // confirm back
+        } else {
+            ESP_LOGE(TAG, "setCalibrationDistance %.2fm NOT possible while calibrating", distanceMeters);
+            mAntennaCalibrationDistanceNumber->publish_state(AntDelayCalibration::DEFAULT_CALIBRATION_DISTANCE);
+        }
+    }
+}
+
 }
 
 }  // namespace uwb

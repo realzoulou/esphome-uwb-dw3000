@@ -31,7 +31,7 @@ CONFIG_SCHEMA = cv.Schema(
         cv.GenerateID(CONF_UWB_ID): cv.use_id(UWB_COMPONENT),
         cv.Optional(CONF_DISTANCE): sensor.sensor_schema(
             unit_of_measurement=UNIT_METER,
-            icon="mdi:map-marker-radius-outline",
+            icon="mdi:map-marker-distance",
             accuracy_decimals=2,
             device_class=DEVICE_CLASS_DISTANCE,
             state_class=STATE_CLASS_MEASUREMENT,

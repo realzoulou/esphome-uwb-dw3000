@@ -37,9 +37,14 @@ void UwbComponent::setup() {
                     }
                 }
             }
-            mDevice = new UwbTagDevice(mAnchors, mRangingIntervalMs, mMaxAgeAnchorDistanceMs,
-                                       mLatitudeSensor, mLongitudeSensor,
-                                       mLocationErrorEstimateSensor, mAnchorsInUseSensor);
+            UwbTagDevice* tagDevice = new UwbTagDevice(mAnchors, mRangingIntervalMs, mMaxAgeAnchorDistanceMs,
+                mLatitudeSensor, mLongitudeSensor, mLocationErrorEstimateSensor, mAnchorsInUseSensor,
+                mAntDelayCalibrationDistanceNumber);
+            if (mAntDelayCalibrationDistanceNumber != nullptr) {
+                mAntDelayCalibrationDistanceNumber->setCallback(tagDevice);
+            }
+
+            mDevice = tagDevice;
         }
         break;
         default:
@@ -111,6 +116,11 @@ void UwbComponent::setDiagnosticStatusSensor(const text_sensor::TextSensor* sens
 }
 void UwbComponent::setLogSensor(const text_sensor::TextSensor* sensor) {
     mLogSensor = const_cast<text_sensor::TextSensor*>(sensor);
+}
+
+void UwbComponent::setAntennaCalibrationDistance(const AntDelayCalibDistanceNumber * number) {
+    mAntDelayCalibrationDistanceNumber = const_cast<AntDelayCalibDistanceNumber*>(number);
+}
 }
 
 std::string UwbComponent::roleToString(const eUwbRole role) {
