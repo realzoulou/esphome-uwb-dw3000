@@ -10,6 +10,7 @@
 
 #include "Dw3000Device.h"
 
+#include "AntDelayCalibDeviceSelect.h"
 #include "AntDelayCalibDistanceNumber.h"
 #include "UwbAnchorData.h"
 #include "UwbListener.h"
@@ -75,7 +76,7 @@ public:
     void setDiagnosticStatusSensor(const text_sensor::TextSensor* sensor);
     void setLogSensor(const text_sensor::TextSensor* sensor);
     void setAntennaCalibrationDistance(const AntDelayCalibDistanceNumber* number);
-
+    void setAntennaCalibrationDevice(const AntDelayCalibDeviceSelect* select);
 private:
     static std::string roleToString(const eUwbRole role);
 
@@ -102,6 +103,7 @@ private:
     double mAnchorLongitude{NAN};
     sensor::Sensor * mLocationErrorEstimateSensor{nullptr};
     AntDelayCalibDistanceNumber * mAntDelayCalibrationDistanceNumber{nullptr};
+    AntDelayCalibDeviceSelect* mAntDelayCalibrationDeviceSelect{nullptr};
 };
 
 }  // namespace uwb

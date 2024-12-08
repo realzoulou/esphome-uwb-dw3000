@@ -3,6 +3,7 @@
 #include "Dw3000Device.h"
 
 #include "AntDelayCalibration.h"
+#include "AntDelayCalibDeviceSelect.h"
 #include "AntDelayCalibDistanceNumber.h"
 #include "InitialMsg.h"
 #include "FinalMsg.h"
@@ -13,8 +14,10 @@
 namespace esphome {
 namespace uwb {
 
-class UwbTagDevice : public Dw3000Device, public AntDelayCalibDistanceNumberCallback {
-
+class UwbTagDevice : public Dw3000Device
+                     , public AntDelayCalibDistanceNumberCallback
+                     , public AntDelayCalibDeviceSelectCallback
+{
     typedef enum _eMyState {
         MYSTATE_UNKNOWN,
         // wait state for next ranging interval
@@ -86,7 +89,8 @@ public:
                  const uint32_t rangingIntervalMs, const uint32_t maxAgeAnchorDistanceMs,
                  sensor::Sensor* latitudeSensor, sensor::Sensor* longitudeSensor,
                  sensor::Sensor* locationErrorEstimateSensor, sensor::Sensor* anchorsInUseSensor,
-                 AntDelayCalibDistanceNumber* antennaCalibrationDistanceNumber);
+                 AntDelayCalibDistanceNumber* antennaCalibrationDistanceNumber,
+                 AntDelayCalibDeviceSelect* antennaCalibrationDeviceSelect);
 
     ~UwbTagDevice();
 
@@ -95,6 +99,9 @@ public:
 
     // from AntDelayCalibDistanceNumberCallback
     virtual void controlAntennaDelayCalibrationDistance(float distanceMeters);
+
+    // from AntDelayCalibDeviceSelectCallback
+    virtual void controlAntennaDelayCalibrationDevice(const std::string &device);
 
 protected:
     virtual void setMyState(const eMyState state);
@@ -199,6 +206,8 @@ protected:
     std::vector<double> mAntDelayCalibrationResultPerRound;
     /* User controllable antenna delay calibration distance. */
     AntDelayCalibDistanceNumber* mAntennaCalibrationDistanceNumber{nullptr};
+    /* User controllable antenna delay calibration device selection. */
+    AntDelayCalibDeviceSelect* mAntDelayCalibDeviceSelect{nullptr};
 };
 
 }  // namespace uwb

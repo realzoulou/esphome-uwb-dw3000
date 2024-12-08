@@ -29,7 +29,8 @@ UwbTagDevice::UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & a
                            sensor::Sensor* longitudeSensor,
                            sensor::Sensor* locationErrorEstimateSensor,
                            sensor::Sensor* anchorsInUseSensor,
-                           AntDelayCalibDistanceNumber* antennaCalibrationDistanceNumber)
+                           AntDelayCalibDistanceNumber* antennaCalibrationDistanceNumber,
+                           AntDelayCalibDeviceSelect* antennaCalibrationDeviceSelect)
 : RX_BUF_LEN(std::max(ResponseMsg::FRAME_SIZE, FinalMsg::FRAME_SIZE)),
   RANGING_INTERVAL_MS(rangingIntervalMs),
   MAX_AGE_ANCHOR_DISTANCE_MS(maxAgeAnchorDistanceMs)
@@ -46,6 +47,7 @@ UwbTagDevice::UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & a
     mAntDelayCalibrationResultPerRound.reserve(ANT_CALIB_MAX_ROUNDS);
     mAntDelayCalibrationResultPerRound.clear();
     mAntennaCalibrationDistanceNumber = antennaCalibrationDistanceNumber;
+    mAntDelayCalibDeviceSelect = antennaCalibrationDeviceSelect;
 }
 
 UwbTagDevice::~UwbTagDevice() {
@@ -61,6 +63,17 @@ void UwbTagDevice::setup() {
 
     if (mAntennaCalibrationDistanceNumber != nullptr) {
         mAntennaCalibrationDistanceNumber->publish_state(mAntDelayCalibration.getCalibrationDistance());
+    }
+
+    if (mAntDelayCalibDeviceSelect != nullptr) {
+        std::vector<std::string> options;
+        for (auto & anchor : mAnchors) {
+            const uint8_t id = anchor->getId();
+            std::ostringstream option;
+            option << std::uppercase << std::hex << +id << std::dec;
+            options.push_back(option.str());
+        }
+        mAntDelayCalibDeviceSelect->traits.set_options(options);
     }
 }
 
@@ -181,6 +194,15 @@ void UwbTagDevice::waitNextRangingInterval() {
         setMyState(MYSTATE_WAIT_NEXT_ANCHOR_RANGING);
     }
     // else continue waiting
+
+    if (getMode() == UWB_MODE_ANT_DELAY_CALIBRATION) {
+        if (mCurrentAntCalibAnchorIndex >= 0 && mCurrentAntCalibAnchorIndex < mAnchors.size() && mAntDelayCalibDeviceSelect != nullptr) {
+            const uint8_t id = mAnchors.at(mCurrentAntCalibAnchorIndex)->getId();
+            std::ostringstream currentDevice;
+            currentDevice << std::uppercase << std::hex << +id << std::dec;
+            mAntDelayCalibDeviceSelect->publish_state(currentDevice.str());
+        }
+    }
 }
 
 void UwbTagDevice::waitNextAnchorRanging() {
@@ -852,6 +874,31 @@ void UwbTagDevice::controlAntennaDelayCalibrationDistance(float distanceMeters) 
     }
 }
 
+void UwbTagDevice::controlAntennaDelayCalibrationDevice(const std::string &device) {
+    int idx = -1;
+    if (getMode() != UWB_MODE_ANT_DELAY_CALIBRATION) {
+        const long id = std::strtol(device.c_str(), nullptr, 16);
+        for (idx = 0; idx < mAnchors.size(); idx++) {
+            if (mAnchors.at(idx)->getId() == id) {
+                ESP_LOGW(TAG, "setCalibrationDevice '%s'", device.c_str());
+                mCurrentAntCalibAnchorIndex = idx;
+                mAntDelayCalibDeviceSelect->publish_state(device); // confirm back
+                break;
+            }
+        }
+        if (idx >= mAnchors.size()) {
+            ESP_LOGE(TAG, "setCalibrationDevice failed to find device '%s'", device.c_str());
+        }
+    }
+    if (idx < 0 || idx >= mAnchors.size()) {
+        // while calibration ongoing or device not found, report current device
+        if (mCurrentAntCalibAnchorIndex >= 0 && mCurrentAntCalibAnchorIndex < mAnchors.size() && mAntDelayCalibDeviceSelect != nullptr) {
+            const uint8_t id = mAnchors.at(mCurrentAntCalibAnchorIndex)->getId();
+            std::ostringstream currentDevice;
+            currentDevice << std::uppercase << std::hex << +id << std::dec;
+            mAntDelayCalibDeviceSelect->publish_state(currentDevice.str());
+        }
+    }
 }
 
 }  // namespace uwb
