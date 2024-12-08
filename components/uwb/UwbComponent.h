@@ -12,6 +12,7 @@
 
 #include "AntDelayCalibDeviceSelect.h"
 #include "AntDelayCalibDistanceNumber.h"
+#include "AntDelayCalibStartButton.h"
 #include "UwbAnchorData.h"
 #include "UwbListener.h"
 
@@ -77,6 +78,8 @@ public:
     void setLogSensor(const text_sensor::TextSensor* sensor);
     void setAntennaCalibrationDistance(const AntDelayCalibDistanceNumber* number);
     void setAntennaCalibrationDevice(const AntDelayCalibDeviceSelect* select);
+    void setAntennaCalibrationStartButton(const AntDelayCalibStartButton* button);
+
 private:
     static std::string roleToString(const eUwbRole role);
 
@@ -104,6 +107,7 @@ private:
     sensor::Sensor * mLocationErrorEstimateSensor{nullptr};
     AntDelayCalibDistanceNumber * mAntDelayCalibrationDistanceNumber{nullptr};
     AntDelayCalibDeviceSelect* mAntDelayCalibrationDeviceSelect{nullptr};
+    AntDelayCalibStartButton* mAntDelayStartButton{nullptr};
 };
 
 }  // namespace uwb

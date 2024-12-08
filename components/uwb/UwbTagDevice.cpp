@@ -30,7 +30,8 @@ UwbTagDevice::UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & a
                            sensor::Sensor* locationErrorEstimateSensor,
                            sensor::Sensor* anchorsInUseSensor,
                            AntDelayCalibDistanceNumber* antennaCalibrationDistanceNumber,
-                           AntDelayCalibDeviceSelect* antennaCalibrationDeviceSelect)
+                           AntDelayCalibDeviceSelect* antennaCalibrationDeviceSelect,
+                           AntDelayCalibStartButton* antennaCalibrationStartButton)
 : RX_BUF_LEN(std::max(ResponseMsg::FRAME_SIZE, FinalMsg::FRAME_SIZE)),
   RANGING_INTERVAL_MS(rangingIntervalMs),
   MAX_AGE_ANCHOR_DISTANCE_MS(maxAgeAnchorDistanceMs)
@@ -48,6 +49,7 @@ UwbTagDevice::UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & a
     mAntDelayCalibrationResultPerRound.clear();
     mAntennaCalibrationDistanceNumber = antennaCalibrationDistanceNumber;
     mAntDelayCalibDeviceSelect = antennaCalibrationDeviceSelect;
+    mAntDelayStartButton = antennaCalibrationStartButton;
 }
 
 UwbTagDevice::~UwbTagDevice() {
@@ -57,9 +59,6 @@ void UwbTagDevice::setup() {
     Dw3000Device::setup();
 
     setMyState(MY_DEFAULT_STATE);
-
-    ESP_LOGE(TAG, "DEFAULTING to UWB_MODE_RANGING");
-    setMode(UWB_MODE_ANT_DELAY_CALIBRATION); // TODO change this back to UWB_MODE_RANGING
 
     if (mAntennaCalibrationDistanceNumber != nullptr) {
         mAntennaCalibrationDistanceNumber->publish_state(mAntDelayCalibration.getCalibrationDistance());
@@ -898,6 +897,19 @@ void UwbTagDevice::controlAntennaDelayCalibrationDevice(const std::string &devic
             currentDevice << std::uppercase << std::hex << +id << std::dec;
             mAntDelayCalibDeviceSelect->publish_state(currentDevice.str());
         }
+    }
+}
+
+void UwbTagDevice::pressedStartAntennaCalibration() {
+    if (getMode() != UWB_MODE_ANT_DELAY_CALIBRATION) {
+        if (mCurrentAntCalibAnchorIndex >= 0 && mCurrentAntCalibAnchorIndex < mAnchors.size()) {
+            setMode(UWB_MODE_ANT_DELAY_CALIBRATION);
+            setMyState(MY_DEFAULT_STATE);
+        } else {
+            ESP_LOGE(TAG, "select a calibration target device first");
+        }
+    } else {
+        ESP_LOGE(TAG, "already in antenna delay calibration");
     }
 }
 

@@ -5,6 +5,7 @@
 #include "AntDelayCalibration.h"
 #include "AntDelayCalibDeviceSelect.h"
 #include "AntDelayCalibDistanceNumber.h"
+#include "AntDelayCalibStartButton.h"
 #include "InitialMsg.h"
 #include "FinalMsg.h"
 #include "Location.h"
@@ -17,6 +18,7 @@ namespace uwb {
 class UwbTagDevice : public Dw3000Device
                      , public AntDelayCalibDistanceNumberCallback
                      , public AntDelayCalibDeviceSelectCallback
+                     , public AntDelayCalibStartCallback
 {
     typedef enum _eMyState {
         MYSTATE_UNKNOWN,
@@ -90,7 +92,8 @@ public:
                  sensor::Sensor* latitudeSensor, sensor::Sensor* longitudeSensor,
                  sensor::Sensor* locationErrorEstimateSensor, sensor::Sensor* anchorsInUseSensor,
                  AntDelayCalibDistanceNumber* antennaCalibrationDistanceNumber,
-                 AntDelayCalibDeviceSelect* antennaCalibrationDeviceSelect);
+                 AntDelayCalibDeviceSelect* antennaCalibrationDeviceSelect,
+                 AntDelayCalibStartButton* antennaCalibrationStartButton);
 
     ~UwbTagDevice();
 
@@ -102,6 +105,9 @@ public:
 
     // from AntDelayCalibDeviceSelectCallback
     virtual void controlAntennaDelayCalibrationDevice(const std::string &device);
+
+    // from AntDelayCalibDeviceStartCallback
+    virtual void pressedStartAntennaCalibration();
 
 protected:
     virtual void setMyState(const eMyState state);
@@ -208,6 +214,8 @@ protected:
     AntDelayCalibDistanceNumber* mAntennaCalibrationDistanceNumber{nullptr};
     /* User controllable antenna delay calibration device selection. */
     AntDelayCalibDeviceSelect* mAntDelayCalibDeviceSelect{nullptr};
+    /* User controllable button to start antenna calibration. */
+    AntDelayCalibStartButton* mAntDelayStartButton{nullptr};
 };
 
 }  // namespace uwb
