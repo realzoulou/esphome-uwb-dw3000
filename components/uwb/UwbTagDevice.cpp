@@ -478,7 +478,7 @@ void UwbTagDevice::recvdFrameResponse() {
         dwt_setpreambledetecttimeout(PRE_TIMEOUT);
 
         /* Final TX timestamp is the transmission time we programmed plus the TX antenna delay. */
-        const uint64_t final_tx_ts = (((uint64_t)(final_tx_time & 0xFFFFFFFEUL)) << 8) + TX_ANT_DLY;
+        const uint64_t final_tx_ts = (((uint64_t)(final_tx_time & 0xFFFFFFFEUL)) << 8) + getAntennaDelay();
 
         /* Write all timestamps in the Final message. */
         mFinalFrame.resetToDefault();

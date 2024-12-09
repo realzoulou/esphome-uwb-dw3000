@@ -14,8 +14,7 @@ namespace esphome {
 namespace uwb {
 
 /* Default antenna delay values for 64 MHz PRF */
-#define TX_ANT_DLY  (16385) // Decawave default was confirmed to be good (by ranging with 8.0m distance)
-#define RX_ANT_DLY  TX_ANT_DLY // for simplicity: RX = TX antenna delay
+const static uint16_t ANT_DLY_DEFAULT = 16385; // Decawave default
 
 /* Macros for surrounding a code block which is time-critical and should not be interrupted. */
 #define TIME_CRITICAL_START()
@@ -60,8 +59,12 @@ public:
     inline void setDeviceId(const uint8_t id) { mDeviceId = id; }
     inline uint8_t getDeviceId() const { return mDeviceId; }
 
+    inline void setAntennaDelay(const uint16_t antDelay) { mAntDelay = antDelay; }
+    inline uint16_t getAntennaDelay() const { return mAntDelay; };
+
     inline void setLedsOffAfter(const uint32_t ledsOffAfterMs) { mLedsOffAfterMs = ledsOffAfterMs; }
     inline uint32_t getLedsOffAfter() const { return mLedsOffAfterMs; }
+
     inline void setVoltageSensor(sensor::Sensor* sensor) { mVoltageSensor = sensor; }
     inline void setTemperatureSensor(sensor::Sensor* sensor) { mTemperatureSensor = sensor; }
     inline void setDiagnosticStatusSensor(text_sensor::TextSensor* sensor) { mDiagnosticStatusSensor = sensor; }
@@ -106,6 +109,9 @@ private:
 
 private:
     static uint8_t txSequenceNumber;
+
+    /* TX/RX Antenna Delay. */
+    uint16_t mAntDelay{ANT_DLY_DEFAULT};
 
     /* Mode: Ranging (default) or Antenna Delay Calibration. */
     UwbMode mUwbMode{UWB_MODE_RANGING};

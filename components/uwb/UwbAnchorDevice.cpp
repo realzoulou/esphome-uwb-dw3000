@@ -380,7 +380,7 @@ void UwbAnchorDevice::recvdFrameFinal() {
         dwt_setdelayedtrxtime((uint32_t)final_response_tx_time);
 
         /* Final response TX timestamp is the transmission time we programmed plus the TX antenna delay. */
-        const uint64_t final_response_tx_ts = (((uint64_t)(final_response_tx_time & 0xFFFFFFFEUL)) << 8) + TX_ANT_DLY;
+        const uint64_t final_response_tx_ts = (((uint64_t)(final_response_tx_time & 0xFFFFFFFEUL)) << 8) + getAntennaDelay();
 
         /* Write all timestamps in the Final response message. */
         mFinalFrame.resetToDefault();

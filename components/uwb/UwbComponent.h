@@ -56,6 +56,7 @@ public:
     // UwbComponent specific
     inline void setDeviceId(const uint8_t id) { mDeviceId = id; }
     inline void setRole(const eUwbRole role) { mRole = role; };
+    inline void setAntennaDelay(const uint16_t antDelay) { mAntDelay = antDelay; }
     inline void setRangingInterval(const uint32_t rangingIntervalMs) { mRangingIntervalMs = rangingIntervalMs; }
     inline void setMaxAgeAnchorDistance(const uint32_t maxAgeAnchorDistanceMs) { mMaxAgeAnchorDistanceMs = maxAgeAnchorDistanceMs; }
     inline void setLedsOffAfter(const uint32_t ledsOffAfterMs) { mLedsOffAfterMs = ledsOffAfterMs; }
@@ -89,6 +90,7 @@ private:
     // data for both tag and anchor
     Dw3000Device* mDevice{nullptr};
     eUwbRole mRole{UWB_ROLE_UNKNOWN};
+    uint16_t mAntDelay{ANT_DLY_DEFAULT};
     uint8_t mDeviceId{0};
     uint32_t mLedsOffAfterMs{LED_OFF_AFTER_DEFAULT};
     sensor::Sensor * mLatitudeSensor{nullptr};

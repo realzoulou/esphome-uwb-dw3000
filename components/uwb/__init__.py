@@ -23,6 +23,7 @@ CONF_UWB_ROLE = "role"
 CONF_UWB_ROLE_ANCHOR = "anchor"
 CONF_UWB_ROLE_TAG = "tag"
 CONF_UWB_LED_OFF_AFTER = "led_off_after_ms"
+CONF_UWB_ANT_DELAY = "antenna_delay"
 CONF_TAG_ANCHORS = "anchors"
 CONF_TAG_RANGING_INTERVAL = "ranging_interval_ms"
 CONF_TAG_ANCHOR_AWAY_DURATION = "anchor_away_after_ms"
@@ -38,6 +39,7 @@ MIN_DISTANCE_CHANGE_DEFAULT : float = uwb_ns.MIN_DISTANCE_CHANGE_DEFAULT
 MAX_SPEED_DEFAULT           : float = uwb_ns.MAX_SPEED_DEFAULT
 RANGING_INTERVAL_DEFAULT    : float = uwb_ns.RANGING_INTERVAL_TIME_DEFAULT
 ANCHOR_AWAY_DURATION_DEFAULT: float = uwb_ns.MAX_AGE_ANCHOR_DISTANCE_DEFAULT
+ANT_DELAY_DEFAULT           : int   = uwb_ns.ANT_DLY_DEFAULT
 
 # BEGIN: parse_latlon and LAT_LON_REGEX copied from esphome/components/sun/__init__.py
 # Parses sexagesimal values like 22°57′7″S
@@ -108,6 +110,7 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_TAG_MIN_DISTANCE_CHANGE): cv.float_range(min=0.01),
         cv.Optional(CONF_TAG_MAX_SPEED): cv.float_range(min=0.01),
         cv.Optional(CONF_UWB_LED_OFF_AFTER): cv.int_range(min=0),
+        cv.Optional(CONF_UWB_ANT_DELAY): cv.int_range(min=1,max=32767),
     }
 ).extend(cv.COMPONENT_SCHEMA)
 cv.only_with_arduino # pylint: disable=pointless-statement
@@ -126,6 +129,13 @@ async def to_code(config):
     try:
         if ledOffDuration := config[CONF_UWB_LED_OFF_AFTER]:
             cg.add(var.setLedsOffAfter(ledOffDuration))
+    except KeyError:
+        True # pylint: disable=pointless-statement
+
+    # optional key: CONF_UWB_ANT_DELAY
+    try:
+        if ant_delay := config[CONF_UWB_ANT_DELAY]:
+            cg.add(var.setAntennaDelay(ant_delay))
     except KeyError:
         True # pylint: disable=pointless-statement
 

@@ -101,8 +101,8 @@ void Dw3000Device::setup() {
     dwt_configuretxrf(&txconfig_options);
 
     /* Apply default antenna delay value. */
-    dwt_settxantennadelay(TX_ANT_DLY);
-    dwt_setrxantennadelay(RX_ANT_DLY);
+    dwt_settxantennadelay(mAntDelay);
+    dwt_setrxantennadelay(mAntDelay);
 
     /* Enable GPIO for external LNA or PA functionality. TX and RX GPIOs are handy to monitor DW3000's IC activity. */
     dwt_setlnapamode(DWT_LNA_ENABLE | DWT_PA_ENABLE);
@@ -161,8 +161,8 @@ const char* Dw3000Device::diagStatusToString(const DiagStatus status) {
 void Dw3000Device::setMode(const UwbMode mode) {
     if (mode == UWB_MODE_RANGING) {
         /* Apply default antenna delay value. */
-        dwt_settxantennadelay(TX_ANT_DLY);
-        dwt_setrxantennadelay(RX_ANT_DLY);
+        dwt_settxantennadelay(mAntDelay);
+        dwt_setrxantennadelay(mAntDelay);
     }
     mUwbMode = mode;
 }
