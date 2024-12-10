@@ -233,10 +233,12 @@ void UwbTagDevice::waitNextAnchorRanging() {
                             AntDelayCalibration::getStandardDeviationAndMeanValue(mAntDelayCalibrationResultPerRound, meanCalibrationResult);
                         const uint16_t calibrationResult = (uint16_t) std::round(meanCalibrationResult);
                         // report result
-                        ESP_LOGW(TAG, "==========================");
-                        ESP_LOGW(TAG, "ANTENNA DELAY CALIBRATION: %" PRIu16 " (StdDev: %.2f) @ distance %.2fm",
-                            calibrationResult, stdDevCalibrationResults, mAntDelayCalibration.getCalibrationDistance());
-                        ESP_LOGW(TAG, "==========================");
+                        std::ostringstream msg;
+                        msg << +calibrationResult << " (StdDev: "
+                            << std::fixed << std::setprecision(2) << +stdDevCalibrationResults
+                            << ") @ dist " << +mAntDelayCalibration.getCalibrationDistance() << "m";
+                        ESP_LOGW(TAG, ">>>>>> ANTENNA DELAY CALIBRATION: %s", msg.str().c_str());
+                        sendLog(msg.str());
 
                         // reset my variables
                         mAntDelayCalibration.resetState();
@@ -636,6 +638,8 @@ void UwbTagDevice::recvdFrameFinal() {
             mAntDelayCalibration.addDistanceMeasurement(distance);
         }
 
+        const UwbMode mode = getMode();
+
         /* Retrieve anchor calculated TOF from Final frame. */
         double anchorCalculatedDistance = NAN;
         uint8_t fctCode;
@@ -643,19 +647,24 @@ void UwbTagDevice::recvdFrameFinal() {
         std::size_t actualFctDataLen;
         if (mFinalFrame.getFunctionCodeAndData(&fctCode, fctData, FinalMsg::FINAL_DATA_SIZE, &actualFctDataLen)) {
             anchorCalculatedDistance = ((double) ((uint16_t) ((fctData[0] << 8) + fctData[1]))) / 100.0; // [cm] -> [m]
-            if (!Location::isDistancePlausible(anchorCalculatedDistance)) {
+            if (!Location::isDistancePlausible(anchorCalculatedDistance) && (mode != UWB_MODE_ANT_DELAY_CALIBRATION)) {
                 anchorCalculatedDistance = NAN;
             }
         }
         /* Display computed distance. */
-        const UwbMode mode = getMode();
-        if (Location::isDistancePlausible(distance) || mode == UWB_MODE_ANT_DELAY_CALIBRATION) {
+        if (Location::isDistancePlausible(distance) || (mode == UWB_MODE_ANT_DELAY_CALIBRATION)) {
             if (mode == UWB_MODE_ANT_DELAY_CALIBRATION) {
                 const double calibrationProgress = mAntDelayCalibration.getProgressPercent();
                 const uint16_t antDelay = mAntDelayCalibration.getAntennaDelay();
-                ESP_LOGW(TAG, "ANTDLY_CALIB %.1f%% #%" PRIu32 "/%" PRIu32 " AntDelay=%" PRIu16 " : DIST anchor 0x%02X: %.2fm (from anchor %.2fm)",
-                    calibrationProgress, (mAntDelayCalibrationResultPerRound.size()+1), ANT_CALIB_MAX_ROUNDS, antDelay,
-                    anchorId, distance, anchorCalculatedDistance);
+                std::ostringstream msg;
+                msg << std::fixed << std::setprecision(1) << +calibrationProgress
+                    << "% #" << +(mAntDelayCalibrationResultPerRound.size()+1)
+                    << "/" << +ANT_CALIB_MAX_ROUNDS
+                    << " AntDelay=" << +antDelay
+                    << " : dist to 0x" << std::hex << std::uppercase << +anchorId << std::dec
+                    << ": " << std::setprecision(2) << +distance << "m (anchor " << +anchorCalculatedDistance << "m)";
+                ESP_LOGW(TAG, "ANTDLY_CALIB %s", msg.str().c_str());
+                sendLog(msg.str());
                 if (mAntennaCalibrationProgressSensor != nullptr) {
                     const double totalProgress = ((double)mAntDelayCalibrationResultPerRound.size() * 100.0 + calibrationProgress)
                                                 / ((double)ANT_CALIB_MAX_ROUNDS);
@@ -926,9 +935,11 @@ void UwbTagDevice::pressedStartAntennaCalibration() {
             setMyState(MY_DEFAULT_STATE);
         } else {
             ESP_LOGE(TAG, "select a calibration target device first");
+            sendLog("select a calibration target device first");
         }
     } else {
         ESP_LOGE(TAG, "already in antenna delay calibration");
+        sendLog("already in antenna delay calibration");
     }
 }
 
