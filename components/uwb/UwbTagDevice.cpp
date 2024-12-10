@@ -646,7 +646,7 @@ void UwbTagDevice::recvdFrameFinal() {
         uint8_t fctData[FinalMsg::FINAL_DATA_SIZE];
         std::size_t actualFctDataLen;
         if (mFinalFrame.getFunctionCodeAndData(&fctCode, fctData, FinalMsg::FINAL_DATA_SIZE, &actualFctDataLen)) {
-            anchorCalculatedDistance = ((double) ((uint16_t) ((fctData[0] << 8) + fctData[1]))) / 100.0; // [cm] -> [m]
+            anchorCalculatedDistance = ((double) ((int16_t) ((fctData[0] << 8) + fctData[1]))) / 100.0; // [cm] -> [m]
             if (!Location::isDistancePlausible(anchorCalculatedDistance) && (mode != UWB_MODE_ANT_DELAY_CALIBRATION)) {
                 anchorCalculatedDistance = NAN;
             }

@@ -86,7 +86,7 @@ constexpr static CalculationPhase CALC_ALL_PHASES_DONE =
 class Location {
 
 public: // constants
-    constexpr static double UWB_MAX_REACH_METER = 500.0; // don't think that UWB reaches > 500m
+    constexpr static double UWB_MAX_REACH_METER = 327.67; // 32767 cm
 
 public: // static methods
     static bool isValid(const AnchorPositionTagDistance & a);

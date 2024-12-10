@@ -99,7 +99,7 @@ TEST(Location_isDistancePlausible, plausibleDistance) {
     EXPECT_TRUE(Location::isDistancePlausible(10));
     EXPECT_TRUE(Location::isDistancePlausible(50));
     EXPECT_TRUE(Location::isDistancePlausible(100));
-    EXPECT_TRUE(Location::isDistancePlausible(500));
+    EXPECT_FALSE(Location::isDistancePlausible(500));
     EXPECT_FALSE(Location::isDistancePlausible(1000));
     EXPECT_FALSE(Location::isDistancePlausible(500000));
 }

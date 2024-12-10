@@ -401,7 +401,7 @@ void UwbAnchorDevice::recvdFrameFinal() {
         double distance = tof * SPEED_OF_LIGHT;
         if (Location::isDistancePlausible(distance) || getMode() == UWB_MODE_ANT_DELAY_CALIBRATION) {
             // set TOF in [cm] to Final frame
-            const uint16_t dist_cm = (uint16_t)(std::fabs(distance) * 100.0); // [m] -> [cm]
+            const int16_t dist_cm = (int16_t)(distance * 100.0); // [m] -> [cm]
             const uint8_t fctData[FinalMsg::FINAL_DATA_SIZE] = {
                 (uint8_t)((dist_cm & 0xFF00U) >> 8),
                 (uint8_t)((dist_cm & 0x00FFU))
