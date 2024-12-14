@@ -149,9 +149,6 @@ void UwbTagDevice::do_ranging() {
     if (mAnchors.empty()) {
         return; // no anchors configured, nothing to do
     }
-    if (getMode() == UWB_MODE_ANT_DELAY_CALIBRATION) {
-        mCurrentAntCalibAnchorIndex = 0; // TODO make anchor device_id configurable
-    }
     switch (currState) {
         case MYSTATE_WAIT_NEXT_RANGING_INTERVAL: waitNextRangingInterval(); break;
         case MYSTATE_WAIT_NEXT_ANCHOR_RANGING:   waitNextAnchorRanging(); break;
