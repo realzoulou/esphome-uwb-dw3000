@@ -61,7 +61,7 @@ private:
     const double mLongitude;
 
     /* Distance sensor. */
-    sensor::Sensor* mSensor;
+    sensor::Sensor* mSensor{nullptr};
 
     /* Minimum absolute difference of a new distance to be reported. */
     const double MIN_DISTANCE;
