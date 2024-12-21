@@ -1,0 +1,100 @@
+== Quick start
+:reproducible:
+
+=== Set up a `tag` device
+The UWB device with `role` set to `tag` is the device **to be located** relative to the `anchor` devices.
+
+Minimal ESPHome YAML `tag` configuration:
+[source]
+----
+uwb:
+  role: tag
+  device_id: 0x02   # unique ID of this device
+
+  # For role=tag, a list of anchors is required:
+  #  1 anchor: only distance between tag and anchor is produced.
+  #  2+ anchors are needed for producing a 2D location.
+  #     More anchors will result in better location precision.
+  anchors:
+    - device_id: 0xA1        # unique ID of an anchor device
+      latitude: 48.1234567   # WGS 84 latitude of the anchor device
+      longitude: 11.1234567  # WGS 84 longitude of the anchor device
+    - device_id: 0xA2        # unique ID of another anchor device
+      latitude: 48.1234568   # WGS 84 latitude of the anchor device
+      longitude: 11.1234568  # WGS 84 longitude of the anchor device
+sensor:
+    # Latitude, Longitude of tag
+  - platform: uwb
+    latitude:
+      id: uwb_tag_latitude
+      name: "latitude"
+    longitude:
+      id: uwb_tag_longitude
+      name: "longitude"
+----
+
+=== Set up multiple `anchor` devices
+UWB devices with `role` set to `anchor` are fixed devices with a **known location**. These allow the `tag` to calculate its location.
+The location (WGS 84 latitude and longitude) of the `anchor` **must** be provided in the `tag` YAML.
+
+Minimal ESPHome YAML `anchor` configuration:
+[source]
+----
+uwb:
+  role: anchor
+  device_id: 0xA1  # unique ID of this device
+----
+
+=== Set up Home Assistant
+In Home Assistant (HA) two configurations are needed for the `tag`.
+
+[start=1]
+. device_tracker
+
+In HA, the `tag` location can be made available as a `device_tracker`.
+See also https://www.home-assistant.io/integrations/device_tracker/. Make sure your HA `configuration.yaml` contains `device_tracker:`.
+
+If needed, create a file `known_devices.yaml` in the HA installation directory (next to `configuration.yaml`).
+
+Assuming the `esphome:` `name:` of the `tag` device in your ESPHome YAML is `uwb-tag`, then the `known_devices.yaml` entry is:
+
+[source]
+----
+uwb_tag:
+  name: uwb_tag
+  track: true
+----
+
+[start=2]
+. device_tracker.see
+
+Create a HA Automation with action `Device Tracker 'See'` when the tag's position changes.
+Note that `known_devices.yaml` file entry "uwb_tag" corresponds to `dev_id: uwb_tag` below.
+
+Here is the YAML version of such Automation:
+
+[source]
+----
+alias: UWB tag
+description: ""
+triggers:
+  - entity_id:
+      - sensor.uwb_tag_latitude
+      - sensor.uwb_tag_longitude
+    trigger: state
+conditions: []
+actions:
+  - metadata: {}
+    data:
+      dev_id: uwb_tag
+      gps: >-
+        {% set latitude  = states('sensor.uwb_tag_latitude') %}
+        {% set longitude = states('sensor.uwb_tag_longitude') %}
+        {% if is_number(latitude) and is_number(longitude) %}
+          {{ ( latitude , longitude ) }}
+        {% else %}
+          {{ (0.0, 0.0) }}
+        {% endif %}
+    action: device_tracker.see
+mode: single
+----
