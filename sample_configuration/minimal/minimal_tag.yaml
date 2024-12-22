@@ -1,0 +1,50 @@
+#
+# Example minimal tag ESPHome configuration
+#
+# run in root folder of this repository with:
+#  esphome run sample_configuration/minimal/minimal_tag.yaml
+#
+packages:
+  esphome: !include .uwb-common.yaml
+
+substitutions:
+  name: uwb-tag
+  friendly_name: UWB-Tag
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  name_add_mac_suffix: false
+  project:
+    name: esphome.web
+    version: '1.0'
+
+wifi:
+  networks:
+  - ssid: YOUR_SSID
+    password: YOUR_WIFI_PASSWORD
+
+#####################################################
+uwb:
+  role: tag
+  device_id: 0x02   # unique ID of this device
+  # For role=tag, a list of anchors is required:
+  #  1 anchor: only distance between tag and anchor is produced.
+  #  2+ anchors are needed for producing a 2D location.
+  #     More anchors will result in better location precision.
+  anchors:
+    - device_id: 0xA1        # unique ID of an anchor device
+      latitude: 48.1234567   # WGS 84 latitude of the anchor device
+      longitude: 11.1234567  # WGS 84 longitude of the anchor device
+    - device_id: 0xA2        # unique ID of another anchor device
+      latitude: 48.1234568   # WGS 84 latitude of the anchor device
+      longitude: 11.1234568  # WGS 84 longitude of the anchor device
+sensor:
+    # Latitude, Longitude of tag
+  - platform: uwb
+    latitude:
+      id: uwb_tag_latitude
+      name: "latitude"
+    longitude:
+      id: uwb_tag_longitude
+      name: "longitude"
