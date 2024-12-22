@@ -189,7 +189,8 @@ async def to_code(config):
             longitude = config[CONF_LONGITUDE]
             if latitude and longitude:
                 cg.add(var.setAnchorPosition(latitude, longitude))
-        finally: True # pylint: disable=pointless-statement
+        except KeyError:
+            True # pylint: disable=pointless-statement
 
     # ----- General compiler settings
     # treat warnings as error, abort compilation on the first error, check printf format and arguments
