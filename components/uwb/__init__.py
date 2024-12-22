@@ -165,19 +165,23 @@ async def to_code(config):
         try:
             if config[CONF_TAG_MIN_DISTANCE_CHANGE]:
                 minDistanceChange = config[CONF_TAG_MIN_DISTANCE_CHANGE]
-        finally: True # pylint: disable=pointless-statement
+        except KeyError:
+            True # pylint: disable=pointless-statement
         try:
             if config[CONF_TAG_MAX_SPEED]:
                 maxSpeed = config[CONF_TAG_MAX_SPEED]
-        finally: True # pylint: disable=pointless-statement
+        except KeyError:
+            True # pylint: disable=pointless-statement
         try:
             if ranging_interval := config[CONF_TAG_RANGING_INTERVAL]:
                 cg.add(var.setRangingInterval(ranging_interval))
-        finally: True # pylint: disable=pointless-statement
+        except KeyError:
+            True # pylint: disable=pointless-statement
         try:
             if anchor_away_duration := config[CONF_TAG_ANCHOR_AWAY_DURATION]:
                 cg.add(var.setMaxAgeAnchorDistance(anchor_away_duration))
-        finally: True # pylint: disable=pointless-statement
+        except KeyError:
+            True # pylint: disable=pointless-statement
 
         for anchor in config[CONF_TAG_ANCHORS]:
             cg.add(var.addAnchor(anchor[CONF_UWB_DEVICE_ID], anchor[CONF_LATITUDE], anchor[CONF_LONGITUDE],
