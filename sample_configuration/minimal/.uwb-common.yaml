@@ -51,6 +51,9 @@ external_components:
 ota:
 - platform: esphome
 
+# Enable logging
+logger:
+
 # Enable Home Assistant API
 api:
 # and ESPHome dashboard
