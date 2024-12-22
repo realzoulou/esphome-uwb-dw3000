@@ -1,6 +1,8 @@
 == Quick start
 :reproducible:
 
+A complete minimal ESPHome YAML can be found in folder xref:../sample_configuration/minimal/[sample_configuration/minimal/].
+
 === Set up a `tag` device
 The UWB device with `role` set to `tag` is the device **to be located** relative to the `anchor` devices.
 
