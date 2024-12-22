@@ -44,11 +44,11 @@ esphome:
     - ${dw3000_sources}/dw3000_version.h
 
 external_components:
-  #- source: github://realzoulou/esphome-uwb-dw3000@master
-  #  components: [ uwb ]
-  - source:
-      type: local
-      path: ../../components/
+  - source: github://realzoulou/esphome-uwb-dw3000@master
+#  - source:
+#      type: local
+#      path: ../../components/
+    components: [ uwb ]
 
 # Allow Over-The-Air updates
 ota:
