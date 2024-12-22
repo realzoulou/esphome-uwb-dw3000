@@ -1,6 +1,7 @@
 substitutions:
-  # substitution to declare ${dw3000_sources}
-  dw3000_sources: components/esphome-uwb-dw3000/components/uwb/dw3000/src
+  # substitution to declare ${dw3000_sources} relative to the .yaml
+  # You will have to change to match with your directory structure.
+  dw3000_sources: ../../components/uwb/dw3000/src
   # tag declarations
   tag_name: "tag"
   tag_device_id: "0x02"
@@ -43,9 +44,7 @@ esphome:
     - ${dw3000_sources}/dw3000_version.h
 
 external_components:
-  - source:
-      type: git
-       url: https://github.com/.../....git # FIXME
+  - source: github://realzoulou/esphome-uwb-dw3000@master
     components: [ uwb ]
 
 # Allow Over-The-Air updates

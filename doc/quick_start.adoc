@@ -3,6 +3,46 @@
 
 A complete minimal ESPHome YAML can be found in folder xref:../sample_configuration/minimal/[sample_configuration/minimal/].
 
+Include the `uwb` component from this repository with following lines in your .yaml:
+[source]
+----
+external_components:
+  - source: github://realzoulou/esphome-uwb-dw3000@master
+    components: [ uwb ]
+----
+
+Additionally, you need to tell ESPHome to copy Decawave's dw3000/src folder files to ESPHome's build directory.
+[source]
+----
+substitutions:
+  # substitution to declare ${dw3000_sources} relative to the .yaml
+  # You will have to change to match with your directory structure.
+  dw3000_sources: ../../components/uwb/dw3000/src
+
+esphome:
+  # copies dw3000_sources to .esphome/build/${NODE}/src/ folder
+  includes:
+    - ${dw3000_sources}/dw3000.h
+    - ${dw3000_sources}/dw3000_config_options.cpp
+    - ${dw3000_sources}/dw3000_config_options.h
+    - ${dw3000_sources}/dw3000_device_api.cpp
+    - ${dw3000_sources}/dw3000_device_api.h
+    - ${dw3000_sources}/dw3000_mac_802_15_4.cpp
+    - ${dw3000_sources}/dw3000_mac_802_15_4.h
+    - ${dw3000_sources}/dw3000_mutex.cpp
+    - ${dw3000_sources}/dw3000_port.cpp
+    - ${dw3000_sources}/dw3000_port.h
+    - ${dw3000_sources}/dw3000_regs.h
+    - ${dw3000_sources}/dw3000_shared_defines.h
+    - ${dw3000_sources}/dw3000_shared_functions.cpp
+    - ${dw3000_sources}/dw3000_shared_functions.h
+    - ${dw3000_sources}/dw3000_types.h
+    - ${dw3000_sources}/dw3000_uart.cpp
+    - ${dw3000_sources}/dw3000_uart.h
+    - ${dw3000_sources}/dw3000_vals.h
+    - ${dw3000_sources}/dw3000_version.h
+----
+
 === Set up a `tag` device
 The UWB device with `role` set to `tag` is the device **to be located** relative to the `anchor` devices.
 
