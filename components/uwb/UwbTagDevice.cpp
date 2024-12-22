@@ -57,8 +57,8 @@ UwbTagDevice::UwbTagDevice(const std::vector<std::shared_ptr<UwbAnchorData>> & a
     mAnchors = std::move(anchors);
     mAnchorCurrentRangingSuccess.reserve(mAnchors.size());
     mAnchorCurrentRangingSuccess.assign(mAnchors.size(), PER_ANCHOR_ATTEMPTS);
-    assert(RX_BUF_LEN <= Dw3000Device::getRxBufferSize());
-    rx_buffer = Dw3000Device::getRxBuffer();
+    assert(RX_BUF_LEN <= getRxBufferSize());
+    rx_buffer = getRxBuffer();
     mLatitudeSensor = latitudeSensor;
     mLongitudeSensor = longitudeSensor;
     mLocationErrorEstimateSensor = locationErrorEstimateSensor;

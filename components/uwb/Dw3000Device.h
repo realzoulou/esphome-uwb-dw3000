@@ -62,15 +62,20 @@ typedef enum _UwbMode {
 
 class Dw3000Device {
 public:
+    /* buffer size for reading an incoming UWBMessage from DW3000 IC. */
+    static const std::size_t UWB_RX_BUFFER_SIZE = 128;
+
     static uint8_t getNextTxSequenceNumberAndIncrease();
     static dwt_config_t* getConfig();
-    static uint8_t* getRxBuffer();
-    static uint16_t getRxBufferSize();
 
-    Dw3000Device();
+    explicit Dw3000Device();
+    virtual ~Dw3000Device();
 
     virtual void setup();
     virtual void loop();
+
+    uint8_t* getRxBuffer() const;
+    uint16_t getRxBufferSize() const;
 
     inline void setDeviceId(const uint8_t id) { mDeviceId = id; }
     inline uint8_t getDeviceId() const { return mDeviceId; }
@@ -125,6 +130,9 @@ private:
 
 private:
     static uint8_t txSequenceNumber;
+
+    /* buffer for reading an incoming UWBMessage from DW3000 IC. */
+    uint8_t* mRxBuffer{nullptr};
 
     /* TX/RX Antenna Delay. */
     uint16_t mAntDelay{ANT_DLY_DEFAULT};

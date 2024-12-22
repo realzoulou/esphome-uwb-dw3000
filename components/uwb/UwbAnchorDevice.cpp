@@ -40,8 +40,8 @@ UwbAnchorDevice::UwbAnchorDevice(const double latitude, const double longitude,
 : mLatitude(latitude), mLongitude(longitude)
 , mLatitudeSensor(latitudeSensor), mLongitudeSensor(longitudeSensor), mDistSensor(distSensor)
 , RX_BUF_LEN(std::max(InitialMsg::FRAME_SIZE, FinalMsg::FRAME_SIZE)) {
-    assert(RX_BUF_LEN <= Dw3000Device::getRxBufferSize());
-    rx_buffer = Dw3000Device::getRxBuffer();
+    assert(RX_BUF_LEN <= getRxBufferSize());
+    rx_buffer = getRxBuffer();
 }
 UwbAnchorDevice::~UwbAnchorDevice() {
 }

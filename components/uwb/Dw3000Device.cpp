@@ -31,16 +31,14 @@ extern SPISettings _fastSPI; // from dw3000_port.cpp
 namespace esphome {
 namespace uwb {
 
-/* buffer for reading an incoming UWBMessage from DW3000 IC. */
-#define UWB_RX_BUFFER_SIZE (128)
-static uint8_t UWB_RX_BUFFER[UWB_RX_BUFFER_SIZE];
 
 const char* Dw3000Device::TAG = "dw3000";
 
-#define SPI_SPEED_HZ 16000000
-#define PIN_RST 27  // ----> DWM3120 RST
-#define PIN_IRQ 34  // ----> DWM3120 IRQ
-#define PIN_SS   4  // ----> DWM3120 SPICSN
+#define SPI_SPEED_HZ (16000000)
+/* Makerfabs ESP32 UWB board specific pin assignments. */
+#define PIN_RST (27)  // ----> DWM3120 RST
+#define PIN_IRQ (34)  // ----> DWM3120 IRQ
+#define PIN_SS   (4)  // ----> DWM3120 SPICSN
 
 // TX power control, see DW3000 User Manual Table 7: TX power recommendation values
 #define TX_PWR_CH5_DEFAULTS (0xFDFDFDFD) // Channel 5 power defaults
@@ -77,14 +75,23 @@ static dwt_config_t config = {
 
 uint8_t Dw3000Device::txSequenceNumber = 0x00;
 
-Dw3000Device::Dw3000Device() {}
+Dw3000Device::Dw3000Device() {
+    mRxBuffer = new uint8_t[UWB_RX_BUFFER_SIZE];
+}
+
+Dw3000Device::~Dw3000Device() {
+    if (mRxBuffer != nullptr) {
+        delete[] mRxBuffer;
+        mRxBuffer = nullptr;
+    }
+}
 
 dwt_config_t* Dw3000Device::getConfig() {
     return &config;
 }
 
-uint8_t* Dw3000Device::getRxBuffer() { return UWB_RX_BUFFER; }
-uint16_t Dw3000Device::getRxBufferSize() { return UWB_RX_BUFFER_SIZE; }
+uint8_t* Dw3000Device::getRxBuffer() const { return mRxBuffer; }
+uint16_t Dw3000Device::getRxBufferSize() const { return UWB_RX_BUFFER_SIZE; }
 
 void Dw3000Device::setup() {
 
