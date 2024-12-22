@@ -1,5 +1,9 @@
 = Makerfabs DW3000 UWB ESPHome component
 :reproducible:
+:toc:
+:toclevels: 1
+// Enable for testing 'env-github'
+//:env-github:
 
 == Abstract
 
@@ -13,11 +17,19 @@ For **practical use**, a minimum of four DW3000 devices are needed:
 Using UWB distance/range measurements between the tag with (at least) 3 anchors, the location of the tag can be calculated.
 The tag reports its calculated location to a https://www.home-assistant.io/[Home Assistant] instance.
 
+ifndef::env-github[]
 include::doc/quick_start.adoc[]
+endif::[]
+ifdef::env-github[]
+== Quick start
+For a quick look at the essence of ESPHome and Home Assistant configuration, refer to xref:doc/quick_start.adoc[Quick start]
+endif::[]
 
-== How localisation works
+== How it works
+For detailed discussion on how `tag` and `anchor` communicate to each other and also to Home Assistant, refer to xref:doc/how-it-works.adoc[How it works]
 
 == Full documentation
+
 
 == Antenna delay calibration
 
