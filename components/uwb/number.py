@@ -52,7 +52,7 @@ CONFIG_SCHEMA = cv.Schema(
                 cv.Optional(CONF_MIN_VALUE, default=1): cv.positive_float,
                 cv.Optional(CONF_MAX_VALUE, default=500): cv.positive_float,
                 cv.Optional(CONF_DISABLED_BY_DEFAULT, default=True): cv.boolean,
-                cv.Optional(CONF_STEP, default=1): cv.positive_float, # 1m steps
+                cv.Optional(CONF_STEP, default=0.01): cv.positive_float, # 1cm steps
                 cv.Optional(CONF_INTERNAL, default=False): cv.boolean,
                 cv.Optional(CONF_OPTIMISTIC, default=False): cv.boolean,
             }
