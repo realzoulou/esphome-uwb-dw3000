@@ -669,13 +669,15 @@ void UwbTagDevice::recvdFrameFinal() {
             if (mode == UWB_MODE_ANT_DELAY_CALIBRATION) {
                 const double calibrationProgress = mAntDelayCalibration.getProgressPercent();
                 const uint16_t antDelay = mAntDelayCalibration.getAntennaDelay();
+                const double targetDistance = mAntDelayCalibration.getCalibrationDistance();
                 std::ostringstream msg;
                 msg << std::fixed << std::setprecision(1) << +calibrationProgress
                     << "% #" << +(mAntDelayCalibrationResultPerRound.size()+1)
                     << "/" << +ANT_CALIB_MAX_ROUNDS
                     << " AntDelay=" << +antDelay
                     << " : dist to 0x" << std::hex << std::uppercase << +anchorId << std::dec
-                    << ": " << std::setprecision(2) << +distance << "m (anchor " << +anchorCalculatedDistance << "m)";
+                    << ": " << std::setprecision(2) << +distance << "m (anchor " << +anchorCalculatedDistance << "m)"
+                    << " target " << +targetDistance << "m";
                 ESP_LOGW(TAG, "ANTDLY_CALIB %s", msg.str().c_str());
                 sendLog(msg.str());
                 if (mAntennaCalibrationProgressSensor != nullptr) {
