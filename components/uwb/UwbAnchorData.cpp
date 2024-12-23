@@ -38,10 +38,10 @@ void UwbAnchorData::setDistance(double distanceMeters, double distErrorEstimate,
     }
 
     if (std::isnan(distanceMeters)) {
+        // don't update mMillisDistanceToTag to now
+        mDistanceToTag = NAN;
+        mDistanceToTagErrorEstimate = NAN;
         if (mSensor != nullptr) {
-            // don't update mMillisDistanceToTag to now
-            mDistanceToTag = NAN;
-            mDistanceToTagErrorEstimate = NAN;
             mSensor->publish_state(NAN);
         }
         std::ostringstream msg;

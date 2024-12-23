@@ -8,6 +8,11 @@ project(ut_uwb CXX)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Avoid warning about DOWNLOAD_EXTRACT_TIMESTAMP in CMake 3.24:
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
+  cmake_policy(SET CMP0135 NEW)
+endif()
+
 include(FetchContent)
 FetchContent_Declare(
   googletest
@@ -19,7 +24,7 @@ FetchContent_MakeAvailable(googletest)
 
 enable_testing()
 
-set(UWB_SOURCE_DIR ../uwb)
+set(UWB_SOURCE_DIR ../components/uwb)
 
 add_executable(${PROJECT_NAME}
   AntDelayCalibrationTests.cpp
@@ -57,7 +62,7 @@ gtest_discover_tests(${PROJECT_NAME})
 add_compile_definitions(__UT_TEST__)
 
 # set project specific include paths
-include_directories(../uwb)
+include_directories(../components/uwb)
 
 # enable verbose output if needed
 set(CMAKE_VERBOSE_MAKEFILE ON)
