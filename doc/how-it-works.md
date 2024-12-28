@@ -26,9 +26,13 @@ UWB ranging is implemened as Dual-Sided Two-Way-Ranging (DS-TWR) with 4 messages
 
 * Initial : Triggers `anchor` to return a Response.
 * Response : Response back to `tag`.
-* Final : Carries timestamps of reception/transmission of Initial, Response and Final message.
+* Final : Contains
+** Timestamps of reception/transmission of Initial, Response and Final message,
+** If Final message sent from `anchor` to `tag`: Distance calculated by `anchor`.
 
 With the three timestamps included in Final message, both anchor and tag ('Dual-Sided') can calculate the Time-Of-Flight (TOF) and therefore the distance between each other, without any need to synchronize their internal clocks.
+
+With the distance measured by the `anchor` transmitted with the Final message, and the `tag` own measured distance, the `tag` can provide an error estimate in meters for its calculated position.
 
 All messages follow IEEE 802.15.4 UWB standard, but are proprietary in their payloads.
 

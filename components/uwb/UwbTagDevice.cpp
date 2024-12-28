@@ -780,6 +780,7 @@ void UwbTagDevice::calculateLocationPrepare() {
             anchorPosAndTagDist.anchorPosition.longitude = anchor->getLongitude();
             uint32_t millisDistance;
             anchorPosAndTagDist.tagDistance = anchor->getDistance(&millisDistance);
+            anchorPosAndTagDist.tagDistanceErrEstimate = anchor->getDistanceErrorEstimate();
             if (Location::isValid(anchorPosAndTagDist)) {
                 const uint32_t timeDiffMs = mLocationCalculationStartedMs - millisDistance;
                 if (timeDiffMs <= MAX_AGE_ANCHOR_DISTANCE_MS) {

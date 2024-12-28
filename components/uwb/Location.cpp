@@ -195,7 +195,15 @@ CalcResult Location::calculatePosition(CalculationPhase & phase,
         }
         outputTagPosition.latitude = bestMatchingCandidate.latitude;
         outputTagPosition.longitude = bestMatchingCandidate.longitude;
-        outputTagPositionErrorEstimate = 0; // if distances would be accurate then the resulting position has no error
+        // position error estimate is the square root of the sum of all anchor distance error estimates
+        double errEstimate = 0;
+        for (auto & a : inputAnchorPositionAndTagDistances) {
+            if (!std::isnan(a.tagDistanceErrEstimate)) {
+                errEstimate += a.tagDistanceErrEstimate;
+            }
+        }
+        outputTagPositionErrorEstimate = std::sqrt(errEstimate);
+
 #ifdef __UT_TEST__ // extra log in unit tests
         std::cout << "outputTagPosition (lat/lng)=" << +outputTagPosition.latitude << "/" << +outputTagPosition.longitude
                 << " errEst:" << +outputTagPositionErrorEstimate << "m"

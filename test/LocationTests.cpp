@@ -30,10 +30,10 @@ TEST(Location_LatLong, operators) {
 ////////////////////////////////////////////////
 // Location::AnchorPositionTagDistance operators
 TEST(Location_AnchorPositionTagDistance, operators) {
-    const AnchorPositionTagDistance a1 = {0xA1, {1.0, 1.0}, 1.0};
-    const AnchorPositionTagDistance a2 = {0xA1, {1.0, 1.0}, 1.0};
-    const AnchorPositionTagDistance a12 = {0xA2, {1.0, 1.0}, 1.0};
-    const AnchorPositionTagDistance b1 = {0xB1, {2.0, 1.0}, 1.0};
+    const AnchorPositionTagDistance a1 = {0xA1, {1.0, 1.0}, 1.0, NAN};
+    const AnchorPositionTagDistance a2 = {0xA1, {1.0, 1.0}, 1.0, NAN};
+    const AnchorPositionTagDistance a12 = {0xA2, {1.0, 1.0}, 1.0, 0.1};
+    const AnchorPositionTagDistance b1 = {0xB1, {2.0, 1.0}, 1.0, 0.2};
     EXPECT_TRUE(a1 == a2);
     EXPECT_FALSE(a1 != a2);
     EXPECT_FALSE(a1 == a12);
@@ -63,29 +63,29 @@ TEST(Location_METER_TO_DEGREE, oneMeterAtEquator) {
 // Location::isValid
 
 TEST(Location_isValid, validities) {
-    AnchorPositionTagDistance a = {0x00, {0.0, 0.0}, 1.0};
+    AnchorPositionTagDistance a = {0x00, {0.0, 0.0}, 1.0, 0.1};
     EXPECT_FALSE(Location::isValid(a));
-    a = {0x00, { 90.0, 5.0}, 1.0};
+    a = {0x00, { 90.0, 5.0}, 1.0, 0.1};
     EXPECT_FALSE(Location::isValid(a));
-    a = {0x00, { 5.0, 180.0}, 1.0};
+    a = {0x00, { 5.0, 180.0}, 1.0, 0.1};
     EXPECT_FALSE(Location::isValid(a));
-    a = {0x00, { -90.0, 5.0}, 1.0};
+    a = {0x00, { -90.0, 5.0}, 1.0, NAN};
     EXPECT_FALSE(Location::isValid(a));
-    a = {0x00, { 5.0, -180.0}, 1.0};
+    a = {0x00, { 5.0, -180.0}, 1.0, 0.1};
     EXPECT_FALSE(Location::isValid(a));
-    a = {0x00, { -90.0, -180.0}, 1.0};
+    a = {0x00, { -90.0, -180.0}, 1.0, 0.1};
     EXPECT_FALSE(Location::isValid(a));
-    a = {0x00, {  90.0,  180.0}, 1.0};
+    a = {0x00, {  90.0,  180.0}, 1.0, 0.1};
     EXPECT_FALSE(Location::isValid(a));
-    a = {0x00, {  5.0,  5.0}, -5.0};
+    a = {0x00, {  5.0,  5.0}, -5.0, 0.1};
     EXPECT_FALSE(Location::isValid(a));
-    a = {0x00, {  5.0,  5.0}, 0.0};
+    a = {0x00, {  5.0,  5.0}, 0.0, 0.1};
     EXPECT_FALSE(Location::isValid(a));
-    a = {0x00, {  5.0,  5.0}, 501.0};
+    a = {0x00, {  5.0,  5.0}, 501.0, 0.1};
     EXPECT_FALSE(Location::isValid(a));
-    a = {0x00, {  5.0,  5.0}, -5.0};
+    a = {0x00, {  5.0,  5.0}, -5.0, 0.1};
     EXPECT_FALSE(Location::isValid(a));
-    a = {0x00, {  5.0,  5.0}, 5.0};
+    a = {0x00, {  5.0,  5.0}, 5.0, NAN};
     EXPECT_TRUE(Location::isValid(a));
 }
 
@@ -148,15 +148,15 @@ TEST(Location_findAllAnchorCombinations, emptyInput) {
 }
 TEST(Location_findAllAnchorCombinations, oneInput) {
     const std::vector<AnchorPositionTagDistance> one = {
-        {0x00, {0.0, 0.0}, 0.0}
+        {0x00, {0.0, 0.0}, 0.0, NAN}
     };
     std::vector<std::pair<AnchorPositionTagDistance, AnchorPositionTagDistance>> result;
     EXPECT_FALSE(Location::findAllAnchorCombinations(one, result));
     EXPECT_EQ(0, result.size());
 }
 TEST(Location_findAllAnchorCombinations, twoInputs) {
-    const AnchorPositionTagDistance a1 = {0xA1, {0.0, 0.0}, 0.0};
-    const AnchorPositionTagDistance a2 = {0xA2, {1.0, 1.0}, 1.0};
+    const AnchorPositionTagDistance a1 = {0xA1, {0.0, 0.0}, 0.0, NAN};
+    const AnchorPositionTagDistance a2 = {0xA2, {1.0, 1.0}, 1.0, NAN};
     const std::vector<AnchorPositionTagDistance> two = {a1, a2};
     const std::vector<std::pair<AnchorPositionTagDistance, AnchorPositionTagDistance>> expected = {
         std::make_pair(a1, a2)
@@ -167,9 +167,9 @@ TEST(Location_findAllAnchorCombinations, twoInputs) {
     EXPECT_TRUE(result == expected);
 }
 TEST(Location_findAllAnchorCombinations, threeInputs) {
-    const AnchorPositionTagDistance a1 = {0xA1, {0.0, 0.0}, 0.0};
-    const AnchorPositionTagDistance a2 = {0xA2, {1.0, 1.0}, 1.0};
-    const AnchorPositionTagDistance a3 = {0xA3, {2.0, 2.0}, 2.0};
+    const AnchorPositionTagDistance a1 = {0xA1, {0.0, 0.0}, 0.0, NAN};
+    const AnchorPositionTagDistance a2 = {0xA2, {1.0, 1.0}, 1.0, NAN};
+    const AnchorPositionTagDistance a3 = {0xA3, {2.0, 2.0}, 2.0, NAN};
     const std::vector<AnchorPositionTagDistance> two = {a1, a2, a3};
     const std::vector<std::pair<AnchorPositionTagDistance, AnchorPositionTagDistance>> expected = {
         std::make_pair(a1, a2),
@@ -182,10 +182,10 @@ TEST(Location_findAllAnchorCombinations, threeInputs) {
     EXPECT_TRUE(result == expected);
 }
 TEST(Location_findAllAnchorCombinations, fourInputs) {
-    const AnchorPositionTagDistance a1 = {0xA1, {0.0, 0.0}, 0.0};
-    const AnchorPositionTagDistance a2 = {0xA2, {1.0, 1.0}, 1.0};
-    const AnchorPositionTagDistance a3 = {0xA3, {2.0, 2.0}, 2.0};
-    const AnchorPositionTagDistance a4 = {0xA4, {3.0, 3.0}, 3.0};
+    const AnchorPositionTagDistance a1 = {0xA1, {0.0, 0.0}, 0.0, NAN};
+    const AnchorPositionTagDistance a2 = {0xA2, {1.0, 1.0}, 1.0, NAN};
+    const AnchorPositionTagDistance a3 = {0xA3, {2.0, 2.0}, 2.0, NAN};
+    const AnchorPositionTagDistance a4 = {0xA4, {3.0, 3.0}, 3.0, NAN};
     const std::vector<AnchorPositionTagDistance> two = {a1, a2, a3, a4};
     const std::vector<std::pair<AnchorPositionTagDistance, AnchorPositionTagDistance>> expected = {
         std::make_pair(a1, a2),
@@ -201,11 +201,11 @@ TEST(Location_findAllAnchorCombinations, fourInputs) {
     EXPECT_TRUE(result == expected);
 }
 TEST(Location_findAllAnchorCombinations, fiveInputs) {
-    const AnchorPositionTagDistance a1 = {0xA1, {0.0, 0.0}, 0.0};
-    const AnchorPositionTagDistance a2 = {0xA2, {1.0, 1.0}, 1.0};
-    const AnchorPositionTagDistance a3 = {0xA3, {2.0, 2.0}, 2.0};
-    const AnchorPositionTagDistance a4 = {0xA4, {3.0, 3.0}, 3.0};
-    const AnchorPositionTagDistance a5 = {0xA5, {1.0, 1.0}, 1.0};
+    const AnchorPositionTagDistance a1 = {0xA1, {0.0, 0.0}, 0.0, NAN};
+    const AnchorPositionTagDistance a2 = {0xA2, {1.0, 1.0}, 1.0, NAN};
+    const AnchorPositionTagDistance a3 = {0xA3, {2.0, 2.0}, 2.0, NAN};
+    const AnchorPositionTagDistance a4 = {0xA4, {3.0, 3.0}, 3.0, NAN};
+    const AnchorPositionTagDistance a5 = {0xA5, {1.0, 1.0}, 1.0, NAN};
     const std::vector<AnchorPositionTagDistance> two = {a1, a2, a3, a4, a5};
     const std::vector<std::pair<AnchorPositionTagDistance, AnchorPositionTagDistance>> expected = {
         std::make_pair(a1, a2),
@@ -225,9 +225,9 @@ TEST(Location_findAllAnchorCombinations, fiveInputs) {
     EXPECT_TRUE(result == expected);
 }
 TEST(Location_findAllAnchorCombinations, threeInputsWrongExpectation) {
-    const AnchorPositionTagDistance a1 = {0xA1, {0.0, 0.0}, 0.0};
-    const AnchorPositionTagDistance a2 = {0xA2, {1.0, 1.0}, 1.0};
-    const AnchorPositionTagDistance a3 = {0xA3, {2.0, 2.0}, 2.0};
+    const AnchorPositionTagDistance a1 = {0xA1, {0.0, 0.0}, 0.0, NAN};
+    const AnchorPositionTagDistance a2 = {0xA2, {1.0, 1.0}, 1.0, NAN};
+    const AnchorPositionTagDistance a3 = {0xA3, {2.0, 2.0}, 2.0, NAN};
     const std::vector<AnchorPositionTagDistance> two = {a1, a2, a3};
     const std::vector<std::pair<AnchorPositionTagDistance, AnchorPositionTagDistance>> wrongExpected = {
         std::make_pair(a2, a1),
@@ -244,50 +244,50 @@ TEST(Location_findAllAnchorCombinations, threeInputsWrongExpectation) {
 // Location::findTwoCirclesIntersections
 
 TEST(Location_findTwoCirclesIntersections, noIntersection) {
-    const AnchorPositionTagDistance a1t = {0xA1, { 1.0,  1.0}, 1.0};
-    const AnchorPositionTagDistance a2t = {0xA2, {-1.0, -1.0}, 1.0};
+    const AnchorPositionTagDistance a1t = {0xA1, { 1.0,  1.0}, 1.0, NAN};
+    const AnchorPositionTagDistance a2t = {0xA2, {-1.0, -1.0}, 1.0, NAN};
 
     LatLong t, t_prime;
     EXPECT_EQ(CIRCLE_INTERSECT_ERROR_NO_INTERSECTION, Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
 }
 TEST(Location_findTwoCirclesIntersections, inputsNAN) {
-    const AnchorPositionTagDistance a1t = {0xA1, { NAN, 1.0}, 1.0};
-    const AnchorPositionTagDistance a2t = {0xA2, {-1.0, NAN}, 1.0};
+    const AnchorPositionTagDistance a1t = {0xA1, { NAN, 1.0}, 1.0, NAN};
+    const AnchorPositionTagDistance a2t = {0xA2, {-1.0, NAN}, 1.0, NAN};
 
     LatLong t, t_prime;
     EXPECT_EQ(CIRCLE_INTERSECT_ERROR_INPUT, Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
 }
 TEST(Location_findTwoCirclesIntersections, circleContained) {
-    const AnchorPositionTagDistance a1t = {0xA1, {1.0, 1.0}, 1.0};
-    const AnchorPositionTagDistance a2t = {0xA2, {1.0, 1.0}, 2.0};
+    const AnchorPositionTagDistance a1t = {0xA1, {1.0, 1.0}, 1.0, NAN};
+    const AnchorPositionTagDistance a2t = {0xA2, {1.0, 1.0}, 2.0, NAN};
 
     LatLong t, t_prime;
     EXPECT_EQ(CIRCLE_INTERSECT_ERROR_CONTAINED, Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
 }
 TEST(Location_findTwoCirclesIntersections, circleEqual) {
-    const AnchorPositionTagDistance a1t = {0xA1, {1.0, 1.0}, 1.0};
-    const AnchorPositionTagDistance a2t = {0xA2, {1.0, 1.0}, 1.0};
+    const AnchorPositionTagDistance a1t = {0xA1, {1.0, 1.0}, 1.0, NAN};
+    const AnchorPositionTagDistance a2t = {0xA2, {1.0, 1.0}, 1.0, NAN};
 
     LatLong t, t_prime;
     EXPECT_EQ(CIRCLE_INTERSECT_ERROR_CONTAINED, Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
 }
 TEST(Location_findTwoCirclesIntersections, negativeDistancea1t) {
-    const AnchorPositionTagDistance a1t = {0xA1, {-1.0, -1.0}, -1.5};
-    const AnchorPositionTagDistance a2t = {0xA2, { 1.0,  1.0},  2.0};
+    const AnchorPositionTagDistance a1t = {0xA1, {-1.0, -1.0}, -1.5, NAN};
+    const AnchorPositionTagDistance a2t = {0xA2, { 1.0,  1.0},  2.0, NAN};
 
     LatLong t, t_prime;
     EXPECT_EQ(CIRCLE_INTERSECT_ERROR_INPUT, Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
 }
 TEST(Location_findTwoCirclesIntersections, negativeDistancea2t) {
-    const AnchorPositionTagDistance a1t = {0xA1, {-1.0, -1.0},  1.5};
-    const AnchorPositionTagDistance a2t = {0xA2, { 1.0,  1.0}, -2.0};
+    const AnchorPositionTagDistance a1t = {0xA1, {-1.0, -1.0},  1.5, NAN};
+    const AnchorPositionTagDistance a2t = {0xA2, { 1.0,  1.0}, -2.0, NAN};
 
     LatLong t, t_prime;
     EXPECT_EQ(CIRCLE_INTERSECT_ERROR_INPUT, Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
 }
 TEST(Location_findTwoCirclesIntersections, negativeDistances) {
-    const AnchorPositionTagDistance a1t = {0xA1, {-1.0, -1.0}, -1.5};
-    const AnchorPositionTagDistance a2t = {0xA2, { 1.0,  1.0}, -2.0};
+    const AnchorPositionTagDistance a1t = {0xA1, {-1.0, -1.0}, -1.5, NAN};
+    const AnchorPositionTagDistance a2t = {0xA2, { 1.0,  1.0}, -2.0, NAN};
 
     LatLong t, t_prime;
     EXPECT_EQ(CIRCLE_INTERSECT_ERROR_INPUT, Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
@@ -295,8 +295,8 @@ TEST(Location_findTwoCirclesIntersections, negativeDistances) {
 static const double INTERSECTION_PRECISION = 0.00001; // ~1.11m, hmm, no more precision possible?
 TEST(Location_findTwoCirclesIntersections, twoAnchors_inBerlin) {
     // following 2 positions are ~20m apart
-    const AnchorPositionTagDistance a1t = {0xA1, {52.4990325, 13.3917949}, 13.95 /*[m]*/};
-    const AnchorPositionTagDistance a2t = {0xA2, {52.4990355, 13.3915640}, 13.95 /*[m]*/};
+    const AnchorPositionTagDistance a1t = {0xA1, {52.4990325, 13.3917949}, 13.95 /*[m]*/, 0.1};
+    const AnchorPositionTagDistance a2t = {0xA2, {52.4990355, 13.3915640}, 13.95 /*[m]*/, 0.1};
     /* lat 52.4990325 = rad 0.9162809712342, long 13.3917949 = rad 0.2337309137562
            52.4990355 =     0.9162810235941,      13.3915640 =     0.233726883791
        13.95m = 0.000125337° = 0,0000021875 rad
@@ -341,8 +341,8 @@ TEST(Location_filterPositionCandidates, emptyInput) {
 }
 TEST(Location_filterPositionCandidates, twoAnchorsKeepCandidates) {
     const std::vector<AnchorPositionTagDistance> anchors = {
-        {0xA1, {1.0, 1.0}, 0.0},
-        {0xA2, {2.0, 2.0}, 0.0},
+        {0xA1, {1.0, 1.0}, 0.0, NAN},
+        {0xA2, {2.0, 2.0}, 0.0, NAN},
     };
     std::vector<LatLong> positionCandidates = {{3.0, 1.5}};
     const std::vector<LatLong> expPositionCandidates = {{3.0, 1.5}};
@@ -361,9 +361,9 @@ TEST(Location_filterPositionCandidates, twoAnchorsKeepCandidates) {
 }
 TEST(Location_filterPositionCandidates, oneCandidateToKeep) {
     const std::vector<AnchorPositionTagDistance> anchors = {
-        {0xA1, {1.0, 1.0}, 0.0},
-        {0xA2, {2.0, 2.0}, 0.0},
-        {0xA2, {3.0, 3.0}, 0.0},
+        {0xA1, {1.0, 1.0}, 0.0, NAN},
+        {0xA2, {2.0, 2.0}, 0.0, NAN},
+        {0xA2, {3.0, 3.0}, 0.0, NAN},
     };
     std::vector<LatLong> positionCandidates = {{1.5, 1.5}};
     const std::vector<LatLong> expPositionCandidates = {{1.5, 1.5}};
@@ -382,9 +382,9 @@ TEST(Location_filterPositionCandidates, oneCandidateToKeep) {
 }
 TEST(Location_filterPositionCandidates, oneCandidateToRemove) {
     const std::vector<AnchorPositionTagDistance> anchors = {
-        {0xA1, {1.0, 1.0}, 0.0},
-        {0xA2, {2.0, 2.0}, 0.0},
-        {0xA2, {2.5, 2.5}, 0.0},
+        {0xA1, {1.0, 1.0}, 0.0, NAN},
+        {0xA2, {2.0, 2.0}, 0.0, NAN},
+        {0xA2, {2.5, 2.5}, 0.0, NAN},
     };
     std::vector<LatLong> positionCandidates = {{3.0, 1.5}};
     const std::vector<LatLong> expPositionCandidates;
@@ -403,9 +403,9 @@ TEST(Location_filterPositionCandidates, oneCandidateToRemove) {
 }
 TEST(Location_filterPositionCandidates, twoInputsSkipNanAnchor) {
     const std::vector<AnchorPositionTagDistance> anchors = {
-        {0xA1, {1.0, 1.0}, 0.0},
-        {0xA2, {2.0, 2.0}, 0.0},
-        {0xA3, {NAN, NAN}, 0.0},
+        {0xA1, {1.0, 1.0}, 0.0, NAN},
+        {0xA2, {2.0, 2.0}, 0.0, NAN},
+        {0xA3, {NAN, NAN}, 0.0, NAN},
     };
     std::vector<LatLong> positionCandidates = {{1.5, 1.5}, {3.0, 3.0}};
     const std::vector<LatLong> expPositionCandidates = {{1.5, 1.5}};
@@ -425,9 +425,9 @@ TEST(Location_filterPositionCandidates, twoInputsSkipNanAnchor) {
 
 TEST(Location_filterPositionCandidates, threeInputsFilterOutNanCandidate) {
     const std::vector<AnchorPositionTagDistance> anchors = {
-        {0xA1, {1.0, 1.0}, 0.0},
-        {0xA2, {2.0, 2.0}, 0.0},
-        {0xA3, {-2.0, -2.0}, 0.0},
+        {0xA1, {1.0, 1.0}, 0.0, NAN},
+        {0xA2, {2.0, 2.0}, 0.0, NAN},
+        {0xA3, {-2.0, -2.0}, 0.0, NAN},
     };
     std::vector<LatLong> positionCandidates = {{0.0, 0.0}, {3.0, 3.0}, {NAN, NAN}};
     const std::vector<LatLong> expPositionCandidates = {{0.0, 0.0}};
@@ -449,7 +449,7 @@ TEST(Location_filterPositionCandidates, threeInputsFilterOutNanCandidate) {
 // Location::selectBestMatchingCandidate
 TEST(Location_selectBestMatchingCandidate, not2Anchors) {
     const std::vector<AnchorPositionTagDistance> anchors = {
-        {0xA1, {1.0, 1.0}, 1.0},
+        {0xA1, {1.0, 1.0}, 1.0, NAN},
     };
     std::vector<LatLong> positionCandidates = {{0.0, 0.0}, {3.0, 3.0}};
     const LatLong expBestMatchingPosition = {NAN, NAN};
@@ -460,8 +460,8 @@ TEST(Location_selectBestMatchingCandidate, not2Anchors) {
 }
 TEST(Location_selectBestMatchingCandidate, not1PositionCandidate) {
     const std::vector<AnchorPositionTagDistance> anchors = {
-        {0xA1, {1.0, 1.0}, 1.0},
-        {0xA2, {2.0, 2.0}, 2.0},
+        {0xA1, {1.0, 1.0}, 1.0, NAN},
+        {0xA2, {2.0, 2.0}, 2.0, NAN},
     };
     std::vector<LatLong> positionCandidates;
     const LatLong expBestMatchingPosition = {NAN, NAN};
@@ -472,8 +472,8 @@ TEST(Location_selectBestMatchingCandidate, not1PositionCandidate) {
 }
 TEST(Location_selectBestMatchingCandidate, onlyCandidateIsNan) {
     const std::vector<AnchorPositionTagDistance> anchors = {
-        {0xA1, {1.0, 1.0}, 1.0},
-        {0xA2, {2.0, 2.0}, 2.0},
+        {0xA1, {1.0, 1.0}, 1.0, NAN},
+        {0xA2, {2.0, 2.0}, 2.0, NAN},
     };
     std::vector<LatLong> positionCandidates = {{NAN, NAN}};
     const LatLong expBestMatchingPosition = {NAN, NAN};
@@ -484,8 +484,8 @@ TEST(Location_selectBestMatchingCandidate, onlyCandidateIsNan) {
 }
 TEST(Location_selectBestMatchingCandidate, allAnchorsAreNan) {
     const std::vector<AnchorPositionTagDistance> anchors = {
-        {0xA1, {NAN, NAN}, 1.0},
-        {0xA2, {NAN, NAN}, 2.0},
+        {0xA1, {NAN, NAN}, 1.0, NAN},
+        {0xA2, {NAN, NAN}, 2.0, NAN},
     };
     std::vector<LatLong> positionCandidates = {{0.0, 0.0}, {3.0, 3.0}};
     const LatLong expBestMatchingPosition = {NAN, NAN};
@@ -496,8 +496,8 @@ TEST(Location_selectBestMatchingCandidate, allAnchorsAreNan) {
 }
 TEST(Location_selectBestMatchingCandidate, twoAnchorsOneCandidate) {
     const std::vector<AnchorPositionTagDistance> anchors = {
-        {0xA1, {1.0, 1.0}, 1.0},
-        {0xA2, {2.0, 2.0}, 2.0},
+        {0xA1, {1.0, 1.0}, 1.0, NAN},
+        {0xA2, {2.0, 2.0}, 2.0, NAN},
     };
     std::vector<LatLong> positionCandidates = {{3.0, 3.0}};
     const LatLong expBestMatchingPosition = {3.0, 3.0};
@@ -508,8 +508,8 @@ TEST(Location_selectBestMatchingCandidate, twoAnchorsOneCandidate) {
 }
 TEST(Location_selectBestMatchingCandidate, twoAnchorsTwoCandidates) {
     const std::vector<AnchorPositionTagDistance> anchors = {
-        {0xA1, {1.0, 1.0}, 1.0},
-        {0xA2, {2.0, 2.0}, 2.0},
+        {0xA1, {1.0, 1.0}, 1.0, NAN},
+        {0xA2, {2.0, 2.0}, 2.0, NAN},
     };
     std::vector<LatLong> positionCandidates = {{3.0, 3.0}, {4.0, 4.0}};
     const LatLong expBestMatchingPosition = {3.0, 3.0};
@@ -520,9 +520,9 @@ TEST(Location_selectBestMatchingCandidate, twoAnchorsTwoCandidates) {
 }
 TEST(Location_selectBestMatchingCandidate, threeAnchorsTwoCandidates) {
     const std::vector<AnchorPositionTagDistance> anchors = {
-        {0xA1, {1.0, 1.0}, 1.0},
-        {0xA2, {2.0, 2.0}, 2.0},
-        {0xA3, {3.0, 3.0}, 3.0},
+        {0xA1, {1.0, 1.0}, 1.0, NAN},
+        {0xA2, {2.0, 2.0}, 2.0, NAN},
+        {0xA3, {3.0, 3.0}, 3.0, NAN},
     };
     std::vector<LatLong> positionCandidates = {{2.5, 2.5}, {10.0, 10.0}};
     const LatLong expBestMatchingPosition = {2.5, 2.5};
@@ -550,7 +550,7 @@ TEST(Location_calculatePosition, noAnchor) {
 }
 TEST(Location_calculatePosition, oneAnchor) {
     const std::vector<AnchorPositionTagDistance> one = {
-        {0xA1, {1.0, 1.0}, 1.0}
+        {0xA1, {1.0, 1.0}, 1.0, NAN}
     };
     const LatLong expPosition = {123.0, 234.0};
     const double expErr = 345.0;
@@ -563,8 +563,8 @@ TEST(Location_calculatePosition, oneAnchor) {
 }
 TEST(Location_calculatePosition, twoAnchorsEqual) {
     const std::vector<AnchorPositionTagDistance> two= {
-        {0xA1, {1.0, 1.0}, 1.0},
-        {0xA2, {1.0, 1.0}, 1.0}
+        {0xA1, {1.0, 1.0}, 1.0, NAN},
+        {0xA2, {1.0, 1.0}, 1.0, NAN}
     };
     const LatLong expPosition = {123.0, 234.0};
     const double expErr = 345.0;
@@ -581,10 +581,10 @@ TEST(Location_calculatePosition, twoAnchors_tagExactInTheMiddleInEastWestDirecti
     const double dist = Location::getHaversineDistance(a1, a2);
     const double dist_half = dist/1.99; // should be ideally dist/2
     const std::vector<AnchorPositionTagDistance> two = {
-        {0xA1, a1, dist_half},
-        {0xA2, a2, dist_half}
+        {0xA1, a1, dist_half, dist_half/10.0},
+        {0xA2, a2, dist_half, dist_half/10.0}
     };
-    const double expErr = 0.001; // 1mm
+    const double expErr = std::sqrt(2*(dist_half/10.0));
     LatLong tagPosition;
     double errEst;
     EXPECT_EQ(CALC_OK, Location::calculatePosition(two, tagPosition, errEst));
@@ -598,10 +598,10 @@ TEST(Location_calculatePosition, twoAnchors_tagExactInTheMiddleNorthSouth) {
     const double dist = Location::getHaversineDistance(a1, a2);
     const double dist_half = dist/1.99; // should be ideally dist/2
     const std::vector<AnchorPositionTagDistance> two = {
-        {0xA1, a1, dist_half},
-        {0xA2, a2, dist_half}
+        {0xA1, a1, dist_half, 0.3},
+        {0xA2, a2, dist_half, 0.4}
     };
-    const double expErr = 0.001; // 1mm
+    const double expErr = std::sqrt(0.3 + 0.4);
     LatLong tagPosition = expPosition;
     double errEst;
     EXPECT_EQ(CALC_OK, Location::calculatePosition(two, tagPosition, errEst));
@@ -623,8 +623,8 @@ TEST(Location_calculatePosition, twoAnchors_inBerlin) {
        (see also https://www.sunearthtools.com/dp/tools/conversion.php "Accuracy")
     */
     const std::vector<AnchorPositionTagDistance> two = {
-        {0xA1, a1, 13.95},
-        {0xA2, a2, 13.95}
+        {0xA1, a1, 13.95, 0.4},
+        {0xA2, a2, 13.95, NAN}
     };
     // https://planetcalc.com/8098/?x1=13.3917949&y1=52.4990325&r1=0.0003&x2=13.391564&y2=52.4990355&r2=0.0003
     // Intersection points (Digits after the decimal point: 7)
@@ -638,7 +638,7 @@ TEST(Location_calculatePosition, twoAnchors_inBerlin) {
     /* center of the bounding box = 52.499034 (=52.4987571+height=0.0005538/2), 13.39168655 (=13.3916830+width=0.0000071/2)
                                   = (52.499034, 13.39168655)
     */
-    const double expErr = 5; // 5m
+    const double expErr = std::sqrt(0.4);
 
     LatLong tagPosition;
     double errEst;
@@ -654,13 +654,13 @@ TEST(Location_calculatePosition, twoAnchors_inBerlin) {
 TEST(Location_calculatePosition, threeAnchors_pseudo) {
     const LatLong a1 = {1.00000, 1.00000}, a2 = {0.99910, 1.00010}, a3 = {0.99900, 1.00020};
     const std::vector<AnchorPositionTagDistance> three = {
-        {0xA1, a1, 10},
-        {0xA2, a2, 10},
-        {0xA3, a3, 10},
+        {0xA1, a1, 10, 1},
+        {0xA2, a2, 10, 1},
+        {0xA3, a3, 10, 1},
     };
     // found no independent way (e.g. Internet page) to calculate the expected results
     const LatLong expPosition = {0.9990892, 1.0001892}; // trial & error until test passed, but looks reasonable
-    const double expErr = 6; // 6m (trial & error)
+    const double expErr = std::sqrt(3*1);
 
     LatLong tagPosition = {NAN, NAN};
     double errEst = NAN;
@@ -671,12 +671,12 @@ TEST(Location_calculatePosition, threeAnchors_pseudo) {
 }
 TEST(Location_calculatePosition, threeAnchors_real) {
     const std::vector<AnchorPositionTagDistance> three = {
-        {0xA1, {50.51695017092124, -35.649778489469757}, 16.59},
-        {0xA2, {50.51678538255722, -35.649683941598978}, 8.02},
-        {0xA3, {50.516870663933815, -35.649518985739324}, 7.63},
+        {0xA1, {50.51695017092124, -35.649778489469757}, 16.59, 0.2},
+        {0xA2, {50.51678538255722, -35.649683941598978}, 8.02, NAN},
+        {0xA3, {50.516870663933815, -35.649518985739324}, 7.63, 0.5},
     };
     const LatLong expPosition = {50.516841, -35.649664};
-    const double expErr = 1;
+    const double expErr = std::sqrt(0.2 + 0.5);
 
     LatLong tagPosition = {NAN, NAN};
     double errEst = NAN;
@@ -687,12 +687,12 @@ TEST(Location_calculatePosition, threeAnchors_real) {
 }
 TEST(Location_calculatePosition, threeAnchors_real_in_phases) {
     const std::vector<AnchorPositionTagDistance> three = {
-        {0xA1, {50.51695017092124, -35.649778489469757}, 16.59},
-        {0xA2, {50.51678538255722, -35.649683941598978}, 8.02},
-        {0xA3, {50.516870663933815, -35.649518985739324}, 7.63},
+        {0xA1, {50.51695017092124, -35.649778489469757}, 16.59, 0.2},
+        {0xA2, {50.51678538255722, -35.649683941598978}, 8.02, 0.1},
+        {0xA3, {50.516870663933815, -35.649518985739324}, 7.63, 0.4},
     };
     const LatLong expPosition = {50.516841, -35.649664};
-    const double expErr = 1;
+    const double expErr = std::sqrt(0.2 + 0.1 + 0.4);
 
     LatLong tagPosition = {NAN, NAN};
     double errEst = NAN;

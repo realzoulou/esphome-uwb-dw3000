@@ -43,11 +43,18 @@ typedef struct sAnchorPositionTagDistance{
     uint8_t anchorId;
     LatLong anchorPosition;
     double tagDistance;
+    double tagDistanceErrEstimate;
 } AnchorPositionTagDistance;
 
 inline static bool operator==(const AnchorPositionTagDistance& lhs, const AnchorPositionTagDistance& rhs) {
-    return lhs.anchorId == rhs.anchorId &&
-           lhs.anchorPosition == rhs.anchorPosition && lhs.tagDistance == rhs.tagDistance;
+    return lhs.anchorId == rhs.anchorId
+        && lhs.anchorPosition == rhs.anchorPosition
+        && ( (lhs.tagDistance == rhs.tagDistance)
+          // allow that NAN == NAN (other than the standard!)
+          || (std::isnan(lhs.tagDistance) && std::isnan(rhs.tagDistance) ) )
+        && ( (lhs.tagDistanceErrEstimate == rhs.tagDistanceErrEstimate)
+          // allow that NAN == NAN (other than the standard!)
+          || (std::isnan(lhs.tagDistanceErrEstimate) && std::isnan(rhs.tagDistanceErrEstimate) ) );
 }
 inline static bool operator!=(const AnchorPositionTagDistance& lhs, const AnchorPositionTagDistance& rhs) {
     return !(lhs==rhs);
@@ -60,6 +67,7 @@ typedef enum eCalcResult {
     CALC_F_NO_CANDIDATES = 20,
     CALC_F_BEST_MATCH = 30,
 } CalcResult;
+
 inline static const char* toString(const CalcResult & res) {
     switch(res) {
         case CALC_OK: return "OK";
@@ -76,6 +84,7 @@ typedef enum eCircleIntersectionResult {
     CIRCLE_INTERSECT_ERROR_NO_INTERSECTION,
     CIRCLE_INTERSECT_ERROR_CONTAINED,
 } CircleIntersectionResult;
+
 inline static const char* toString(const CircleIntersectionResult & res) {
     switch(res) {
         case CIRCLE_INTERSECT_OK: return "OK";
