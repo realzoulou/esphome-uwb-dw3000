@@ -84,14 +84,18 @@ sequenceDiagram
 ## UWB frames/messages
 
 **Legend**</br>
-MHR: MAC Header</br>
-MFR: MAC Footer</br>
+MHR: Medium Access (MAC) Header</br>
+MFR: Medium Access (MAC) Footer</br>
 LSB: Least Significant Byte</br>
 PAN: Personal Area Network
 
 ### Initial message
 
 Frame size is 14 bytes.
+
+FunctionCode definition:
+* RANGING: 0x21 (=default), FunctionData is not used
+* ANT_DELAY_CALIBRATION: 0x22, FunctionData contains antenna delay, which shall be used by `anchor` from now on
 
 ```mermaid
 ---
@@ -118,6 +122,10 @@ packet-beta
 
 Frame size is 15 bytes.
 
+FunctionCode definition:
+* RANGING: 0x10 (=default), FunctionData is not used
+* ANT_DELAY_CALIBRATION: 0x11, FunctionData is not used
+
 ```mermaid
 ---
 title: "Response message"
@@ -136,13 +144,17 @@ packet-beta
 64-71: "u8:reserved"
 72-79: "u8:FunctionCode"
 80-87: "u8:FunctionDataLen"
-88-103: "FunctionData"
+88-103: "2 u8:FunctionData"
 104-119: "u16: MFR Frame Checking Sequence"
 ```
 
 ### Final message
 
 Frame size is 26 bytes.
+
+FunctionCode definition:
+* NO_DATA: 0x00 (=default), FunctionData is not used
+* RANGING_DIST: 0x23, FunctionData contains distance calculated by `anchor`. During antenna delay calibration it may contain an implausible distance value (e.g. negative distance).
 
 ```mermaid
 ---
@@ -161,9 +173,9 @@ packet-beta
 56-63: "u8:reserved"
 64-71: "u8:reserved"
 72-79: "u8:FunctionCode"
-80-95: "FunctionData"
-96-127: "Initial timestamp"
-128-159: "Response timestamp"
-160-191: "Final timestamp"
+80-95: "u16:FunctionData"
+96-127: "u32:Initial timestamp"
+128-159: "u32:Response timestamp"
+160-191: "u32:Final timestamp"
 192-207: "u16: MFR Frame Checking Sequence"
 ```
