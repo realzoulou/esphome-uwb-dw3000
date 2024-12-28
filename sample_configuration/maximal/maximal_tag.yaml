@@ -1,0 +1,135 @@
+#
+# Example maximum tag ESPHome configuration
+#
+# run in root folder of this repository with:
+#  esphome run sample_configuration/maximal/maximal_tag.yaml
+#
+packages:
+  esphome: !include .uwb-common.yaml
+
+substitutions:
+  name: uwb-tag
+  friendly_name: UWB-Tag
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  name_add_mac_suffix: false
+  project:
+    name: esphome.web
+    version: '1.0'
+
+wifi:
+  networks:
+  - ssid: YOUR_SSID
+    password: YOUR_WIFI_PASSWORD
+
+#####################################################
+uwb:
+  role: tag
+  device_id: 0x02   # unique ID of this device
+  # For role=tag, a list of anchors is required:
+  #  1 anchor: only distance between tag and anchor is produced.
+  #  2+ anchors are needed for producing a 2D location.
+  #     More anchors will result in better location precision.
+  anchors:
+    - device_id: 0xA1        # unique ID of an anchor device
+      latitude: 48.1234567   # WGS 84 latitude of the anchor device
+      longitude: 11.1234567  # WGS 84 longitude of the anchor device
+    - device_id: 0xA3        # unique ID of another anchor device
+      latitude: 48.1234568   # WGS 84 latitude of the anchor device
+      longitude: 11.1234568  # WGS 84 longitude of the anchor device
+  # --- optional ---
+  # do ranging with all anchors and report position and distances every 3000 [ms]
+  ranging_interval_ms: 3000 # min: 1000, default: 5000
+  # consider an anchor as 'away' after ranging failed for 10000 [ms]
+  anchor_away_after_ms: 20000 # min 1000, default: 30000
+  # minimum distance change in [m] (compared to previous measured distance) to report a new distance and include in position calculation
+  min_distance_change: 0.10 # min 0.01, default 0.05
+  # maximum speed in [m/s] that the tag can move. Calculated position changes at higher speed are considered to be an outlier, hence ignored.
+  max_speed: 1.0 # min 0.1, default 1.0
+  # turn LEDs off after [ms] from startup, default: 0 = keeps LEDs on
+  led_off_after_ms: 60000 # 60 s
+  # RX/TX antenna delay, default: 16385
+  antenna_delay: 16385
+
+sensor:
+  # Latitude, Longitude of tag
+  - platform: uwb
+    latitude:
+      id: uwb_tag_latitude
+      name: "latitude"
+    longitude:
+      id: uwb_tag_longitude
+      name: "longitude"
+  # position error estimate in [m]
+    error_estimate:
+      id: uwb_tag_location_error_estimate
+      name: "position error est."
+  # how many anchors were used in calculation
+    anchors_in_use:
+      id: uwb_tag_anchors_used
+      name: "anchors used"
+  # Distances from tag to anchors
+  - platform: uwb
+    distance:
+      id: anchorA1
+      device_id: 0xA1
+      name: "distance anchor A1"
+  - platform: uwb
+    distance:
+      id: anchorA3
+      device_id: 0xA3
+      name: "distance anchor A3"
+  # voltage of DW3000 IC, *NOT* supply voltage to whole device
+  - platform: uwb
+    voltage:
+      id: ic_voltage
+      name: "IC voltage"
+  # temperature of DW3000 IC, *NOT* ambient temperature of whole device
+  - platform: uwb
+    temperature:
+      id: ic_temperature
+      name: "IC temperature"
+  # antenna delay calibration progress
+  - platform: uwb
+    antenna_calibration_progress:
+      id: antenna_calibration_progress
+      name: Calibration progress
+  # antenna delay calibration result
+  - platform: uwb
+    antenna_calibration_delay_result:
+      id: antenna_calibration_delay_result
+      name: Calibrated antenna delay
+
+# antenna delay calibration target distance
+number:
+  - platform: uwb
+    antenna_delay_calibration_distance:
+      id: antdelay_calibration_distance
+      name: Calibration target distance
+
+# antenna delay calibration target device selection
+select:
+  - platform: uwb
+    antenna_delay_calibration_device:
+      id: antenna_delay_calibration_device
+      name: Calibration target device
+
+# antenna delay calibration start button
+button:
+  - platform: uwb
+    antenna_delay_calibration_start:
+      id: antenna_delay_calibration_start
+      name: Calibration start
+
+text_sensor:
+  - platform: uwb
+    # Diagnostic status
+    status:
+      id: diag_status
+      name: "Status"
+    # Diagnostic log
+    log:
+      id: diag_log
+      name: "Log"

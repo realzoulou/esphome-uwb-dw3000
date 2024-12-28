@@ -36,7 +36,7 @@ uwb:
     - device_id: 0xA1        # unique ID of an anchor device
       latitude: 48.1234567   # WGS 84 latitude of the anchor device
       longitude: 11.1234567  # WGS 84 longitude of the anchor device
-    - device_id: 0xA2        # unique ID of another anchor device
+    - device_id: 0xA3        # unique ID of another anchor device
       latitude: 48.1234568   # WGS 84 latitude of the anchor device
       longitude: 11.1234568  # WGS 84 longitude of the anchor device
 sensor:

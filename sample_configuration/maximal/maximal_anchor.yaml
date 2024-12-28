@@ -1,0 +1,73 @@
+#
+# Example maximum anchor ESPHome configuration
+#
+# run in root folder of this repository with:
+#  esphome run sample_configuration/maximal/maximal_anchor.yaml
+#
+packages:
+  esphome: !include .uwb-common.yaml
+
+substitutions:
+  name: uwb-tag
+  friendly_name: UWB-Tag
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  name_add_mac_suffix: false
+  project:
+    name: esphome.web
+    version: '1.0'
+
+wifi:
+  networks:
+  - ssid: YOUR_SSID
+    password: YOUR_WIFI_PASSWORD
+
+#####################################################
+uwb:
+  role: anchor # role 'anchor' or 'tag'
+  device_id: 0xA1
+  latitude: 48.1234567   # optional: WGS 84 latitude of the anchor device
+  longitude: 11.1234567  # optional: WGS 84 longitude of the anchor device
+  # turn LEDs off after [ms] from startup, default: 0 = keeps LEDs on
+  led_off_after_ms: 60000 # 60 s
+  # RX/TX antenna delay, default: 16385
+  antenna_delay: 16385
+
+sensor:
+  # Distance from anchor to tag
+  - platform: uwb
+    distance:
+      id: tag_dist
+      device_id: 0x02
+      name: "distance tag"
+  # Latitude, Longitude of anchor position, reported every 30s
+  - platform: uwb
+    latitude:
+      id: latitude
+      name: "latitude"
+    longitude:
+      id: longitude
+      name: "longitude"
+  # voltage of DW3000 IC, *NOT* supply voltage to whole device
+  - platform: uwb
+    voltage:
+      id: ic_voltage
+      name: "IC voltage"
+  # temperature of DW3000 IC, *NOT* ambient temperature of whole device
+  - platform: uwb
+    temperature:
+      id: ic_temperature
+      name: "IC temperature"
+
+text_sensor:
+  - platform: uwb
+    # Diagnostic status
+    status:
+      id: diag_status
+      name: "Status"
+    # Diagnostic log
+    log:
+      id: diag_log
+      name: "Log"

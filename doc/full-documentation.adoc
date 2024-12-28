@@ -1,2 +1,239 @@
-== Full documentation
+= Full documentation
 :reproducible:
+:toc:
+:toclevels: 2
+
+== `tag` configuration
+
+=== Configuration variables
+
+[source]
+----
+# Example maximum tag ESPHome configuration
+uwb:
+  role: tag
+  device_id: 0x02
+  anchors:
+    - device_id: 0xA1
+      latitude: 48.1234567
+      longitude: 11.1234567
+    - device_id: 0xA2
+      latitude: 48.1234568
+      longitude: 11.1234568
+  ranging_interval_ms: 3000
+  anchor_away_after_ms: 20000
+  min_distance_change: 0.10
+  max_speed: 1.0
+  led_off_after_ms: 60000
+  antenna_delay: 16385
+----
+* **role (Required)**: `tag`
+* **device_id (Required)**: A unique hexadecimal in range 0x00...0xFE
+* **anchors (Required)**: A **list** of anchor devices. Minimum 1 anchor is required. 2+ anchors are needed for producing a 2D location. More anchors will result in better location precision. Each of the anchors must be defined with:
+** **device_id (Required)**: anchor unique hexadecimal in range 0x00...0xFE
+** **latitude (Required)**: anchor WGS 84 latitude
+** **longitude (Required)**: anchor WGS 84 longitude
+* **ranging_interval_ms (Optional)**: Do ranging with all anchors and report position and distances every __ranging_interval_ms__ milliseconds. Min: 1000, Default: 5000
+* **anchor_away_after_ms (Optional)**: Consider an anchor as 'away' after ranging failed for __anchor_away_after_ms__ milliseconds. Min 1000, Default: 30000
+* **min_distance_change (Optional)**: Minimum distance change in meters (compared to previous measured distance) to report a new distance and include in position calculation. Min: 0.01, Default: 0.05
+* **max_speed (Optional)**: Maximum speed in meter per second that the tag can move. Calculated position changes at higher speed are considered to be an outlier, hence ignored. Min: 0.1, Default: 1.0
+* **led_off_after_ms (Optional)**: Turn LEDs off after __led_off_after_ms__ from startup. Default: 0 = keeps LEDs on
+* **antenna_delay (Optional)**: RX/TX antenna delay. Default: 16385
+
+=== Sensors provided by `platform uwb`
+
+* **latitude**: WGS 84 latitude of tag
+* **longitude**: WGS 84 longitude of tag
+* **error_estimate**: Position error estimate in meter
+* **anchors_in_use**: How many anchors were used in calculation
+* **distance**: Distance of tag to the anchor with given `device_id`
+** **device_id (Required)**
+* **voltage**: Voltage of DW3000 IC, *NOT* supply voltage to whole device
+* **temperature**: Temperature of DW3000 IC, *NOT* ambient temperature of whole device
+* **antenna_calibration_progress**: Antenna delay calibration progress in percent
+* **antenna_calibration_delay_result**: Antenna delay calibration result
+
+[source]
+----
+# Example maximum tag ESPHome configuration
+sensor:
+  - platform: uwb
+    latitude:
+      id: uwb_tag_latitude
+      name: "latitude"
+    longitude:
+      id: uwb_tag_longitude
+      name: "longitude"
+    error_estimate:
+      id: uwb_tag_location_error_estimate
+      name: "position error est."
+    anchors_in_use:
+      id: uwb_tag_anchors_used
+      name: "anchors used"
+  - platform: uwb
+    distance:
+      id: anchorA1
+      device_id: 0xA1
+      name: "distance anchor A1"
+  - platform: uwb
+    distance:
+      id: anchorA2
+      device_id: 0xA2
+      name: "distance anchor A2"
+  - platform: uwb
+    voltage:
+      id: ic_voltage
+      name: "IC voltage"
+  - platform: uwb
+    temperature:
+      id: ic_temperature
+      name: "IC temperature"
+  - platform: uwb
+    antenna_calibration_progress:
+      id: antenna_calibration_progress
+      name: Calibration progress
+  - platform: uwb
+    antenna_calibration_delay_result:
+      id: antenna_calibration_delay_result
+      name: Calibrated antenna delay
+----
+
+=== Numbers provided by `platform uwb`
+
+* **antenna_delay_calibration_distance**: Antenna delay calibration target distance
+
+[source]
+----
+number:
+  - platform: uwb
+    antenna_delay_calibration_distance:
+      id: antdelay_calibration_distance
+      name: Calibration target distance
+----
+=== Selections provided by `platform uwb`
+
+* **antenna_delay_calibration_device**: Antenna delay calibration target device selection
+
+[source]
+----
+select:
+  - platform: uwb
+    antenna_delay_calibration_device:
+      id: antenna_delay_calibration_device
+      name: Calibration target device
+----
+
+=== Buttons provided by `platform uwb`
+
+* **antenna_delay_calibration_start**: Antenna delay calibration start button
+
+[source]
+----
+button:
+  - platform: uwb
+    antenna_delay_calibration_start:
+      id: antenna_delay_calibration_start
+      name: Calibration start
+----
+
+=== Text sensors provided by `platform uwb`
+
+* **status**: Diagnostic status
+** "OK"
+** "INIT_FAILED": DW3000 IC initialisation failed
+** "CONFIGURE_FAILED": DW3000 IC configuration failed
+** "REBOOTING": Rebooting due to INIT/CONFIGURE_FAILED
+** "UNKNOWN": status yet unknown
+* **log**: Diagnostic log contains some important/interesting logs
+
+[source]
+----
+text_sensor:
+  - platform: uwb
+    status:
+      id: diag_status
+      name: "Status"
+    log:
+      id: diag_log
+      name: "Log"
+----
+
+== `anchor` configuration
+
+=== Configuration variables
+[source]
+----
+uwb:
+  role: anchor # role 'anchor' or 'tag'
+  device_id: 0xA1
+  latitude: 48.1234567   # optional: WGS 84 latitude of the anchor device
+  longitude: 11.1234567  # optional: WGS 84 longitude of the anchor device
+  led_off_after_ms: 60000 # 60 s
+  antenna_delay: 16385
+----
+
+* **role (Required)**: `anchor`
+* **device_id (Required)**: A unique hexadecimal in range 0x00...0xFE
+* **latitude (Optional)**: anchor WGS 84 latitude
+* **longitude (Optional)**: anchor WGS 84 longitude
+* **led_off_after_ms (Optional)**: Turn LEDs off after __led_off_after_ms__ from startup. Default: 0 = keeps LEDs on
+* **antenna_delay (Optional)**: RX/TX antenna delay. Default: 16385
+
+=== Sensors provided by `platform uwb`
+
+* **distance**: Distance from anchor to tag with given `device_id`
+** **device_id (Required)**
+* **voltage**: Voltage of DW3000 IC, *NOT* supply voltage to whole device
+* **temperature**: Temperature of DW3000 IC, *NOT* ambient temperature of whole device
+
+[source]
+----
+# Example maximum anchor ESPHome configuration
+sensor:
+  # Distance from anchor to tag
+  - platform: uwb
+    distance:
+      id: tag_dist
+      device_id: 0x02
+      name: "distance tag"
+  # Latitude, Longitude of anchor position, reported every 30s
+  - platform: uwb
+    latitude:
+      id: latitude_${anchor1_name}
+      name: "latitude"
+    longitude:
+      id: longitude_${anchor1_name}
+      name: "longitude"
+  # voltage of DW3000 IC, *NOT* supply voltage to whole device
+  - platform: uwb
+    voltage:
+      id: ic_voltage
+      name: "IC voltage"
+  # temperature of DW3000 IC, *NOT* ambient temperature of whole device
+  - platform: uwb
+    temperature:
+      id: ic_temperature
+      name: "IC temperature"
+----
+
+=== Text sensors provided by `platform uwb`
+
+* **status**: Diagnostic status
+** "OK"
+** "INIT_FAILED": DW3000 IC initialisation failed
+** "CONFIGURE_FAILED": DW3000 IC configuration failed
+** "REBOOTING": Rebooting due to INIT/CONFIGURE_FAILED
+** "UNKNOWN": status yet unknown
+* **log**: Diagnostic log contains some important/interesting logs
+
+[source]
+----
+text_sensor:
+  - platform: uwb
+    status:
+      id: diag_status
+      name: "Status"
+    log:
+      id: diag_log
+      name: "Log"
+----

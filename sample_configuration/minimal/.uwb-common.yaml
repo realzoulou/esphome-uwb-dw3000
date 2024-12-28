@@ -2,18 +2,6 @@ substitutions:
   # substitution to declare ${dw3000_sources} relative to the .yaml
   # You will have to change to match with your directory structure.
   dw3000_sources: ../../components/uwb/dw3000/src
-  # tag declarations
-  tag_name: "tag"
-  tag_device_id: "0x02"
-  # all anchor declarations
-  anchor1_name: "A1"
-  anchor1_device_id: "0xA1"
-  anchor1_latitude: "48.1234567"
-  anchor1_longitude: "11.1234567"
-  anchor3_name: "A3"
-  anchor3_device_id: "0xA3"
-  anchor3_latitude:  "48.1234568"
-  anchor3_longitude: "11.1234568"
 
 esp32:
   board: esp32dev
