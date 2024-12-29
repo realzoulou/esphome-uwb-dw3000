@@ -193,13 +193,13 @@ The `tag` calculates its WGS 84 location using the measured distances to all `an
 
 Given are three anchors A<sub>1</sub>, A<sub>2</sub>, A<sub>3</sub> with known locations and therefore also known distances to each other: distA<sub>1</sub>A<sub>2</sub>, distA<sub>1</sub>A<sub>3</sub>, distA<sub>2</sub>A<sub>3</sub>.
 
-The tag measures distances using UWB ranging to the anchors: distA<sub>1</sub>T, distA<sub>2</sub>T, distA<sub>3</sub>T.
+The tag T measures distances using UWB ranging to the anchors: distA<sub>1</sub>T, distA<sub>2</sub>T, distA<sub>3</sub>T.
 
 <p style="text-align:center;">
-<img src="distances.svg" alt="Anchors and Tag distances" width="60%">
+<img src="distances.svg" alt="Anchors and Tag distances" width="50%">
 </p>
 
-A distance between 2 locations on earth is calculated with the **Haversine Formula** https://en.wikipedia.org/wiki/Haversine_formula implemented in class [Location](../components/uwb/Location.cpp) method `getHaversineDistance(...)`.
+A distance between 2 locations on earth is calculated with the **Haversine Formula** https://en.wikipedia.org/wiki/Haversine_formula implemented in class [Location](../components/uwb/Location.cpp) method [`getHaversineDistance`](https://github.com/realzoulou/esphome-uwb-dw3000/blob/bef4ecd089f4dad634a4c27da354f3d116f4baf3/components/uwb/Location.cpp#L227).
 
 
 ### Find all distinct combinations (=pairs) of anchors A<sub>1</sub>...A<sub>n</sub>
@@ -220,9 +220,9 @@ The list of all `S` and `S'` forms the list of position **candidates**.
 
 | Anchor pair | Example |
 | :-: | :-: |
-| (A<sub>1</sub>, A<sub>2</sub>) | <img src="circle-intersects-A1-A2.svg" alt="Circles intersections (A1, A2)" width="60%"> |
-| (A<sub>1</sub>, A<sub>3</sub>) | <img src="circle-intersects-A1-A3.svg" alt="Circles intersections (A1, A3)" width="60%"> |
-| (A<sub>2</sub>, A<sub>3</sub>) | <img src="circle-intersects-A2-A3.svg" alt="Circles intersections (A2, A3)" width="60%"> |
+| (A<sub>1</sub>, A<sub>2</sub>) | <img src="circle-intersects-A1-A2.svg" alt="Circles intersections (A1, A2)" width="100%"> |
+| (A<sub>1</sub>, A<sub>3</sub>) | <img src="circle-intersects-A1-A3.svg" alt="Circles intersections (A1, A3)" width="100%"> |
+| (A<sub>2</sub>, A<sub>3</sub>) | <img src="circle-intersects-A2-A3.svg" alt="Circles intersections (A2, A3)" width="100%"> |
 
 ### Filter position candidates that are not within the anchors area
 
