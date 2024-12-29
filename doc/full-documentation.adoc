@@ -3,6 +3,8 @@
 :toc:
 :toclevels: 2
 
+The maximal possible ESPHome YAML can be found in folder xref:../sample_configuration/maximal/[sample_configuration/maximal/].
+
 == `tag` configuration
 
 === Configuration variables
