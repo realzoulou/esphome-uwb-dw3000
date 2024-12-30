@@ -35,6 +35,9 @@ For detailed documentation of all configuration possibilities in `uwb` component
 == Antenna delay calibration
 For a description on how to perform antenna delay calibration using a `tag` and an `anchor`, and how this works in detail, see xref:doc/ant-delay-calibration.md[Antenna delay calibration]
 
+== Source code documentation
+An overview about the C++ classes and their purpose is given in xref:doc/architecture.md[Source code documentation]
+
 == License
 
 The author's sources are provided under `Apache-2.0` license.
