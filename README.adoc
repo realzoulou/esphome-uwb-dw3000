@@ -21,8 +21,7 @@ For **practical use**, a minimum of four DW3000 devices are needed:
 Using UWB distance/range measurements between the tag with (at least) 3 anchors, the location of the tag can be calculated.
 The tag reports its calculated location to a https://www.home-assistant.io/[Home Assistant] instance.
 
-> [!NOTE]
-> Apple AirTags are **not** supported!
+NOTE: Apple AirTags are **not** supported!
 
 == Quick start
 For a quick introduction to the essence of ESPHome and Home Assistant configuration, refer to xref:doc/quick_start.adoc[Quick start]
