@@ -18,8 +18,6 @@
 
 #include <cstdint>
 
-#include "UwbListener.h"
-
 #include "esphome/core/helpers.h"
 #include "esphome/components/sensor/sensor.h"
 #include "esphome/components/text_sensor/text_sensor.h"

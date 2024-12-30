@@ -30,7 +30,6 @@
 #include "AntDelayCalibDistanceNumber.h"
 #include "AntDelayCalibStartButton.h"
 #include "UwbAnchorData.h"
-#include "UwbListener.h"
 
 namespace esphome {
 namespace uwb {
