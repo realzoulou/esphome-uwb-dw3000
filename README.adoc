@@ -33,7 +33,7 @@ For detailed discussion on how `tag` and `anchor` communicate to each other and 
 For detailed documentation of all configuration possibilities in `uwb` component, for both `tag` and `anchor`, refer to xref:doc/full-documentation.adoc[Full documentation]
 
 == Antenna delay calibration
-For a description on how to perform antenna delay calibration using a `tag` and an `anchor`, and how this works in detail, see xref:doc/ant-delay-calibration.adoc[Antenna delay calibration]
+For a description on how to perform antenna delay calibration using a `tag` and an `anchor`, and how this works in detail, see xref:doc/ant-delay-calibration.md[Antenna delay calibration]
 
 == License
 
