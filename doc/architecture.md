@@ -128,3 +128,78 @@ An instance of `UwbTagDevice` contains a `Location` instance as a helper class t
 ### AntDelayCalibration
 
 An instance of `UwbTagDevice` contains an `AntDelayCalibration` instance as a helper class for performing the calculations needed during an antenna delay calibration. Refer to [Antenna delay calibration](ant-delay-calibration.md) for more details.
+
+## Sequence of UWB messages between `tag` and `anchor`s
+
+> **Note**
+> Method names in below sequence do appear in code.
+> Error handling is not shown.
+
+```mermaid
+zenuml
+  @Control Tag as UwbTagDevice
+  @Boundary Anchor as UwbAnchorDevice
+  @Database HA as HomeAssistant
+
+  par {
+    // **time configurable as `ranging_interval_ms`**
+    Tag->Tag.waitNextRangingInterval()
+    Anchor->Anchor.prepareWaitRecvInitial()
+    while (forever) {
+      Anchor->Anchor.waitRecvInitial()
+    }
+  }
+
+  // **For all configured `anchor`s of `tag`**
+  forEach(Anchors) {
+    Tag->Tag.waitNextAnchorRanging()
+    Tag->Tag.prepareSendInitial() {
+      Tag->Anchor:InitialMsg
+      Tag->Tag.sentInitial()
+    }
+    Anchor->Anchor.recvdFrameInitial() {
+        Anchor->Tag:ResponseMsg
+        Anchor->Anchor.sentResponse()
+    }
+    // WAIT_RX_TIMEOUT_MS : **100 microseconds**
+    while (WAIT_RX_TIMEOUT_MS) {
+      Anchor->Anchor.waitRecvFinal()
+    }
+    Tag->Tag.recvdFrameResponse() {
+      Tag->Anchor:FinalMsg
+      Tag->Tag.sentFinal()
+    }
+    // WAIT_RX_TIMEOUT_MS : **100 microseconds**
+    while (WAIT_RX_TIMEOUT_MS) {
+      Tag->Tag.waitRecvFinal()
+    }
+    Anchor->Anchor.recvdFrameFinal() {
+        Anchor->Tag:FinalMsg
+        Anchor->Anchor.sentFinal()
+    }
+    Tag->Tag.recvdFrameFinal() {
+      rangingDone()
+    }
+  }
+
+  Tag->Tag.calculateLocationPrepare()
+  // enum CalculationPhase:
+  // ANCHOR_COMBINATIONS
+  // COLLECT_CANDIDATES
+  // FILTER_CANDIDATES
+  // SELECT_BEST_CANDIDATE
+  forEach(CalculationPhase) {
+    Tag->Tag.calculateLocationInPhases(phase)
+  }
+  Tag->Tag.locationPostProcessing() {
+    Tag->HA:publish_state(latitude)
+    Tag->HA:publish_state(longitude)
+    opt {
+      Tag->HA:publish_state(error_estimate)
+      Tag->HA:publish_state(anchors_in_use)
+      forEach(anchor) {
+        Tag->HA:publish_state(distance_tag_to_anchor)
+      }
+    }
+  }
+```
