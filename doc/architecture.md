@@ -136,70 +136,114 @@ An instance of `UwbTagDevice` contains an `AntDelayCalibration` instance as a he
 > Error handling is not shown.
 
 ```mermaid
-zenuml
-  @Control Tag as UwbTagDevice
-  @Boundary Anchor as UwbAnchorDevice
-  @Database HA as HomeAssistant
+sequenceDiagram
+  participant Tag as UwbTagDevice
+  participant Anchor as UwbAnchorDevice
+  participant HA as HomeAssistant
 
-  par {
-    // **time configurable as `ranging_interval_ms`**
-    Tag->Tag.waitNextRangingInterval()
-    Anchor->Anchor.prepareWaitRecvInitial()
-    while (forever) {
-      Anchor->Anchor.waitRecvInitial()
-    }
-  }
+  loop forever
+    par
+      Note over Tag: time configurable:<br/>ranging_interval_ms
+      activate Tag
+      Tag->>Tag:waitNextRangingInterval()
+      deactivate Tag
+    and
+      activate Anchor
+      Anchor->>Anchor:prepareWaitRecvInitial()
+      deactivate Anchor
+      loop forever
+        activate Anchor
+        Anchor->>Anchor:waitRecvInitial()
+        deactivate Anchor
+      end
+    end
+    loop for all configured anchors of tag
+      activate Tag
+      Tag->>Tag:waitNextAnchorRanging()
+      deactivate Tag
+      activate Tag
+      Tag->>Tag:prepareSendInitial()
+      Tag->>Anchor:InitialMsg
+      Note right of Anchor: RX frame buffered<br>in DW3000 IC
+      Tag->>Tag:sentInitial()
+      deactivate Tag
+      Note over Tag: WAIT_RX_TIMEOUT_MS = 100 microseconds
+      par
+        loop WAIT_RX_TIMEOUT_MS
+          activate Tag
+          Tag->>Tag: waitRecvResponse()
+          deactivate Tag
+        end
+      and
+        activate Anchor
+        Anchor->>Anchor:recvdFrameInitial()
+      end
+      Anchor->>Tag:ResponseMsg
+      Note left of Tag: RX frame buffered<br>in DW3000 IC
+      activate Tag
+      Anchor->>Anchor:sentResponse()
+      deactivate Anchor
+      Note over Anchor: WAIT_RX_TIMEOUT_MS = 100 microseconds
+      par
+        loop
+          activate Anchor
+          Anchor->>Anchor:waitRecvFinal()
+          deactivate Anchor
+        end
+      and
+        activate Tag
+        Tag->>Tag:recvdFrameResponse() {
+      end
+      Tag->>Anchor:FinalMsg
+      Note right of Anchor: RX frame buffered<br>in DW3000 IC
+      Tag->>Tag:sentFinal()
+      deactivate Tag
+      Note over Tag: WAIT_RX_TIMEOUT_MS = 100 microseconds
+      par
+        loop WAIT_RX_TIMEOUT_MS
+          activate Tag
+          Tag->>Tag:waitRecvFinal()
+          deactivate Tag
+        end
+      and
+        activate Anchor
+        Anchor->>Anchor:recvdFrameFinal()
+      end
+      Anchor->>Tag:FinalMsg
+      Note left of Tag: RX frame buffered<br>in DW3000 IC
+      Anchor->>Anchor:sentFinal()
+      opt if configured
+        Anchor->>HA:publish_state(distance anchor to tag)
+      end
+      deactivate Anchor
+      activate Tag
+      Tag->>Tag:recvdFrameFinal()
+      Tag->>Tag:rangingDone()
+      deactivate Tag
+    end # loop over all anchors
 
-  // **For all configured `anchor`s of `tag`**
-  forEach(Anchors) {
-    Tag->Tag.waitNextAnchorRanging()
-    Tag->Tag.prepareSendInitial() {
-      Tag->Anchor:InitialMsg
-      Tag->Tag.sentInitial()
-    }
-    Anchor->Anchor.recvdFrameInitial() {
-        Anchor->Tag:ResponseMsg
-        Anchor->Anchor.sentResponse()
-    }
-    // WAIT_RX_TIMEOUT_MS : **100 microseconds**
-    while (WAIT_RX_TIMEOUT_MS) {
-      Anchor->Anchor.waitRecvFinal()
-    }
-    Tag->Tag.recvdFrameResponse() {
-      Tag->Anchor:FinalMsg
-      Tag->Tag.sentFinal()
-    }
-    // WAIT_RX_TIMEOUT_MS : **100 microseconds**
-    while (WAIT_RX_TIMEOUT_MS) {
-      Tag->Tag.waitRecvFinal()
-    }
-    Anchor->Anchor.recvdFrameFinal() {
-        Anchor->Tag:FinalMsg
-        Anchor->Anchor.sentFinal()
-    }
-    Tag->Tag.recvdFrameFinal() {
-      rangingDone()
-    }
-  }
-
-  Tag->Tag.calculateLocationPrepare()
-  // enum CalculationPhase:
-  // ANCHOR_COMBINATIONS
-  // COLLECT_CANDIDATES
-  // FILTER_CANDIDATES
-  // SELECT_BEST_CANDIDATE
-  forEach(CalculationPhase) {
-    Tag->Tag.calculateLocationInPhases(phase)
-  }
-  Tag->Tag.locationPostProcessing() {
-    Tag->HA:publish_state(latitude)
-    Tag->HA:publish_state(longitude)
-    opt {
-      Tag->HA:publish_state(error_estimate)
-      Tag->HA:publish_state(anchors_in_use)
-      forEach(anchor) {
-        Tag->HA:publish_state(distance_tag_to_anchor)
-      }
-    }
-  }
+    activate Tag
+    Tag->>Tag:calculateLocationPrepare()
+    deactivate Tag
+    Note left of Tag: enum CalculationPhase:<br>ANCHOR_COMBINATIONS<br>COLLECT_CANDIDATES<br>FILTER_CANDIDATES<br> SELECT_BEST_CANDIDATE
+    loop foreach phase
+      activate Tag
+      Tag->>Tag:calculateLocationInPhases(phase)
+      deactivate Tag
+    end
+    activate Tag
+    Tag->>Tag:locationPostProcessing()
+    Tag->>HA:publish_state(latitude)
+    activate HA
+    Tag->>HA:publish_state(longitude)
+    opt if configured
+      Tag->>HA:publish_state(error_estimate)
+      Tag->>HA:publish_state(anchors_in_use)
+      loop for each anchor
+        Tag->>HA:publish_state(distance tag to anchor)
+      end
+    end
+    deactivate Tag
+    deactivate HA
+  end # loop forever
 ```
