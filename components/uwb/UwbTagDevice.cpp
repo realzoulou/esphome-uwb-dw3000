@@ -788,7 +788,7 @@ void UwbTagDevice::calculateLocationPrepare() {
                 } else {
                     std::ostringstream msg;
                     msg << "anchor 0x" << HEX_TO_STREAM(2, anchorPosAndTagDist.anchorId)
-                        << " timeDiffMs " << +timeDiffMs << " > " +MAX_AGE_ANCHOR_DISTANCE_MS;
+                        << " timeDiffMs " << +timeDiffMs << " > " << +MAX_AGE_ANCHOR_DISTANCE_MS;
                     ESP_LOGW(TAG, "%s", msg.str().c_str());
                     sendLog(msg.str());
                 }
