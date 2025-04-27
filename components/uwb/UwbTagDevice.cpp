@@ -436,16 +436,8 @@ void UwbTagDevice::waitRecvResponse() {
 
         const uint32_t waitMicros = micros() - mEnteredWaitRecvResponseMicros;
         const uint8_t anchorId = mAnchors.at(mCurrentAnchorIndex)->getId();
-        if (status_reg & SYS_STATUS_ALL_RX_TO) {
-            if ((status_reg & SYS_STATUS_RXFTO_BIT_MASK) == SYS_STATUS_RXFTO_BIT_MASK)
-                ESP_LOGE(TAG, "0x%02X: waitRecvResponse RX Frame Wait timeout after %" PRIu32 " us", anchorId, waitMicros);
-            if ((status_reg & SYS_STATUS_RXPTO_BIT_MASK) == SYS_STATUS_RXPTO_BIT_MASK)
-                ESP_LOGE(TAG, "0x%02X: waitRecvResponse RX Preamble Detection timeout after %" PRIu32 " us", anchorId, waitMicros);
-        } else if (status_reg & SYS_STATUS_ALL_RX_ERR) {
-            ESP_LOGE(TAG, "0x%02X: waitRecvResponse RX error after %" PRIu32 " us", anchorId, waitMicros);
-        } else {
-            ESP_LOGE(TAG, "0x%02X: waitRecvResponse status_reg=0x%08x after %" PRIu32 " us", anchorId, status_reg, waitMicros);
-        }
+        const std::string & rxErrors = getRxErrorString(status_reg);
+        ESP_LOGE(TAG, "0x%02X: waitRecvResponse RX %s after %" PRIu32 " us", anchorId, rxErrors.c_str(), waitMicros);
         rangingDone(false);
     }
 }
@@ -587,17 +579,8 @@ void UwbTagDevice::waitRecvFinal() {
 
         const uint32_t waitMicros = micros() - mEnteredWaitRecvFinalMicros;
         const uint8_t anchorId = mAnchors.at(mCurrentAnchorIndex)->getId();
-        if (status_reg & SYS_STATUS_ALL_RX_TO) {
-            if ((status_reg & SYS_STATUS_RXFTO_BIT_MASK) == SYS_STATUS_RXFTO_BIT_MASK)
-                ESP_LOGE(TAG, "0x%02X: waitRecvFinal RX Frame Wait timeout after %" PRIu32 " us", anchorId, waitMicros);
-            if ((status_reg & SYS_STATUS_RXPTO_BIT_MASK) == SYS_STATUS_RXPTO_BIT_MASK)
-                ESP_LOGE(TAG, "0x%02X: waitRecvFinal RX Preamble Detection timeout after %" PRIu32 " us", anchorId, waitMicros);
-        } else if (status_reg & SYS_STATUS_ALL_RX_ERR) {
-            ESP_LOGE(TAG, "0x%02X: waitRecvFinal RX error after %" PRIu32 " us", anchorId, waitMicros);
-
-        } else {
-            ESP_LOGE(TAG, "0x%02X: waitRecvFinal status_reg=0x%08x after %" PRIu32 " us", anchorId, status_reg, waitMicros);
-        }
+        const std::string & rxErrors = getRxErrorString(status_reg);
+        ESP_LOGE(TAG, "0x%02X: waitRecvFinal RX %s after %" PRIu32 " us", anchorId, rxErrors.c_str(), waitMicros);
         rangingDone(false);
     }
 }
@@ -788,7 +771,7 @@ void UwbTagDevice::calculateLocationPrepare() {
                 } else {
                     std::ostringstream msg;
                     msg << "anchor 0x" << HEX_TO_STREAM(2, anchorPosAndTagDist.anchorId)
-                        << " timeDiffMs " << +timeDiffMs << " > " << +MAX_AGE_ANCHOR_DISTANCE_MS;
+                        << " away " << +timeDiffMs << "ms";
                     ESP_LOGW(TAG, "%s", msg.str().c_str());
                     sendLog(msg.str());
                 }

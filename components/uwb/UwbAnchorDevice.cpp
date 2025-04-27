@@ -195,16 +195,11 @@ void UwbAnchorDevice::waitRecvInitial() {
         dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR);
 
         const uint32_t waitMicros = micros() - startedPollLoopMicros;
+        const std::string & rxErrors = getRxErrorString(status_reg);
+        ESP_LOGW(TAG, "waitRecvInitial RX %s after %" PRIu32 " us", rxErrors.c_str(), waitMicros);
         if (status_reg & SYS_STATUS_ALL_RX_TO) {
-            if ((status_reg & SYS_STATUS_RXFTO_BIT_MASK) == SYS_STATUS_RXFTO_BIT_MASK)
-                ESP_LOGW(TAG, "waitRecvInitial RX Frame Wait timeout after %" PRIu32 " us", waitMicros);
-            if ((status_reg & SYS_STATUS_RXPTO_BIT_MASK) == SYS_STATUS_RXPTO_BIT_MASK)
-                ESP_LOGW(TAG, "waitRecvInitial RX Preamble Detection timeout after %" PRIu32 " us", waitMicros);
-        } else if (status_reg & SYS_STATUS_ALL_RX_ERR) {
-            ESP_LOGE(TAG, "waitRecvInitial RX error after %" PRIu32 " us", waitMicros);
-            setMyState(MYSTATE_PREPARE_WAIT_RECV_INITIAL);
+            // don't change state on RX timeout
         } else {
-            ESP_LOGE(TAG, "waitRecvInitial status_reg=0x%08x after %" PRIu32 " us", status_reg, waitMicros);
             setMyState(MYSTATE_PREPARE_WAIT_RECV_INITIAL);
         }
     }
@@ -336,18 +331,10 @@ void UwbAnchorDevice::waitRecvFinal() {
         dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR);
 
         const uint32_t waitMicros = micros() - mEnteredWaitRecvFinalMicros;
-        if (status_reg & SYS_STATUS_ALL_RX_TO) {
-            if ((status_reg & SYS_STATUS_RXFTO_BIT_MASK) == SYS_STATUS_RXFTO_BIT_MASK)
-                ESP_LOGE(TAG, "waitRecvFinal RX Frame Wait timeout after %" PRIu32 " us", waitMicros);
-            if ((status_reg & SYS_STATUS_RXPTO_BIT_MASK) == SYS_STATUS_RXPTO_BIT_MASK)
-                ESP_LOGE(TAG, "waitRecvFinal RX Preamble Detection timeout after %" PRIu32 " us", waitMicros);
-        } else if (status_reg & SYS_STATUS_ALL_RX_ERR) {
-            ESP_LOGE(TAG, "waitRecvFinal RX error after %" PRIu32 " us", waitMicros);
-            setMyState(MYSTATE_PREPARE_WAIT_RECV_INITIAL);
-        } else {
-            ESP_LOGE(TAG, "waitRecvFinal status_reg=0x%08x after %" PRIu32 " us", status_reg, waitMicros);
-            setMyState(MYSTATE_PREPARE_WAIT_RECV_INITIAL);
-        }
+        const std::string & rxErrors = getRxErrorString(status_reg);
+        ESP_LOGE(TAG, "waitRecvFinal RX %s after %" PRIu32 " us", rxErrors.c_str(), waitMicros);
+        // abort this ranging attempt
+        setMyState(MYSTATE_PREPARE_WAIT_RECV_INITIAL);
     }
 }
 

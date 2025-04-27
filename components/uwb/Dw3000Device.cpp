@@ -253,5 +253,43 @@ void Dw3000Device::sendLog(const std::string & str) const {
     }
 }
 
+std::string Dw3000Device::getRxErrorString(const uint32_t sysStatus) {
+    std::string errorStr;
+    int numErrors = 0;
+    if ((sysStatus & SYS_STATUS_RXFTO_BIT_MASK) == SYS_STATUS_RXFTO_BIT_MASK) {
+        numErrors++;
+        errorStr += "Frame Wait timeout";
+    }
+    if ((sysStatus & SYS_STATUS_RXPTO_BIT_MASK) == SYS_STATUS_RXPTO_BIT_MASK) {
+        numErrors++; if (numErrors > 1) errorStr += ",";
+        errorStr += "Preamble Detection timeout";
+    }
+    if ((sysStatus & SYS_STATUS_RXFSL_BIT_MASK) == SYS_STATUS_RXFSL_BIT_MASK) {
+        numErrors++; if (numErrors > 1) errorStr += ",";
+        errorStr += "Reed Solomon error";
+    }
+    if ((sysStatus & SYS_STATUS_RXPHE_BIT_MASK ) == SYS_STATUS_RXPHE_BIT_MASK) {
+        numErrors++; if (numErrors > 1) errorStr += ",";
+        errorStr += "PHY Header error";
+    }
+    if ((sysStatus & SYS_STATUS_RXFCE_BIT_MASK ) == SYS_STATUS_RXFCE_BIT_MASK) {
+        numErrors++; if (numErrors > 1) errorStr += ",";
+        errorStr += "Receiver FCS error";
+    }
+    if ((sysStatus & SYS_STATUS_CIAERR_BIT_MASK ) == SYS_STATUS_CIAERR_BIT_MASK) {
+        numErrors++; if (numErrors > 1) errorStr += ",";
+        errorStr += "Channel Impulse Response Analyser error";
+    }
+    if ((sysStatus & SYS_STATUS_RXSTO_BIT_MASK ) == SYS_STATUS_RXSTO_BIT_MASK) {
+        numErrors++; if (numErrors > 1) errorStr += ",";
+        errorStr += "SFD timeout";
+    }
+    if ((sysStatus & SYS_STATUS_ARFE_BIT_MASK ) == SYS_STATUS_ARFE_BIT_MASK) {
+        numErrors++; if (numErrors > 1) errorStr += ",";
+        errorStr += "Automatic Frame Filtering rejection";
+    }
+    return errorStr;
+}
+
 }  // namespace uwb
 }  // namespace esphome

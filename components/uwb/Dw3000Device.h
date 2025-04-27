@@ -94,6 +94,8 @@ public:
     virtual void maybeTurnLedsOff();
     virtual void maybeReportVoltageAndTemperature();
 
+    static std::string getRxErrorString(const uint32_t sysStatus);
+
 protected:
     void setDiagnosticStatus(DiagStatus status);
     inline DiagStatus getDiagnosticStatus() const { return mDiagStatus; }
