@@ -44,6 +44,7 @@ ota:
 
 # Enable logging
 logger:
+  level: WARN # Do NOT increase to INFO else frequent ranging errors will occur
 
 # Enable Home Assistant API
 api:
