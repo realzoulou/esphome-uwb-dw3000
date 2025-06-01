@@ -105,14 +105,14 @@ bool FinalMsg::fromIncomingBytes(const uint8_t* bytes, std::size_t sizeBytes) {
     }
 }
 
-void FinalMsg::getTimestamps(uint32_t* initial, uint32_t* response, uint32_t* final) const {
+void FinalMsg::getTimestamps(uint64_t* initial, uint64_t* response, uint64_t* final) const {
     const auto frame = reinterpret_cast<const FinalMsg::sFinalFrame*>(mBytes.data());
     if (initial != nullptr) *initial = frame->initial_ts;
     if (response != nullptr) *response = frame->response_ts;
     if (final != nullptr) *final = frame->final_ts;
 }
 
-void FinalMsg::setTimestamps(uint32_t initial, uint32_t response, uint32_t final) {
+void FinalMsg::setTimestamps(uint64_t initial, uint64_t response, uint64_t final) {
     const auto frame = reinterpret_cast<FinalMsg::sFinalFrame*>(mBytes.data());
     frame->initial_ts = initial;
     frame->response_ts = response;

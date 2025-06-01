@@ -389,9 +389,7 @@ void UwbAnchorDevice::recvdFrameFinal() {
         /* Write all timestamps in the Final response message. */
         mFinalFrame.resetToDefault();
         mFinalFrame.setSequenceNumber(Dw3000Device::getNextTxSequenceNumberAndIncrease());
-        mFinalFrame.setTimestamps((uint32_t)response_tx_ts,
-                                          (uint32_t)final_rx_ts,
-                                          (uint32_t)final_response_tx_ts);
+        mFinalFrame.setTimestamps(response_tx_ts, final_rx_ts, final_response_tx_ts);
         mFinalFrame.setTargetId(otherDeviceId);
         mFinalFrame.setSourceId(thisDeviceId);
 
@@ -404,7 +402,7 @@ void UwbAnchorDevice::recvdFrameFinal() {
         const double tof = tof_dtu * DWT_TIME_UNITS;
         double distance = tof * SPEED_OF_LIGHT;
         if (Location::isDistancePlausible(distance) || getMode() == UWB_MODE_ANT_DELAY_CALIBRATION) {
-            // set TOF in [cm] to Final frame
+            // write distance in [cm] to Final frame
             const int16_t dist_cm = (int16_t)(distance * 100.0); // [m] -> [cm]
             const uint8_t fctData[FinalMsg::FINAL_DATA_SIZE] = {
                 (uint8_t)((dist_cm & 0xFF00U) >> 8),

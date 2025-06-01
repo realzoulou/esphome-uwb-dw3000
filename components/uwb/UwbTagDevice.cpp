@@ -490,9 +490,7 @@ void UwbTagDevice::recvdFrameResponse() {
         /* Write all timestamps in the Final message. */
         mFinalFrame.resetToDefault();
         mFinalFrame.setSequenceNumber(Dw3000Device::getNextTxSequenceNumberAndIncrease());
-        mFinalFrame.setTimestamps((uint32_t)mInitial_tx_ts,
-                                  (uint32_t)response_rx_ts,
-                                  (uint32_t)final_tx_ts);
+        mFinalFrame.setTimestamps(mInitial_tx_ts, response_rx_ts, final_tx_ts);
         mFinalFrame.setTargetId(anchorId);
         mFinalFrame.setSourceId(getDeviceId());
         /* Write and send Final message. */
@@ -621,13 +619,13 @@ void UwbTagDevice::recvdFrameFinal() {
         const uint64_t final_response_rx_ts = get_rx_timestamp_u64();
 
         /* Get timestamps embedded in the Final response message. */
-        uint32_t response_tx_ts, final_rx_ts, final_response_tx_ts;
-        mFinalFrame.getTimestamps(&response_tx_ts, &final_rx_ts, &final_response_tx_ts);
+        uint64_t response_tx_time, final_rx_time, final_response_tx_time;
+        mFinalFrame.getTimestamps(&response_tx_time, &final_rx_time, &final_response_tx_time);
 
         /* Compute time of flight. */
-        const double Ra = (double)(final_rx_ts - response_tx_ts);
+        const double Ra = (double)(final_rx_time - response_tx_time);
         const double Rb = (double)(final_response_rx_ts - final_tx_ts);
-        const double Da = (double)(final_response_tx_ts - final_rx_ts);
+        const double Da = (double)(final_response_tx_time - final_rx_time);
         const double Db = (double)(final_tx_ts - mResponse_rx_ts);
         const int64_t tof_dtu = (int64_t)((Ra * Rb - Da * Db) / (Ra + Rb + Da + Db));
         const double tof = tof_dtu * DWT_TIME_UNITS;
