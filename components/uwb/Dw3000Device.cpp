@@ -16,6 +16,7 @@
 
 #include "Dw3000Device.h"
 
+#include <sstream>
 #include "esphome/core/application.h"
 #include "esphome/core/log.h"
 
@@ -287,6 +288,12 @@ std::string Dw3000Device::getRxErrorString(const uint32_t sysStatus) {
     if ((sysStatus & SYS_STATUS_ARFE_BIT_MASK ) == SYS_STATUS_ARFE_BIT_MASK) {
         numErrors++; if (numErrors > 1) errorStr += ",";
         errorStr += "Automatic Frame Filtering rejection";
+    }
+    if (numErrors == 0 && sysStatus != 0) {
+        // we missed a bit above, return SYS_STATUS as hex string
+        std::ostringstream str;
+        str << "0x" << std::hex << +sysStatus << std::dec;
+        errorStr = str.str();
     }
     return errorStr;
 }
