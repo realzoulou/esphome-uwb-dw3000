@@ -1068,11 +1068,16 @@ void dwt_setplenfine(uint8_t preambleLength);
  *               if mode = DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED - delayed TX (response expected - so the receiver will be automatically turned on after TX is done)
  *               if mode = DWT_START_TX_CCA - Send the frame if no preamble detected within PTO time
  *               if mode = DWT_START_TX_CCA  | DWT_RESPONSE_EXPECTED - Send the frame if no preamble detected within PTO time and then enable RX
- * output parameters
+ * output parameters:
+ * @param hpdWarningOccured - if mode is any of {DWT_START_TX_DELAYED, DWT_START_TX_DLY_REF, DWT_START_TX_DLY_RS, DWT_START_TX_DLY_TS}
+ *                            and return is DWT_ERROR: indicates if a Half Period Delay Warning occured
+ * @param txErrorOccured - if mode is any of {DWT_START_TX_DELAYED, DWT_START_TX_DLY_REF, DWT_START_TX_DLY_RS, DWT_START_TX_DLY_TS}
+ *                         and return is DWT_ERROR: indicates if "PMSC_STATE is TX but TX_STATE is IDLE" condition caused the TX to fail.
+ *                         (See Note in DW3000 User Manual, chap 9.4.1 "Delayed TX notes")
  *
  * returns DWT_SUCCESS for success, or DWT_ERROR for error (e.g. a delayed transmission will be cancelled if the delayed time has passed)
  */
-int dwt_starttx(uint8_t mode);
+int dwt_starttx(uint8_t mode, bool* hpdWarningOccured, bool* txErrorOccured);
 
 /*! ------------------------------------------------------------------------------------------------------------------
  * @brief This API function configures the reference time used for relative timing of delayed sending and reception.

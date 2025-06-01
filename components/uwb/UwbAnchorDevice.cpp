@@ -280,12 +280,13 @@ void UwbAnchorDevice::recvdFrameInitial() {
         dwt_writetxfctrl(ResponseMsg::FRAME_SIZE, 0 /*zero offset*/, 1 /* 1=ranging */);
 
         const uint32_t systime = (uint64_t) dwt_readsystimestamphi32();
+        /* Clear any TX events */
+        dwt_write8bitoffsetreg(SYS_STATUS_ID, 0, (uint8_t)SYS_STATUS_ALL_TX);
+        bool hpdWarning = false, txError = false;
         /* If dwt_starttx() returns an error, abandon this ranging exchange and proceed to the next one. */
-        if (dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED) == DWT_ERROR) {
-            TIME_CRITICAL_END();
+        if (dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED, &hpdWarning, &txError) == DWT_ERROR) {
             mTxErrorCount++;
-            ESP_LOGE(TAG, "Response TX_DELAYED failed (total %" PRIu32 "x)", mTxErrorCount);
-            // dwt_starttx(DWT_START_TX_DELAYED) likely failed due to SYS_STATUS HPDWARN bit
+            ESP_LOGE(TAG, "Response TX_DELAYED failed (total %" PRIu32 "x)  HDPWARN:%d TXERR:%d", mTxErrorCount, hpdWarning, txError);
             const int32_t diff = (uint32_t)response_tx_time - systime; // diff should be positive in good case
             ESP_LOGW(TAG, "systime=%" PRIu32 ", response_tx_time=%" PRIu64 ", diff=%" PRId32 ,
                 systime, response_tx_time, diff);
@@ -417,10 +418,12 @@ void UwbAnchorDevice::recvdFrameFinal() {
         uint8_t* txbuffer = mFinalFrame.getBytes().data();
         dwt_writetxdata(FinalMsg::FRAME_SIZE, txbuffer, 0 /*zero offset*/);
         dwt_writetxfctrl(FinalMsg::FRAME_SIZE, 0 /*zero offset*/, 1 /*=ranging */);
-
+        /* Clear any TX events */
+        dwt_write8bitoffsetreg(SYS_STATUS_ID, 0, (uint8_t)SYS_STATUS_ALL_TX);
         const uint32_t systime = dwt_readsystimestamphi32();
+        bool hpdWarning = false, txError = false;
         /* If dwt_starttx() returns an error, abandon this ranging exchange and proceed to the next one. */
-        if (dwt_starttx(DWT_START_TX_DELAYED) == DWT_SUCCESS) {
+        if (dwt_starttx(DWT_START_TX_DELAYED, &hpdWarning, &txError) == DWT_SUCCESS) {
             TIME_CRITICAL_END();
             setMyState(MYSTATE_SENT_FINAL);
             ESP_LOGV(TAG, "Final response sent Ok: systime=%" PRIu32 ", final_response_tx_time=%" PRIu64 ", diff=%" PRId32 ,
@@ -428,8 +431,7 @@ void UwbAnchorDevice::recvdFrameFinal() {
         } else {
             TIME_CRITICAL_END();
             mTxErrorCount++;
-            ESP_LOGE(TAG, "Final response TX_DELAYED failed (total %" PRIu32 "x)", mTxErrorCount);
-            // dwt_starttx(DWT_START_TX_DELAYED) likely failed due to SYS_STATUS HPDWARN bit (check FINAL_RX_TO_FINAL_TX_DLY_UUS)
+            ESP_LOGE(TAG, "Final response TX_DELAYED failed (total %" PRIu32 "x) HDPWARN:%d TXERR:%d", mTxErrorCount, hpdWarning, txError);
             const int32_t diff = (uint32_t)final_response_tx_time - systime; // diff should be positive in good case
             const uint64_t final_rx_time = (final_rx_ts & 0x00FFFFFFFFFFFFFFUL) >> 8;
             ESP_LOGW(TAG, "systime=%" PRIu32 ", final_response_tx_time=%" PRIu64 ", diff=%" PRId32 ,
