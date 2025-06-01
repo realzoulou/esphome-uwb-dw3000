@@ -156,6 +156,8 @@ protected:
     /* micros() of when entered MYSTATE_WAIT_RECV_FINAL */
     uint64_t mEnteredWaitRecvFinalMicros{0};
 
+    /* micros() of when the last Initial frame received */
+    uint64_t mLastInitialReceivedMicros{0};
 };
 
 }  // namespace uwb

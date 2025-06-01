@@ -204,8 +204,8 @@ protected:
     /* millis() of when last ranging interval started. */
     uint32_t mLastRangingIntervalStartedMillis{0};
 
-    /* millis() of when last sent Initial frame out successfully. */
-    uint32_t mLastInitialSentMillis{0};
+    /* micros() of when last sent Initial frame out successfully. */
+    uint64_t mLastInitialSentMicros{0};
 
     /* micros() of when entered waiting for Response. */
     uint32_t mEnteredWaitRecvResponseMicros{0};

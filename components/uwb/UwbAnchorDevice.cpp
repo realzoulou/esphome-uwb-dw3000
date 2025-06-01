@@ -27,6 +27,12 @@
 
 #include "dw3000.h"
 
+/* compile switch to enable (1) or disable (0) using direct function calls instead of waiting for state change. */
+#ifndef ANCHOR_USE_IMMEDIATE_CALLS
+#define ANCHOR_USE_IMMEDIATE_CALLS 1 // ranging takes avg. 3506 microseconds with TAG_USE_IMMEDIATE_CALLS=1
+//#define ANCHOR_USE_IMMEDIATE_CALLS 0 // ranging takes avg. 3550 microseconds with TAG_USE_IMMEDIATE_CALLS=1
+#endif
+
 namespace esphome {
 namespace uwb {
 
@@ -185,8 +191,7 @@ void UwbAnchorDevice::waitRecvInitial() {
         /* Clear good RX frame event in the DW IC status register. */
         dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_RXFCG_BIT_MASK);
 
-        /* Retrieve Initial reception timestamp. */
-        mInitial_rx_ts = get_rx_timestamp_u64();
+        mLastInitialReceivedMicros = micros();
 
         // immediate call instead of state change
         recvdFrameInitial();
@@ -234,6 +239,9 @@ void UwbAnchorDevice::recvdFrameInitial() {
     if (proceed) {
         /* Yes, it is the frame we are expecting. */
         setMyState(MYSTATE_RECVD_FRAME_VALID_INITIAL);
+
+        /* Retrieve Initial reception timestamp. */
+        mInitial_rx_ts = get_rx_timestamp_u64();
 
         uint8_t fctCode;
         uint16_t fctData;
@@ -284,7 +292,9 @@ void UwbAnchorDevice::recvdFrameInitial() {
         dwt_write8bitoffsetreg(SYS_STATUS_ID, 0, (uint8_t)SYS_STATUS_ALL_TX);
         bool hpdWarning = false, txError = false;
         /* If dwt_starttx() returns an error, abandon this ranging exchange and proceed to the next one. */
-        if (dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED, &hpdWarning, &txError) == DWT_ERROR) {
+        const int rc = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED, &hpdWarning, &txError);
+        const uint64_t rangingDurationSoFarUs = micros() - mLastInitialReceivedMicros;
+        if (DWT_ERROR == rc) {
             mTxErrorCount++;
             ESP_LOGE(TAG, "Response TX_DELAYED failed (total %" PRIu32 "x)  HDPWARN:%d TXERR:%d", mTxErrorCount, hpdWarning, txError);
             const int32_t diff = (uint32_t)response_tx_time - systime; // diff should be positive in good case
@@ -297,6 +307,10 @@ void UwbAnchorDevice::recvdFrameInitial() {
 
             mEnteredWaitRecvFinalMicros = micros();
             setMyState(MYSTATE_WAIT_RECV_FINAL);
+#if ANCHOR_USE_IMMEDIATE_CALLS == 1
+            // immediate call instead of state change
+            waitRecvFinal();
+#endif // ANCHOR_USE_IMMEDIATE_CALLS
         }
     } else {
         setMyState(MYSTATE_RECVD_FRAME_INVALID_INITIAL);
@@ -375,7 +389,7 @@ void UwbAnchorDevice::recvdFrameFinal() {
         const uint64_t final_rx_ts = get_rx_timestamp_u64();
 
         /* Get timestamps embedded in the final message. */
-        uint32_t initial_tx_time, resp_rx_time, final_tx_time;
+        uint64_t initial_tx_time, resp_rx_time, final_tx_time;
         mFinalFrame.getTimestamps(&initial_tx_time, &resp_rx_time, &final_tx_time);
 
         /* Compute Final response message delayed transmission time. */
@@ -420,8 +434,10 @@ void UwbAnchorDevice::recvdFrameFinal() {
         dwt_write8bitoffsetreg(SYS_STATUS_ID, 0, (uint8_t)SYS_STATUS_ALL_TX);
         const uint32_t systime = dwt_readsystimestamphi32();
         bool hpdWarning = false, txError = false;
+        const int rc = dwt_starttx(DWT_START_TX_DELAYED, &hpdWarning, &txError);
+        const uint64_t rangingDurationUs = micros() - mLastInitialReceivedMicros;
         /* If dwt_starttx() returns an error, abandon this ranging exchange and proceed to the next one. */
-        if (dwt_starttx(DWT_START_TX_DELAYED, &hpdWarning, &txError) == DWT_SUCCESS) {
+        if (DWT_SUCCESS == rc) {
             TIME_CRITICAL_END();
             setMyState(MYSTATE_SENT_FINAL);
             ESP_LOGV(TAG, "Final response sent Ok: systime=%" PRIu32 ", final_response_tx_time=%" PRIu64 ", diff=%" PRId32 ,
@@ -441,9 +457,10 @@ void UwbAnchorDevice::recvdFrameFinal() {
         /* Plausibility check. */
         if (Location::isDistancePlausible(distance) || getMode() == UWB_MODE_ANT_DELAY_CALIBRATION) {
             /* Display computed distance. */
-            ESP_LOGW(TAG, "DIST tag 0x%02X: %.2fm", otherDeviceId, distance);
+            ESP_LOGW(TAG, "DIST tag 0x%02X: %.2fm took %" PRIu64 " us", otherDeviceId, distance, rangingDurationUs);
         } else {
-            ESP_LOGW(TAG, "DIST tag 0x%02X: %.2fm implausible (>%.0f)", otherDeviceId, distance, Location::UWB_MAX_REACH_METER);
+            ESP_LOGW(TAG, "DIST tag 0x%02X: %.2fm implausible (>%.0f) took %" PRIu64 " us", otherDeviceId, distance,
+                Location::UWB_MAX_REACH_METER, rangingDurationUs);
             distance = NAN;
         }
         /* Report distance sensor. */

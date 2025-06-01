@@ -32,6 +32,12 @@
 /* per anchor: count of retries. */
 #define PER_ANCHOR_ATTEMPTS             (3U)
 
+/* compile switch to enable (1) or disable (0) using direct function calls instead of waiting for state change. */
+#ifndef TAG_USE_IMMEDIATE_CALLS
+#define TAG_USE_IMMEDIATE_CALLS 1 // ranging takes avg. 5187 microseconds with ANCHOR_USE_IMMEDIATE_CALLS=1
+//#define TAG_USE_IMMEDIATE_CALLS 0 // ranging takes avg. 5235 microseconds with ANCHOR_USE_IMMEDIATE_CALLS=1
+#endif
+
 namespace esphome {
 namespace uwb {
 
@@ -226,7 +232,7 @@ void UwbTagDevice::waitNextRangingInterval() {
 
 void UwbTagDevice::waitNextAnchorRanging() {
     const uint32_t now = millis();
-    if ((now - mLastInitialSentMillis) >= INTER_ANCHOR_RANGING_INTERVAL) {
+    if ((now - (uint32_t)(mLastInitialSentMicros / 1000ULL)) >= INTER_ANCHOR_RANGING_INTERVAL) {
         switch(getMode()) {
 
             case UWB_MODE_ANT_DELAY_CALIBRATION:
@@ -322,7 +328,7 @@ void UwbTagDevice::prepareSendInitial() {
         ESP_LOGE(TAG, "Tag 0x%02X: mCurrentAnchorIndex out of range: %i", getDeviceId(), mCurrentAnchorIndex);
         return;
     }
-    const uint32_t now = millis();
+    const uint64_t now = micros();
     const uint8_t anchorId = mAnchors.at(mCurrentAnchorIndex)->getId();
     ESP_LOGI(TAG, "Tag 0x%02X: Initiating to Anchor 0x%02X", getDeviceId(), anchorId);
 
@@ -379,9 +385,13 @@ void UwbTagDevice::prepareSendInitial() {
            after the frame is sent and the delay set by dwt_setrxaftertxdelay() has elapsed. */
         if (dwt_starttx(DWT_START_TX_IMMEDIATE | DWT_RESPONSE_EXPECTED, NULL, NULL) == DWT_SUCCESS) {
             TIME_CRITICAL_END();
-            mLastInitialSentMillis = now; // set time of when this function was entered, ensures a more acurrate INTER_ANCHOR_RANGING_INTERVAL
+            mLastInitialSentMicros = now; // set time of when this function was entered, ensures a more acurrate INTER_ANCHOR_RANGING_INTERVAL
             mHighFreqLoopRequester.start(); // must be able to receive Response within microseconds
             setMyState(MYSTATE_SENT_INITIAL);
+#if TAG_USE_IMMEDIATE_CALLS == 1
+            // immediate call instead of state change
+            sentInitial();
+#endif // TAG_USE_IMMEDIATE_CALLS
         } else {
             TIME_CRITICAL_END();
             mTxErrorCount++;
@@ -398,9 +408,11 @@ void UwbTagDevice::prepareSendInitial() {
 void UwbTagDevice::sentInitial() {
     /* remember when MYSTATE_WAIT_RECV_RESPONSE was entered for timeout calculation. */
     mEnteredWaitRecvResponseMicros = micros();
-    /* Retrieve Initial transmission timestamp. */
-    mInitial_tx_ts = get_tx_timestamp_u64();
     setMyState(MYSTATE_WAIT_RECV_RESPONSE);
+#if TAG_USE_IMMEDIATE_CALLS == 1
+    // immediate call instead of state change
+    waitRecvResponse();
+#endif // TAG_USE_IMMEDIATE_CALLS
 }
 
 void UwbTagDevice::waitRecvResponse() {
@@ -471,6 +483,8 @@ void UwbTagDevice::recvdFrameResponse() {
         setMyState(MYSTATE_RECVD_VALID_RESPONSE);
 
         TIME_CRITICAL_START();
+        /* Retrieve Initial transmission timestamp. */
+        mInitial_tx_ts = get_tx_timestamp_u64();
         /* Retrieve reception timestamp of this incoming frame. */
         const uint64_t response_rx_ts = get_rx_timestamp_u64();
 
@@ -504,14 +518,18 @@ void UwbTagDevice::recvdFrameResponse() {
         dwt_write8bitoffsetreg(SYS_STATUS_ID, 0, (uint8_t)SYS_STATUS_ALL_TX);
         bool hpdWarning = false, txError = false;
         /* If dwt_starttx() returns an error, abandon this ranging exchange and proceed to the next one. */
-        if (dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED, &hpdWarning, &txError) == DWT_SUCCESS) {
+        const int rc = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED, &hpdWarning, &txError);
+        const uint64_t rangingDurationSoFarUs = micros() - mLastInitialSentMicros;
+        if (DWT_SUCCESS == rc) {
             const int32_t diff = (uint32_t)final_tx_time - systime; // diff should be positive in good case
             ESP_LOGV(TAG, "Final sent OK: systime=%" PRIu32 ", final_tx_time=%" PRIu64 ", diff=%" PRId32 " RESP_RX_TO_FINAL_TX_DLY_UUS:%" PRIu32,
                 systime, final_tx_time, diff, RESP_RX_TO_FINAL_TX_DLY_UUS_TEMP);
             mResponse_rx_ts = response_rx_ts;
             setMyState(MYSTATE_SENT_FINAL);
-            ESP_LOGV(TAG, "Final sent Ok: systime=%" PRIu32 ", final_tx_time=%" PRIu64 ", diff=%" PRId32 ,
-                    systime, final_tx_time, (int32_t)(final_tx_time-systime));
+#if TAG_USE_IMMEDIATE_CALLS == 1
+            // immediate call instead of state change
+            sentFinal();
+#endif // TAG_USE_IMMEDIATE_CALLS
         } else {
             TIME_CRITICAL_END();
             const uint8_t anchorId = mAnchors.at(mCurrentAnchorIndex)->getId();
@@ -545,8 +563,14 @@ void UwbTagDevice::recvdFrameResponse() {
     }
 }
 
-void UwbTagDevice::sendInitialError() {
-    rangingDone(false);
+void UwbTagDevice::sentFinal() {
+    /* remember when MYSTATE_WAIT_RECV_FINAL was entered for timeout calculation. */
+    mEnteredWaitRecvFinalMicros = micros();
+    setMyState(MYSTATE_WAIT_RECV_FINAL);
+#if TAG_USE_IMMEDIATE_CALLS == 1
+    // immediate call instead of state change
+    waitRecvFinal();
+#endif // TAG_USE_IMMEDIATE_CALLS
 }
 
 void UwbTagDevice::waitRecvFinal() {
@@ -622,6 +646,8 @@ void UwbTagDevice::recvdFrameFinal() {
         uint64_t response_tx_time, final_rx_time, final_response_tx_time;
         mFinalFrame.getTimestamps(&response_tx_time, &final_rx_time, &final_response_tx_time);
 
+        const uint64_t rangingDurationUs = micros() - mLastInitialSentMicros;
+
         /* Compute time of flight. */
         const double Ra = (double)(final_rx_time - response_tx_time);
         const double Rb = (double)(final_response_rx_ts - final_tx_ts);
@@ -672,12 +698,13 @@ void UwbTagDevice::recvdFrameFinal() {
                 }
 
             } else {
-                ESP_LOGW(TAG, "DIST anchor 0x%02X: %.2fm (from anchor %.2fm)",
-                    anchorId, distance, anchorCalculatedDistance);
+                ESP_LOGW(TAG, "DIST anchor 0x%02X: %.2fm (from anchor %.2fm) took %" PRIu64 " us",
+                    anchorId, distance, anchorCalculatedDistance, rangingDurationUs);
             }
             rangingDone(true, distance, anchorCalculatedDistance);
         } else {
-            ESP_LOGW(TAG, "DIST anchor 0x%02X: %.2fm implausible (>%.0f)", anchorId, distance, Location::UWB_MAX_REACH_METER);
+            ESP_LOGW(TAG, "DIST anchor 0x%02X: %.2fm implausible (>%.0fm) took %" PRIu64 " us", anchorId, distance,
+                Location::UWB_MAX_REACH_METER, rangingDurationUs);
             rangingDone(false);
         }
     } else {
@@ -685,6 +712,10 @@ void UwbTagDevice::recvdFrameFinal() {
         ESP_LOGW(TAG, "0x%02X: recvdFrameFinal invalid", anchorId);
         setMyState(MYSTATE_RECVD_INVALID_FINAL);
     }
+}
+
+void UwbTagDevice::sendInitialError() {
+    rangingDone(false);
 }
 
 void UwbTagDevice::recvdValidResponse() {
@@ -696,12 +727,6 @@ void UwbTagDevice::recvdValidResponse() {
 
 void UwbTagDevice::recvdInvalidResponse() {
     rangingDone(false);
-}
-
-void UwbTagDevice::sentFinal() {
-    /* remember when MYSTATE_WAIT_RECV_FINAL was entered for timeout calculation. */
-    mEnteredWaitRecvFinalMicros = micros();
-    setMyState(MYSTATE_WAIT_RECV_FINAL);
 }
 
 void UwbTagDevice::sendErrorFinal() {
