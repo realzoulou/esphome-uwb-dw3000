@@ -489,8 +489,9 @@ void UwbTagDevice::recvdFrameResponse() {
         const uint64_t response_rx_ts = get_rx_timestamp_u64();
 
         /* Compute Final message delayed transmission time. */
+        const uint32_t RESP_RX_TO_FINAL_TX_DLY_UUS_TEMP = RESP_RX_TO_FINAL_TX_DLY_UUS;
         const uint64_t final_tx_time =
-            ((response_rx_ts + ((uint64_t)RESP_RX_TO_FINAL_TX_DLY_UUS * UUS_TO_DWT_TIME)) & 0x00FFFFFFFFFFFFFFUL) >> 8;
+            ((response_rx_ts + ((uint64_t)RESP_RX_TO_FINAL_TX_DLY_UUS_TEMP * UUS_TO_DWT_TIME)) & 0x00FFFFFFFFFFFFFFUL) >> 8;
         dwt_setdelayedtrxtime((uint32_t)final_tx_time);
 
         /* Set expected Final's delay and timeout. */
@@ -537,8 +538,9 @@ void UwbTagDevice::recvdFrameResponse() {
             ESP_LOGE(TAG, "0x%02X: Final TX_DELAYED failed (total %" PRIu32 "x) HDPWARN:%d TXERR:%d", anchorId, mTxErrorCount, hpdWarning, txError);
             const int32_t diff = (uint32_t)final_tx_time - systime; // diff should be positive in good case
             const uint64_t response_rx_time = (response_rx_ts & 0x00FFFFFFFFFFFFFFUL) >> 8;
-            ESP_LOGW(TAG, "  systime=%" PRIu32 ", final_tx_time=%" PRIu64 ", diff=%" PRId32 ,
-                systime, final_tx_time, diff);
+            ESP_LOGW(TAG, "  systime=%" PRIu32 ", final_tx_time=%" PRIu64 ", diff=%" PRId32
+                " RESP_RX_TO_FINAL_TX_DLY_UUS=%" PRIu32 " after %" PRIu64 " us",
+                systime, final_tx_time, diff, RESP_RX_TO_FINAL_TX_DLY_UUS_TEMP, rangingDurationSoFarUs);
             setMyState(MYSTATE_SEND_ERROR_FINAL);
         }
 

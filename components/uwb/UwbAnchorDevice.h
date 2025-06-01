@@ -64,8 +64,8 @@ public:
        Adjusting this value lower and lower until dwt_starttx() starts returning DWT_ERROR status allows the user to tweak their system to calculate the
        shortest turn-around time for messages.
        If increasing this value, also the Tag timeouts may need to be adjusted. */
-    static const uint32_t INITIAL_RX_TO_RESP_TX_DLY_UUS =  970;
-    static const uint32_t FINAL_RX_TO_FINAL_TX_DLY_UUS  = 1650;
+    static const uint32_t INITIAL_RX_TO_RESP_TX_DLY_UUS = 1500;
+    static const uint32_t FINAL_RX_TO_FINAL_TX_DLY_UUS  = 2600;
 
     /* Receive Final message timeout. This is the delay used in dwt_setrxtimeout().
        The time parameter used here is in 1.0256 us (UWB microseconds, i.e. 512/499.2 MHz) units.
