@@ -225,8 +225,8 @@ TEST(UwbMessage, FinalMsg_functionCodeAndData) {
 TEST(UwbMessage, FinalMsg_timestamps) {
     FinalMsg fmsg;
 
-    const uint32_t i = 815, r = 4711, f = 42;
-    uint32_t i_, r_, f_;
+    const uint64_t i = 815, r = 4711, f = 42;
+    uint64_t i_, r_, f_;
 
     fmsg.setTimestamps(i, r, f);
     fmsg.getTimestamps(nullptr, nullptr, nullptr);
