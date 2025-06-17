@@ -802,7 +802,6 @@ void UwbTagDevice::calculateLocationPrepare() {
                     msg << "anchor 0x" << HEX_TO_STREAM(2, anchorPosAndTagDist.anchorId)
                         << " away " << +timeDiffMs << "ms";
                     ESP_LOGW(TAG, "%s", msg.str().c_str());
-                    sendLog(msg.str());
                 }
             } else {
                 std::ostringstream msg;
@@ -843,12 +842,16 @@ void UwbTagDevice::calculateLocationInPhases() {
             std::ostringstream msg;
             msg << "INVALID: " << FLOAT_TO_STREAM(7, tagPosition.latitude) << ","
                 << FLOAT_TO_STREAM(7, tagPosition.longitude) << " errEst " << FLOAT_TO_STREAM(2, errorEstimateMeters) << "m";
+            msg << " using ";
+            Location::LOG_ANCHORS_TO_STREAM(msg, mAnchorPositionAndTagDistances);
             ESP_LOGW(TAG, "%s", msg.str().c_str());
             sendLog(msg.str());
         }
     } else {
         std::ostringstream msg;
         msg << "FAILED: " << toString(res);
+        msg << " using ";
+        Location::LOG_ANCHORS_TO_STREAM(msg, mAnchorPositionAndTagDistances);
         ESP_LOGW(TAG, "%s", msg.str().c_str());
         sendLog(msg.str());
     }
@@ -886,6 +889,8 @@ void UwbTagDevice::locationPostProcessing() {
         std::ostringstream msg;
         msg << "POSITION " << FLOAT_TO_STREAM(7, reportLatitude) << ","
             << FLOAT_TO_STREAM(7, reportLongitude) << " " << FLOAT_TO_STREAM(2, reportErrEst) << "m";
+        msg << " using ";
+        Location::LOG_ANCHORS_TO_STREAM(msg, mAnchorPositionAndTagDistances);
         ESP_LOGW(TAG, "%s", msg.str().c_str());
         sendLog(msg.str());
     }

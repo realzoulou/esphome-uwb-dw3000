@@ -53,7 +53,17 @@ void Location::LOG_ANCHOR_TO_STREAM(std::ostringstream & ostream, const AnchorPo
     ostream << std::fixed << std::setprecision(LOG_DEGREE_PRECISION);
     ostream << +anchor.anchorPosition.latitude << "," << +anchor.anchorPosition.longitude << ",";
     ostream << std::fixed << std::setprecision(LOG_METER_PRECISION);
-    ostream << +anchor.tagDistance << "m) ";
+    ostream << +anchor.tagDistance << "m)";
+}
+
+void Location::LOG_ANCHORS_TO_STREAM(std::ostringstream & ostream, const std::vector<AnchorPositionTagDistance> & anchors) {
+    ostream << "[";
+    for (const AnchorPositionTagDistance & anchor : anchors) {
+        ostream << "{";
+        LOG_ANCHOR_TO_STREAM(ostream, anchor);
+        ostream << "}";
+    }
+    ostream << "]";
 }
 
 double Location::METER_TO_DEGREE(const double latitude) {
@@ -130,6 +140,7 @@ CalcResult Location::calculatePosition(CalculationPhase & phase,
                 msg = std::ostringstream();
                 msg << " pair " << +cnt << ": ";
                 LOG_ANCHOR_TO_STREAM(msg, p.first);
+                msg << " ";
                 LOG_ANCHOR_TO_STREAM(msg, p.second);
                 LOC_LOGW(msg);
             }
@@ -389,6 +400,7 @@ CircleIntersectionResult Location::findTwoCirclesIntersections(const AnchorPosit
         std::ostringstream msg;
         msg << "circles do not intersect: ";
         LOG_ANCHOR_TO_STREAM(msg, a1t);
+        msg << " ";
         LOG_ANCHOR_TO_STREAM(msg, a2t);
         LOC_LOGW(msg);
         return CIRCLE_INTERSECT_ERROR_NO_INTERSECTION;
@@ -399,6 +411,7 @@ CircleIntersectionResult Location::findTwoCirclesIntersections(const AnchorPosit
         std::ostringstream msg;
         msg << "circles contained in each other: ";
         LOG_ANCHOR_TO_STREAM(msg, a1t);
+        msg << " ";
         LOG_ANCHOR_TO_STREAM(msg, a2t);
         LOC_LOGW(msg);
         return CIRCLE_INTERSECT_ERROR_CONTAINED;

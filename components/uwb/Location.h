@@ -120,6 +120,7 @@ public: // static methods
         return (!std::isnan(distance) && (distance> 0) && (distance <= UWB_MAX_REACH_METER));
     }
     static void LOG_ANCHOR_TO_STREAM(std::ostringstream & ostream, const AnchorPositionTagDistance & anchor);
+    static void LOG_ANCHORS_TO_STREAM(std::ostringstream & ostream, const std::vector<AnchorPositionTagDistance> & anchors);
 
     static CalcResult calculatePosition(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
                                         LatLong & outputTagPosition, double & outputTagPositionErrorEstimate);
