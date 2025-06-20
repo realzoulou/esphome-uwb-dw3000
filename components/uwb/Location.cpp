@@ -610,12 +610,17 @@ bool Location::selectBestMatchingCandidate(const std::vector<AnchorPositionTagDi
 CircleIntersectionResult Location::findTwoCirclesIntersections(const AnchorPositionTagDistance a1t,
                                                                const AnchorPositionTagDistance a2t,
                                                                LatLong & t, LatLong & t_prime) {
+    /* First, convert geodesic WGS-84 to cartesian coordinate system. */
+    /* a1t is our reference point*/
     const LatLongAlt refA1 = { a1t.anchorPosition.latitude, a1t.anchorPosition.longitude, 0.0};
     const LatLongAlt lla2 = { a2t.anchorPosition.latitude, a2t.anchorPosition.longitude, 0.0};
     ENU enuA2;
+    /* convert a2t to ENU relative to a1t */
     latLongToEnu(lla2, refA1, enuA2);
-    const double x0 = 0.0, y0 = 0.0, r0 = a1t.tagDistance /* METER_TO_DEGREE(a1t.anchorPosition.latitude) * DEG_TO_RAD*/;
-    const double x1 = enuA2.x, y1 = enuA2.y, r1 = a2t.tagDistance /* METER_TO_DEGREE(a2t.anchorPosition.latitude) * DEG_TO_RAD*/;
+    /* a1t is our reference point, hence x0/y0 are 0.0 */
+    const double x0 = 0.0, y0 = 0.0, r0 = a1t.tagDistance;
+    /* x1/y1/r1 are now in cartesian coordinate system [m] */
+    const double x1 = enuA2.x, y1 = enuA2.y, r1 = a2t.tagDistance;
     double x, y, x_prime, y_prime;
 
     if (std::isnan(x0) || std::isnan(y0) || std::isnan(r0) ||
@@ -678,6 +683,7 @@ CircleIntersectionResult Location::findTwoCirclesIntersections(const AnchorPosit
 
     /* end of: ported from https://paulbourke.net/geometry/circlesphere/tvoght.c */
 
+    /* Finally, convert back from cartesian to geodesic WGS-84 coordinate system. */
     const ENU enuT = {x, y, 0.0}, enuT_prime = {x_prime, y_prime, 0.0};
     LatLongAlt llaT, llaT_prime;
     const bool okT = enuToLatLong(enuT, refA1, llaT);
