@@ -323,27 +323,44 @@ TEST(Location_findTwoCirclesIntersections, negativeDistances) {
     LatLong t, t_prime;
     EXPECT_EQ(CIRCLE_INTERSECT_ERROR_INPUT, Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
 }
-static const double INTERSECTION_PRECISION = 0.00001; // ~1.11m, hmm, no more precision possible?
+
+static const double INTERSECTION_PRECISION = 0.000005;
+
 TEST(Location_findTwoCirclesIntersections, twoAnchors_inBerlin) {
     // following 2 positions are ~20m apart
     const AnchorPositionTagDistance a1t = {0xA1, {52.4990325, 13.3917949}, 13.95 /*[m]*/, 0.1};
     const AnchorPositionTagDistance a2t = {0xA2, {52.4990355, 13.3915640}, 13.95 /*[m]*/, 0.1};
-    /* lat 52.4990325 = rad 0.9162809712342, long 13.3917949 = rad 0.2337309137562
-           52.4990355 =     0.9162810235941,      13.3915640 =     0.233726883791
-       13.95m = 0.000125337° = 0,0000021875 rad
-    https://planetcalc.com/8098/?x1=0.2337309137562&y1=0.9162809712342&r1=0.0000021875&x2=0.233726883791&y2=0.9162810235941&r2=0.0000021875
-      There are two points of intersection:
-      (x,y) = (0.2337289, 0.9162818) and  (0.2337289, 0.9162801)
-    via https://www.rapidtables.com/convert/number/radians-to-degrees.html
-            0.9162818 rad = 52.49908° |  0.9162801 rad = 52.498983°
-            0.2337289     = 13.39168° |  0.2337289     = 13.39168°
-    */
-    const LatLong exp_t = {52.49908, 13.39168};
-    const LatLong exp_t_prime = {52.498983, 13.39168};
+
+    // Following expected T and T' are the answer of ChatGPT
+    const LatLong exp_t = {52.4989303, 13.3916758};
+    const LatLong exp_t_prime = {52.4991377, 13.3916831};
 
     LatLong t, t_prime;
     EXPECT_EQ(CIRCLE_INTERSECT_OK, Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
     // cannot know if t or t_prime could match expected exp_t and exp_t_prime
+    EXPECT_TRUE(
+           (IS_NEAR_DOUBLE(exp_t.latitude, t.latitude, INTERSECTION_PRECISION)
+            && IS_NEAR_DOUBLE(exp_t.longitude, t.longitude, INTERSECTION_PRECISION))
+        || (IS_NEAR_DOUBLE(exp_t_prime.latitude, t.latitude, INTERSECTION_PRECISION)
+            && IS_NEAR_DOUBLE(exp_t_prime.longitude, t.longitude, INTERSECTION_PRECISION))
+    );
+    EXPECT_TRUE(
+           (IS_NEAR_DOUBLE(exp_t.latitude, t_prime.latitude, INTERSECTION_PRECISION)
+            && IS_NEAR_DOUBLE(exp_t.longitude, t_prime.longitude, INTERSECTION_PRECISION))
+        || (IS_NEAR_DOUBLE(exp_t_prime.latitude, t_prime.latitude, INTERSECTION_PRECISION)
+            && IS_NEAR_DOUBLE(exp_t_prime.longitude, t_prime.longitude, INTERSECTION_PRECISION))
+    );
+}
+TEST(Location_findTwoCirclesIntersections, twoAnchors_nearly_not_intersecting) {
+    const AnchorPositionTagDistance a1t = {0xA5, {48.5168877, -15.6495552}, 7.14 /*[m]*/, 0.1};
+    const AnchorPositionTagDistance a2t = {0xAA, {48.5169525, -15.6497869}, 11.47 /*[m]*/, 0.1};
+
+    // Following expected T and T' are the answer of ChatGPT
+    const LatLong exp_t       = {48.5169418, -15.6496254};
+    const LatLong exp_t_prime = {48.5168824, -15.6496624};
+
+    LatLong t, t_prime;
+    EXPECT_EQ(CIRCLE_INTERSECT_OK, Location::findTwoCirclesIntersections(a1t, a2t, t, t_prime));
     EXPECT_TRUE(
            (IS_NEAR_DOUBLE(exp_t.latitude, t.latitude, INTERSECTION_PRECISION)
             && IS_NEAR_DOUBLE(exp_t.longitude, t.longitude, INTERSECTION_PRECISION))

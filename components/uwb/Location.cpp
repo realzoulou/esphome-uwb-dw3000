@@ -559,12 +559,12 @@ bool Location::selectBestMatchingCandidate(const std::vector<AnchorPositionTagDi
 CircleIntersectionResult Location::findTwoCirclesIntersections(const AnchorPositionTagDistance a1t,
                                                                const AnchorPositionTagDistance a2t,
                                                                LatLong & t, LatLong & t_prime) {
-    const double x0 = a1t.anchorPosition.longitude * DEG_TO_RAD,
-                 y0 = a1t.anchorPosition.latitude * DEG_TO_RAD,
-                 r0 = a1t.tagDistance * METER_TO_DEGREE(a1t.anchorPosition.latitude) * DEG_TO_RAD;
-    const double x1 = a2t.anchorPosition.longitude * DEG_TO_RAD,
-                 y1 = a2t.anchorPosition.latitude * DEG_TO_RAD,
-                 r1 = a2t.tagDistance * METER_TO_DEGREE(a2t.anchorPosition.latitude) * DEG_TO_RAD;
+    const LatLongAlt refA1 = { a1t.anchorPosition.latitude, a1t.anchorPosition.longitude, 0.0};
+    const LatLongAlt lla2 = { a2t.anchorPosition.latitude, a2t.anchorPosition.longitude, 0.0};
+    ENU enuA2;
+    latLongToEnu(lla2, refA1, enuA2);
+    const double x0 = 0.0, y0 = 0.0, r0 = a1t.tagDistance /* METER_TO_DEGREE(a1t.anchorPosition.latitude) * DEG_TO_RAD*/;
+    const double x1 = enuA2.x, y1 = enuA2.y, r1 = a2t.tagDistance /* METER_TO_DEGREE(a2t.anchorPosition.latitude) * DEG_TO_RAD*/;
     double x, y, x_prime, y_prime;
 
     if (std::isnan(x0) || std::isnan(y0) || std::isnan(r0) ||
@@ -641,10 +641,27 @@ CircleIntersectionResult Location::findTwoCirclesIntersections(const AnchorPosit
 
     /* end of: ported from https://paulbourke.net/geometry/circlesphere/tvoght.c */
 
-    t.latitude =  y * RAD_TO_DEG;
-    t.longitude = x * RAD_TO_DEG;
-    t_prime.latitude = y_prime * RAD_TO_DEG;
-    t_prime.longitude = x_prime * RAD_TO_DEG;
+    const ENU enuT = {x, y, 0.0}, enuT_prime = {x_prime, y_prime, 0.0};
+    LatLongAlt llaT, llaT_prime;
+    const bool okT = enuToLatLong(enuT, refA1, llaT);
+    const bool okT_prime = enuToLatLong(enuT_prime, refA1, llaT_prime);
+    if (!okT && !okT_prime) {
+        return CIRCLE_INTERSECT_ERROR_NO_INTERSECTION;
+    }
+    if (okT) {
+        t.latitude = llaT.latitude;
+        t.longitude = llaT.longitude;
+    } else {
+        t.latitude = NAN;
+        t.longitude = NAN;
+    }
+    if (okT_prime) {
+        t_prime.latitude = llaT_prime.latitude;
+        t_prime.longitude = llaT_prime.longitude;
+    } else {
+        t_prime.latitude = NAN;
+        t_prime.longitude = NAN;
+    }
     return CIRCLE_INTERSECT_OK;
 }
 
