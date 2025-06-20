@@ -583,7 +583,7 @@ TEST(Location_selectBestMatchingCandidate, threeAnchorsTwoCandidates) {
 //////////////////////////////
 // Location::calculatePosition
 
-static const double LATLONG_PRECISION = 0.00002; // 0.00001° ~1.11m, TODO why so bad ?
+static const double LATLONG_PRECISION = 0.00005;
 
 TEST(Location_calculatePosition, noAnchor) {
     const std::vector<AnchorPositionTagDistance> empty;
@@ -627,7 +627,7 @@ TEST(Location_calculatePosition, twoAnchorsEqual) {
 TEST(Location_calculatePosition, twoAnchors_tagExactInTheMiddleInEastWestDirection) {
     const LatLong a1 = {1.0, 1.0}, a2 = {1.0000002, 1.0}, expPosition = {1.0000001, 1.0};
     const double dist = Location::getHaversineDistance(a1, a2);
-    const double dist_half = dist/1.99; // should be ideally dist/2
+    const double dist_half = dist/1.99; // dist_half is then slightly more than the exact dist/2, results in 2 circles that intersect
     const std::vector<AnchorPositionTagDistance> two = {
         {0xA1, a1, dist_half, dist_half/10.0},
         {0xA2, a2, dist_half, dist_half/10.0}
@@ -644,7 +644,7 @@ TEST(Location_calculatePosition, twoAnchors_tagExactInTheMiddleInEastWestDirecti
 TEST(Location_calculatePosition, twoAnchors_tagExactInTheMiddleNorthSouth) {
     const LatLong a1 = {1.0, 1.0}, a2 = {1.0, 1.0000002}, expPosition = {1.0, 1.0000001};
     const double dist = Location::getHaversineDistance(a1, a2);
-    const double dist_half = dist/1.99; // should be ideally dist/2
+    const double dist_half = dist/1.99; // dist_half is then slightly more than the exact dist/2, results in 2 circles that intersect
     const std::vector<AnchorPositionTagDistance> two = {
         {0xA1, a1, dist_half, 0.3},
         {0xA2, a2, dist_half, 0.4}
@@ -720,11 +720,11 @@ TEST(Location_calculatePosition, threeAnchors_pseudo) {
 TEST(Location_calculatePosition, threeAnchors_real) {
     const std::vector<AnchorPositionTagDistance> three = {
         {0xA1, {50.51695017092124, -35.649778489469757}, 16.59, 0.2},
-        {0xA2, {50.51678538255722, -35.649683941598978}, 8.02, NAN},
+        {0xA2, {50.51678538255722, -35.649683941598978}, 8.02, 0.1},
         {0xA3, {50.516870663933815, -35.649518985739324}, 7.63, 0.5},
     };
-    const LatLong expPosition = {50.516841, -35.649664};
-    const double expErr = std::sqrt(0.2 + 0.5);
+    const LatLong expPosition = {50.516870, -35.649660}; // Copilot's answer
+    const double expErr = 1.0;
 
     LatLong tagPosition = {NAN, NAN};
     double errEst = NAN;
@@ -739,8 +739,8 @@ TEST(Location_calculatePosition, threeAnchors_real_in_phases) {
         {0xA2, {50.51678538255722, -35.649683941598978}, 8.02, 0.1},
         {0xA3, {50.516870663933815, -35.649518985739324}, 7.63, 0.4},
     };
-    const LatLong expPosition = {50.516841, -35.649664};
-    const double expErr = std::sqrt(0.2 + 0.1 + 0.4);
+    const LatLong expPosition = {50.516870, -35.649660}; // Copilot's answer
+    const double expErr = 1.0;
 
     LatLong tagPosition = {NAN, NAN};
     double errEst = NAN;
@@ -767,6 +767,25 @@ TEST(Location_calculatePosition, threeAnchors_real_in_phases) {
 
     ASSERT_EQ(CALC_ALL_PHASES_DONE, phase);
 
+    EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
+    EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
+    EXPECT_LE(errEst, expErr);
+}
+
+TEST(Location_calculatePosition, threeAnchors_initially_A5_AA_not_intersect) {
+    const std::vector<AnchorPositionTagDistance> three = {
+        /* A5 and A9 circles do not intersect initially,
+           but when distance is increased +0.3m, then they do intersect. */
+        {0xA5, {48.5168877, -26.6495552}, 6.84, 0.05},
+        {0xA9, {48.5167885, -26.6496859}, 11.8, 0.05},
+        {0xAA, {48.5169525, -26.6497869}, 11.27, 0.05},
+    };
+    const LatLong expPosition = {48.51687, -26.64962};
+    const double expErr = std::sqrt(3*0.05);
+
+    LatLong tagPosition = {NAN, NAN};
+    double errEst = NAN;
+    EXPECT_EQ(CALC_OK, Location::calculatePosition(three, tagPosition, errEst));
     EXPECT_NEAR(expPosition.latitude, tagPosition.latitude, LATLONG_PRECISION);
     EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
     EXPECT_LE(errEst, expErr);

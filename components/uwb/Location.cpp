@@ -139,16 +139,64 @@ CalcResult Location::calculatePosition(CalculationPhase & phase,
     if ((phase & CALC_PHASE_DONE_COLLECT_CANDIDATES) != CALC_PHASE_DONE_COLLECT_CANDIDATES) {
         for (const auto & p : pairOfTwoAnchorsAndTheirDistanceToTag) {
             LatLong t, t_prime;
-            if (CIRCLE_INTERSECT_OK == findTwoCirclesIntersections(p.first, p.second, t, t_prime)) {
+            CircleIntersectionResult rc = findTwoCirclesIntersections(p.first, p.second, t, t_prime);
+            if (CIRCLE_INTERSECT_OK ==  rc) {
                 positionCandidates.push_back(t);
                 if ((t != t_prime)) {
                     positionCandidates.push_back(t_prime);
                 }
+            } else if (CIRCLE_INTERSECT_ERROR_NO_INTERSECTION == rc) {
+                // measured distances result in no circle intersections
+                // increase both distances step-wise by 10cm, but max 1m
+                AnchorPositionTagDistance modP1 = p.first, modP2 = p.second;
+                double d; // distance increase [m] applied to both
+                for (d = 0.1; d <= 1/*m*/; d += 0.1) {
+                    modP1.tagDistance = p.first.tagDistance + d;
+                    modP1.tagDistanceErrEstimate = p.first.tagDistanceErrEstimate + d;
+                    modP2.tagDistance = p.second.tagDistance + d;
+                    modP2.tagDistanceErrEstimate = p.second.tagDistanceErrEstimate + d;
+                    rc = findTwoCirclesIntersections(modP1, modP2, t, t_prime);
+                    if (CIRCLE_INTERSECT_ERROR_NO_INTERSECTION == rc) {
+                        continue; // increase distances even more
+                    } else if (CIRCLE_INTERSECT_OK == rc) {
+                        // finally found intersections
+                        positionCandidates.push_back(t);
+                        if ((t != t_prime)) {
+                            positionCandidates.push_back(t_prime);
+                        }
+                        std::ostringstream msg;
+                        msg << "circle intersections found with each dist +" << +d << "m ";
+                        LOG_ANCHOR_TO_STREAM(msg, p.first);
+                        msg << " ";
+                        LOG_ANCHOR_TO_STREAM(msg, p.second);
+                        LOC_LOGW(msg);
+                        break;
+                    }
+                }
+                if (CIRCLE_INTERSECT_ERROR_NO_INTERSECTION == rc) {
+                    // even with increasing distances, still no intersections
+                    std::ostringstream msg;
+                    msg << toString(rc) << ": ";
+                    LOG_ANCHOR_TO_STREAM(msg, p.first);
+                    msg << " ";
+                    LOG_ANCHOR_TO_STREAM(msg, p.second);
+                    msg << " even with each dist +" << +(d-0.1) << "m";
+                    LOC_LOGW(msg);
+                }
+            } else if (CIRCLE_INTERSECT_ERROR_CONTAINED == rc) {
+                /* no solution. one circle is contained in the other, or circles exactly equal. */
+                std::ostringstream msg;
+                msg << toString(rc) << ": ";
+                LOG_ANCHOR_TO_STREAM(msg, p.first);
+                msg << " ";
+                LOG_ANCHOR_TO_STREAM(msg, p.second);
+                LOC_LOGW(msg);
             }
         }
         // need at least 1 candidate
         if (positionCandidates.empty()) {
 #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_WARN
+        {
             std::ostringstream msg;
             msg << "no position candidates found from anchor pairs:";
             LOC_LOGW(msg);
@@ -162,6 +210,7 @@ CalcResult Location::calculatePosition(CalculationPhase & phase,
                 LOG_ANCHOR_TO_STREAM(msg, p.second);
                 LOC_LOGW(msg);
             }
+        }
 #endif // ESPHOME_LOG_LEVEL_WARN
             return CALC_F_NO_CANDIDATES;
         }
@@ -234,7 +283,9 @@ CalcResult Location::calculatePosition(CalculationPhase & phase,
         outputTagPositionErrorEstimate = std::sqrt(errEstimate);
 
 #ifdef __UT_TEST__ // extra log in unit tests
-        std::cout << "outputTagPosition (lat/lng)=" << +outputTagPosition.latitude << "/" << +outputTagPosition.longitude
+        std::cout << std::fixed << std::setprecision(LOG_DEGREE_PRECISION)
+                << "outputTagPosition (lat/lng)=" << +outputTagPosition.latitude << "/" << +outputTagPosition.longitude
+                << std::setprecision(LOG_METER_PRECISION)
                 << " errEst:" << +outputTagPositionErrorEstimate << "m"
                 << std::endl;
 #endif
@@ -590,24 +641,10 @@ CircleIntersectionResult Location::findTwoCirclesIntersections(const AnchorPosit
     /* Check for solvability. */
     if (d > (r0 + r1))
     {
-        /* no solution. circles do not intersect. */
-        std::ostringstream msg;
-        msg << "circles do not intersect: ";
-        LOG_ANCHOR_TO_STREAM(msg, a1t);
-        msg << " ";
-        LOG_ANCHOR_TO_STREAM(msg, a2t);
-        LOC_LOGW(msg);
         return CIRCLE_INTERSECT_ERROR_NO_INTERSECTION;
     }
     if (d <= std::fabs(r0 - r1)) // was originally: if (d < fabs(r0 - r1))
     {
-        /* no solution. one circle is contained in the other, or circles exactly equal. */
-        std::ostringstream msg;
-        msg << "circles contained in each other: ";
-        LOG_ANCHOR_TO_STREAM(msg, a1t);
-        msg << " ";
-        LOG_ANCHOR_TO_STREAM(msg, a2t);
-        LOC_LOGW(msg);
         return CIRCLE_INTERSECT_ERROR_CONTAINED;
     }
 
