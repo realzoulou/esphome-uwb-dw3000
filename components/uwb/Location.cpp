@@ -43,10 +43,28 @@ namespace uwb {
 #define RAD_TO_DEG      ((double)(180.0 / M_PI))
 #endif
 
+// https://en.wikipedia.org/wiki/Earth_ellipsoid (using WGS-84)
+#ifndef EARTH_RADIUS_EQUATOR_METERS
+#define EARTH_RADIUS_EQUATOR_METERS     ((double)(6378137.0))    // Earth radius at equator [m]
+#endif
+#ifndef EARTH_RADIUS_POLES_METERS
+#define EARTH_RADIUS_POLES_METERS       ((double)(6356752.3142)) // Earth radius at the poles [m]
+#endif
+#ifndef EARTH_RADIUS_AVG_METERS
+#define EARTH_RADIUS_AVG_METERS         ((double)(6371000.0))      // average earth radius in [km]
+#endif
+#ifndef EARTH_FLATTENING
+#define EARTH_FLATTENING      ((double)(1.0 / 298.257223563)) // earth flattening
+#endif
+#ifndef NAV_E2
+#define NAV_E2  ((2.0 - EARTH_FLATTENING) * EARTH_FLATTENING)
+#endif
+
 const char* Location::TAG = "location";
 
 #define LOG_DEGREE_PRECISION  (7) // digits after decimal point
 #define LOG_METER_PRECISION   (2) // digits after decimal point, ie. up to [cm]
+#define LOG_XYZ_PRECISION    (10) // digits after decimal point for ENU/ECEF
 
 void Location::LOG_ANCHOR_TO_STREAM(std::ostringstream & ostream, const AnchorPositionTagDistance & anchor) {
     ostream << std::hex << +anchor.anchorId << std::dec << "(";
@@ -73,8 +91,8 @@ double Location::METER_TO_DEGREE(const double latitude) {
        latitude B, radius R, radius at equator r1, radius at pole r2
        R = √ [ (r1² * cos(B))² + (r2² * sin(B))² ] / [ (r1 * cos(B))² + (r2 * sin(B))² ]
     */
-    const double r1 = 6378137;   // Earth radius at equator [m]
-    const double r2 = 6356752.3; // Earth radius at the poles [m]
+    const double r1 = EARTH_RADIUS_EQUATOR_METERS;
+    const double r2 = EARTH_RADIUS_POLES_METERS;
     const double x = latitude * DEG_TO_RAD;
     const double r1sCos = r1*r1*std::cos(x); // r1² * cos(B)
     const double r1Cos  = r1*std::cos(x);    // r1 * cos(B)
@@ -243,7 +261,7 @@ double Location::getHaversineDistance(const LatLong & from, const LatLong & to) 
        see mathforum.org/library/drmath/view/51879.html for derivation (link dead?)
     */
     const double TO_RAD = M_PI / 180;
-    const double R = 6371e3; // average earth radius in [km]
+    const double R = EARTH_RADIUS_AVG_METERS;
     const double phi1 = from.latitude * DEG_TO_RAD, lamda1 = from.longitude * DEG_TO_RAD;
     const double phi2 = to.latitude * TO_RAD, lamda2 = to.longitude * TO_RAD;
     const double delta_phi = phi2 - phi1;
@@ -254,6 +272,182 @@ double Location::getHaversineDistance(const LatLong & from, const LatLong & to) 
     const double c = 2 * std::atan2(std::sqrt(a), std::sqrt(1-a));
 
     return R * c;
+}
+
+void Location::latLongToEnu(const LatLongAlt & latLong, const LatLongAlt & refLatLong, ENU & enu) {
+    ECEF ecef;
+    latlong2ecef(latLong, ecef);
+    ecef2enu(ecef, refLatLong, enu);
+
+    std::ostringstream info1;
+    info1 << std::fixed << std::setprecision(LOG_DEGREE_PRECISION)
+          << "latLongToEnu (" << +latLong.latitude << "/" << latLong.longitude
+          << ", ref " << +refLatLong.latitude << "/" << +refLatLong.longitude
+          << std::setprecision(LOG_XYZ_PRECISION)
+          << ") = " << +enu.x << "," << +enu.y << "," << +enu.z;
+    LOC_LOGI(info1);
+}
+
+bool Location::enuToLatLong(const ENU & enu, const LatLongAlt & refLatLong, LatLongAlt & latLong) {
+    const double enu_xyz[3] = {enu.x, enu.y, enu.z};
+    double diff_xyz[3], R[3][3], Rt[3][3];
+    ECEF ecef, refEcef;
+
+    latlong2ecef(refLatLong, refEcef);
+    rotate3D(refLatLong, R);
+    transposeMatrix3x3(R, Rt);
+    matrixMultiply3x3with3x1(Rt, enu_xyz, diff_xyz);
+    ecef.x = diff_xyz[0] + refEcef.x;
+    ecef.y = diff_xyz[1] + refEcef.y;
+    ecef.z = diff_xyz[2] + refEcef.z;
+    const bool ok = ecef2latLong(ecef, latLong);
+#ifdef __UT_TEST__ // extra log in unit tests
+    std::ostringstream info1;
+    info1 << std::fixed << std::setprecision(LOG_XYZ_PRECISION)
+          << "enuToLatLong (" << +enu.x << "," << +enu.y << "," << +enu.z
+          << std::setprecision(LOG_DEGREE_PRECISION)
+          << ", ref " << +refLatLong.latitude << "/" << +refLatLong.longitude
+          << ") = " << +latLong.latitude << "/" << +latLong.longitude
+          << ": ok=" << +ok;
+    LOC_LOGI(info1);
+#endif
+    return ok;
+}
+
+void Location::latlong2ecef(const LatLongAlt & latLong, ECEF & ecef) {
+    double sLat = sin(latLong.latitude * DEG_TO_RAD);
+    double cLat = cos(latLong.latitude * DEG_TO_RAD);
+    double r_n = EARTH_RADIUS_EQUATOR_METERS / std::sqrt(1.0 - NAV_E2*sLat*sLat);
+    ecef.x = (r_n + latLong.altitude) * cLat * std::cos(latLong.longitude*DEG_TO_RAD);
+    ecef.y = (r_n + latLong.altitude) * cLat * std::sin(latLong.longitude*DEG_TO_RAD);
+    ecef.z = (r_n * (1.0 - NAV_E2) + latLong.altitude) * sLat;
+}
+
+void Location::ecef2enu(const ECEF & ecef, const LatLongAlt & refLatLong, ENU & enu) {
+    ECEF refEcef;
+    latlong2ecef(refLatLong, refEcef);
+
+    double diffEcef[3];
+    diffEcef[0] = ecef.x - refEcef.x;
+    diffEcef[1] = ecef.y - refEcef.y;
+    diffEcef[2] = ecef.z - refEcef.z;
+
+    double R[3][3];
+    rotate3D(refLatLong, R);
+
+    double R_enu[3];
+    matrixMultiply3x3with3x1(R, diffEcef, R_enu);
+    enu.x = R_enu[0];
+    enu.y = R_enu[1];
+    enu.z = R_enu[2];
+}
+
+void Location::rotate(const double angle, const Axis axis, double R[3][3]) {
+    double cAng = std::cos(angle * DEG_TO_RAD);
+    double sAng = std::sin(angle * DEG_TO_RAD);
+
+    if (X_AXIS == axis) {
+        R[0][0] = 1;
+        R[0][1] = 0;
+        R[0][2] = 0;
+        R[1][0] = 0;
+        R[2][0] = 0;
+        R[1][1] = cAng;
+        R[2][2] = cAng;
+        R[1][2] = sAng;
+        R[2][1] = -sAng;
+    } else if (Y_AXIS == axis) {
+        R[0][1] = 0;
+        R[1][0] = 0;
+        R[1][1] = 1;
+        R[1][2] = 0;
+        R[2][1] = 0;
+        R[0][0] = cAng;
+        R[2][2] = cAng;
+        R[0][2] = -sAng;
+        R[2][0] = sAng;
+    } else if (Z_AXIS == axis) {
+        R[2][0] = 0;
+        R[2][1] = 0;
+        R[2][2] = 1;
+        R[0][2] = 0;
+        R[1][2] = 0;
+        R[0][0] = cAng;
+        R[1][1] = cAng;
+        R[1][0] = -sAng;
+        R[0][1] = sAng;
+    }
+}
+
+void Location::rotate3D(const LatLongAlt & latLong, double R[3][3]) {
+    double R1[3][3], R2[3][3];
+
+    rotate(90.0 + latLong.longitude, Z_AXIS, R1);
+    rotate(90.0 - latLong.latitude, X_AXIS, R2);
+    matrixMultiply3x3with3x3(R2, R1, R);
+}
+
+bool Location::ecef2latLong(const ECEF & ecef, LatLongAlt & latLong) {
+    double rhoSquare = ecef.x*ecef.x + ecef.y*ecef.y;
+    double rho = std::sqrt(rhoSquare);
+    double tempLat = std::atan2(ecef.z, rho);
+    double tempAlt = std::sqrt(rhoSquare + ecef.z*ecef.z) - EARTH_RADIUS_EQUATOR_METERS;
+    double rhoError = 1000.0;
+    double zError = 1000.0;
+
+    int i = 0;
+    while ((std::abs(rhoError) > 1e-6) || std::abs(zError) > 1e-6) {
+        if (++i > 20) return false;
+
+        double sLat = std::sin(tempLat);
+        double cLat = std::cos(tempLat);
+        double q = 1.0 - NAV_E2 * sLat*sLat;
+        double r_n = EARTH_RADIUS_EQUATOR_METERS / std::sqrt(q);
+        double drdl = r_n * NAV_E2 * sLat * cLat / q;
+        rhoError = (r_n + tempAlt) * cLat - rho;
+        zError = (r_n * (1.0 - NAV_E2) + tempAlt) * sLat - ecef.z;
+        double aa = drdl * cLat - (r_n + tempAlt) * sLat;
+        double bb = cLat;
+        double cc = (1.0 - NAV_E2) * (drdl * sLat + r_n * cLat);
+        double dd = sLat;
+        double invdet = 1.0 / (aa * dd - bb * cc);
+        tempLat = tempLat - invdet * ( dd * rhoError - bb * zError);
+        tempAlt = tempAlt - invdet * (-cc * rhoError + aa * zError);
+    }
+    latLong.latitude = tempLat * RAD_TO_DEG;
+    latLong.longitude = std::atan2(ecef.y, ecef.x) * RAD_TO_DEG;
+    latLong.altitude = tempAlt;
+    return true;
+}
+
+void Location::matrixMultiply3x3with3x3(const double A[3][3], const double B[3][3], double C[3][3]) {
+    C[0][0] = A[0][0] * B[0][0] + A[0][1] * B[1][0] + A[0][2] * B[2][0];
+    C[0][1] = A[0][0] * B[0][1] + A[0][1] * B[1][1] + A[0][2] * B[2][1];
+    C[0][2] = A[0][0] * B[0][2] + A[0][1] * B[1][2] + A[0][2] * B[2][2];
+    C[1][0] = A[1][0] * B[0][0] + A[1][1] * B[1][0] + A[1][2] * B[2][0];
+    C[1][1] = A[1][0] * B[0][1] + A[1][1] * B[1][1] + A[1][2] * B[2][1];
+    C[1][2] = A[1][0] * B[0][2] + A[1][1] * B[1][2] + A[1][2] * B[2][2];
+    C[2][0] = A[2][0] * B[0][0] + A[2][1] * B[1][0] + A[2][2] * B[2][0];
+    C[2][1] = A[2][0] * B[0][1] + A[2][1] * B[1][1] + A[2][2] * B[2][1];
+    C[2][2] = A[2][0] * B[0][2] + A[2][1] * B[1][2] + A[2][2] * B[2][2];
+}
+
+void Location::matrixMultiply3x3with3x1(const double A[3][3], const double b[3], double c[3]) {
+    c[0] = A[0][0] * b[0] + A[0][1] * b[1] + A[0][2] * b[2];
+    c[1] = A[1][0] * b[0] + A[1][1] * b[1] + A[1][2] * b[2];
+    c[2] = A[2][0] * b[0] + A[2][1] * b[1] + A[2][2] * b[2];
+}
+
+void Location::transposeMatrix3x3(const double A[3][3], double At[3][3]) {
+    At[0][0] = A[0][0];
+    At[0][1] = A[1][0];
+    At[0][2] = A[2][0];
+    At[1][0] = A[0][1];
+    At[1][1] = A[1][1];
+    At[1][2] = A[2][1];
+    At[2][0] = A[0][2];
+    At[2][1] = A[1][2];
+    At[2][2] = A[2][2];
 }
 
 bool Location::findAllAnchorCombinations(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,

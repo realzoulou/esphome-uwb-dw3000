@@ -137,6 +137,37 @@ TEST(Location_getHaversineDistance, near0) {
     EXPECT_NEAR(177.64 * KM_TO_M, Location::getHaversineDistance(a ,b), 5.0); // 5m accuracy
 }
 
+/////////////////////////
+// Location::latLongToEnu
+TEST(Location_latLongToEnu, matterhorn) {
+    // https://mathworks.com/help/nav/ref/lla2enu.html
+    // origin Zermatt, Switzerland and point of interest Matterhorn mountain
+    const LatLongAlt zermatt = {46.017, 7.750, 1673};
+    const LatLongAlt matterhorn = {45.976, 7.658, 4531};
+    ENU enu = {NAN, NAN, NAN};
+    Location::latLongToEnu(matterhorn, zermatt, enu);
+    // example has WRONG results, take expected values from https://mathworks.com/help/nav/ref/enu2lla.html
+    EXPECT_NEAR(-7134.8, enu.x, 0.1);
+    EXPECT_NEAR(-4556.3, enu.y, 0.1);
+    EXPECT_NEAR(2852.4, enu.z, 0.1);
+}
+
+/////////////////////////
+// Location::enuToLatLong
+TEST(Location_enuToLatLong, matterhorn) {
+    // https://mathworks.com/help/nav/ref/enu2lla.html
+    // origin Zermatt, Switzerland and point of interest Matterhorn mountain
+    const LatLongAlt zermatt = {46.017, 7.750, 1673};
+    const ENU enu = {-7134.8, -4556.3, 2852.4};
+    LatLongAlt resLatLong = {NAN, NAN, NAN};
+    const bool ok = Location::enuToLatLong(enu, zermatt, resLatLong);
+    EXPECT_TRUE(ok);
+    // expect Matterhorn
+    EXPECT_NEAR(45.976, resLatLong.latitude, 0.001);
+    EXPECT_NEAR(7.658, resLatLong.longitude, 0.001);
+    EXPECT_NEAR(4531, resLatLong.altitude, 1);
+}
+
 //////////////////////////////////////
 // Location::findAllAnchorCombinations
 

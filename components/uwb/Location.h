@@ -30,6 +30,26 @@ typedef struct sLatLong {
     double longitude; // degree
 } LatLong;
 
+typedef struct sLatLongAlt {
+    double latitude;  // degree
+    double longitude; // degree
+    double altitude; // meter above the WGS84 reference ellipsoid
+} LatLongAlt;
+
+typedef struct sXYZ {
+    double x; // meter
+    double y; // meter
+    double z; // meter
+} XYZ;
+typedef XYZ ECEF; // Earth-centered, Earth-fixed coordinate system [m]
+typedef XYZ ENU; // East/North/Up [m]
+
+typedef enum {
+    X_AXIS,
+    Y_AXIS,
+    Z_AXIS
+} Axis;
+
 inline static bool operator==(const LatLong& lhs, const LatLong& rhs) {
     return (lhs.latitude == rhs.latitude && lhs.longitude == rhs.longitude)
         // allow that NAN == NAN (other than the standard!)
@@ -128,6 +148,11 @@ public: // static methods
     /* get squerical distance between 2 points on earth in [m] using Haversine formula. */
     static double getHaversineDistance(const LatLong & from, const LatLong & to);
 
+    /* convert WGS-84 geodetic datum to East/North/Up ENU relative to reference geodetic datum. */
+    static void latLongToEnu(const LatLongAlt & latLong, const LatLongAlt & refLatLong, ENU & enu);
+    /* convert a local East/North/Up ENU to to WGS-84 geodetic datum with reference WGS-84 geodetic datu. */
+    static bool enuToLatLong(const ENU & enu, const LatLongAlt & refLatLong, LatLongAlt & latLong);
+
     /* find all distinct combinations of two anchors from given set of >= 2 anchors.
        distinct means that no combination of two anchors shall appear >1 in the output.
        e.g. (A1, A2) shall not appear again as (A2, A1)
@@ -155,7 +180,25 @@ public: // instance methods
                                  const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
                                  LatLong & outputTagPosition, double & outputTagPositionErrorEstimate);
 
-private:
+private: // static methods
+    /* lat/long to ECEF */
+    static void latlong2ecef(const LatLongAlt & latLong, ECEF & ecef);
+    /* ECEF with reference lat/long to ENU */
+    static void ecef2enu(const ECEF & ecef, const LatLongAlt & refLatLong, ENU & enu);
+    /* ECEF to lat/long */
+    static bool ecef2latLong(const ECEF & ecef, LatLongAlt & latLong);
+    /* 3x3 rotation matrix */
+    static void rotate(const double angle, const Axis axis, double R[3][3]);
+    /* 3D rotation matrix to/from ECEF/ENU using reference lat/long */
+    static void rotate3D(const LatLongAlt & latLong, double R[3][3]);
+    /* Multiply 3x3 matrix times another 3x3 matrix C=AB */
+    static void matrixMultiply3x3with3x3(const double A[3][3], const double B[3][3], double C[3][3]);
+    /* Multiply 3x3 matrix times a 3x1 vector c=Ab */
+    static void matrixMultiply3x3with3x1(const double A[3][3], const double b[3], double c[3]);
+    /* Transpose a 3x3 matrix At = A' */
+    static void transposeMatrix3x3(const double A[3][3], double At[3][3]);
+
+private: // attributes
     static const char* TAG;
 
     std::vector<std::pair<AnchorPositionTagDistance, AnchorPositionTagDistance>> pairOfTwoAnchorsAndTheirDistanceToTag;
