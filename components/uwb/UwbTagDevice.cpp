@@ -806,7 +806,7 @@ void UwbTagDevice::calculateLocationPrepare() {
             } else {
                 std::ostringstream msg;
                 Location::LOG_ANCHOR_TO_STREAM(msg, anchorPosAndTagDist);
-                ESP_LOGW(TAG, "anchor invalid %s", msg.str().c_str());
+                ESP_LOGI(TAG, "anchor invalid %s", msg.str().c_str());
             }
         }
 
