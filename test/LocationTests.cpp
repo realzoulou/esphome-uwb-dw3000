@@ -790,3 +790,25 @@ TEST(Location_calculatePosition, threeAnchors_initially_A5_AA_not_intersect) {
     EXPECT_NEAR(expPosition.longitude, tagPosition.longitude, LATLONG_PRECISION);
     EXPECT_LE(errEst, expErr);
 }
+
+TEST(Location_calculatePosition, twoAnchors_withPreviousPosition) {
+    const LatLong previous = {48.5169, 37.64932};
+    const std::vector<AnchorPositionTagDistance> anchors = {
+        {0xA7, {48.5168724, 37.6493521}, 5.77, 0},
+        {0xA9, {48.5168266, 37.6495352}, 13.13, 0},
+    };
+    const LatLong expPositionWithoutPrevious = {48.5168206, 37.6493577};
+
+    LatLong tagPosition = {NAN, NAN};
+    double errEst = NAN;
+    EXPECT_EQ(CALC_OK, Location::calculatePosition(anchors, tagPosition, errEst));
+    EXPECT_NEAR(expPositionWithoutPrevious.latitude, tagPosition.latitude, LATLONG_PRECISION);
+    EXPECT_NEAR(expPositionWithoutPrevious.longitude, tagPosition.longitude, LATLONG_PRECISION);
+
+    const LatLong expPositionWithPrevious    = {48.5169089, 37.6494077};
+    tagPosition = {NAN, NAN};
+    errEst = NAN;
+    EXPECT_EQ(CALC_OK, Location::calculatePosition(anchors, tagPosition, errEst, previous));
+    EXPECT_NEAR(expPositionWithPrevious.latitude, tagPosition.latitude, LATLONG_PRECISION);
+    EXPECT_NEAR(expPositionWithPrevious.longitude, tagPosition.longitude, LATLONG_PRECISION);
+}

@@ -143,7 +143,8 @@ public: // static methods
     static void LOG_ANCHORS_TO_STREAM(std::ostringstream & ostream, const std::vector<AnchorPositionTagDistance> & anchors);
 
     static CalcResult calculatePosition(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
-                                        LatLong & outputTagPosition, double & outputTagPositionErrorEstimate);
+                                        LatLong & outputTagPosition, double & outputTagPositionErrorEstimate,
+                                        const LatLong & inputPreviousPosition = {NAN,NAN});
 
     /* get squerical distance between 2 points on earth in [m] using Haversine formula. */
     static double getHaversineDistance(const LatLong & from, const LatLong & to);
@@ -159,26 +160,32 @@ public: // static methods
     */
     static bool findAllAnchorCombinations(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
                                           std::vector<std::pair<AnchorPositionTagDistance, AnchorPositionTagDistance>> & outputAnchorCombinations);
-
+    /* find intersection(s) of two circles where a circle center is a geodesic coordinate of an anchor and circle radius a measured distance to tag. */
     static CircleIntersectionResult findTwoCirclesIntersections(const AnchorPositionTagDistance a1t,
                                                                 const AnchorPositionTagDistance a2t,
                                                                 LatLong & t, LatLong & t_prime);
+    /* filter position candidates that are not within the anchors area. */
     static void filterPositionCandidates(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
                                          std::vector<LatLong> & positionCandidates,
                                          std::vector<LatLong> & filteredOut);
+    /* select a 'best matching' from all the position candidates, using a inputPreviousPosition (if valid). */
     static bool selectBestMatchingCandidate(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
                                             const std::vector<LatLong> & positionCandidates,
-                                            LatLong & bestMatchingCandidate);
+                                            LatLong & bestMatchingCandidate,
+                                            const LatLong & inputPreviousPosition = {NAN,NAN});
 
+    /* What is 1 meter on earth at a certain latitude? */
     static double METER_TO_DEGREE(const double latitude);
 
 public: // instance methods
     Location() {}
     Location(const Location&) = delete; // forbid copy constructor
+    Location(Location&) = delete; // forbid copy constructor
 
     CalcResult calculatePosition(CalculationPhase & phase,
                                  const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
-                                 LatLong & outputTagPosition, double & outputTagPositionErrorEstimate);
+                                 LatLong & outputTagPosition, double & outputTagPositionErrorEstimate,
+                                 const LatLong & inputPreviousPosition = {NAN,NAN});
 
 private: // static methods
     /* lat/long to ECEF */

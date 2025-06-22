@@ -825,7 +825,7 @@ void UwbTagDevice::calculateLocationInPhases() {
     LatLong tagPosition;
     double errorEstimateMeters;
     CalcResult res;
-    res = mLocation.calculatePosition(mLocationCalculationPhase, mAnchorPositionAndTagDistances, tagPosition, errorEstimateMeters);
+    res = mLocation.calculatePosition(mLocationCalculationPhase, mAnchorPositionAndTagDistances, tagPosition, errorEstimateMeters, mTagPosition);
 
     if (CALC_PHASE_OK == res) {
         return; // phase successful, next phase in next loop()

@@ -106,15 +106,17 @@ double Location::METER_TO_DEGREE(const double latitude) {
 }
 
 CalcResult Location::calculatePosition(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
-                                       LatLong & outputTagPosition, double & outputTagPositionErrorEstimate) {
+                                       LatLong & outputTagPosition, double & outputTagPositionErrorEstimate,
+                                       const LatLong & inputPreviousPosition) {
     Location l;
     CalculationPhase phase = CALC_RUN_ALL_PHASES_AT_ONCE;
-    return l.calculatePosition(phase, inputAnchorPositionAndTagDistances, outputTagPosition, outputTagPositionErrorEstimate);
+    return l.calculatePosition(phase, inputAnchorPositionAndTagDistances, outputTagPosition, outputTagPositionErrorEstimate, inputPreviousPosition);
 }
 
 CalcResult Location::calculatePosition(CalculationPhase & phase,
                                        const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
-                                       LatLong & outputTagPosition, double & outputTagPositionErrorEstimate) {
+                                       LatLong & outputTagPosition, double & outputTagPositionErrorEstimate,
+                                       const LatLong & inputPreviousPosition) {
     bool ok;
     if ((phase & CALC_PHASE_INIT) == CALC_PHASE_INIT) {
         pairOfTwoAnchorsAndTheirDistanceToTag.clear();
@@ -261,7 +263,8 @@ CalcResult Location::calculatePosition(CalculationPhase & phase,
 
     if ((phase & CALC_PHASE_DONE_SELECT_BEST_CANDIDATE) != CALC_PHASE_DONE_SELECT_BEST_CANDIDATE) {
         LatLong bestMatchingCandidate = {NAN, NAN};
-        ok = selectBestMatchingCandidate(inputAnchorPositionAndTagDistances, positionCandidates, bestMatchingCandidate);
+        /* select a 'best matching' from all the position candidates, using a inputPreviousPosition (if valid) */
+        ok = selectBestMatchingCandidate(inputAnchorPositionAndTagDistances, positionCandidates, bestMatchingCandidate, inputPreviousPosition);
         if (!ok) {
             std::ostringstream msg;
             msg << "failed finding best matching position candidate";
@@ -301,7 +304,7 @@ bool Location::isValid(const LatLong & a) {
     return (   (a.latitude > -90.0 && a.latitude < 90.0)
             && (a.longitude > -180.0 && a.longitude < 180.0)
             && (a.latitude != 0.0 && a.longitude != 0.0 )
-            && (a.latitude != NAN && a.longitude != NAN )
+            && (!std::isnan(a.latitude) && !std::isnan(a.longitude))
            );
 }
 double Location::getHaversineDistance(const LatLong & from, const LatLong & to) {
@@ -521,7 +524,7 @@ bool Location::findAllAnchorCombinations(const std::vector<AnchorPositionTagDist
 
 void Location::filterPositionCandidates(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
                                         std::vector<LatLong> & positionCandidates, std::vector<LatLong> & filteredOut) {
-    // ensure nothing else is in removed vector from caller than why we put into below
+    // ensure nothing else is in filteredOut vector from caller than what we put into below
     filteredOut.clear();
 
     // need min. 3 anchors and min. 1 position candidate
@@ -535,11 +538,8 @@ void Location::filterPositionCandidates(const std::vector<AnchorPositionTagDista
            maxX = std::numeric_limits<double>::lowest(),
            maxY = std::numeric_limits<double>::lowest();
     for (const AnchorPositionTagDistance & a : inputAnchorPositionAndTagDistances) {
-        if (std::isnan(a.anchorPosition.latitude) || std::isnan(a.anchorPosition.longitude)) {
-            std::ostringstream msg;
-            LOG_ANCHOR_TO_STREAM(msg, a);
-            LOC_LOGW(msg);
-            continue; // skip anchor with nan X or Y coordinate
+        if (!isValid(a.anchorPosition)) {
+            continue; // skip invalid anchor
         }
         minX = std::min(minX, a.anchorPosition.longitude);
         maxX = std::max(maxX, a.anchorPosition.longitude);
@@ -572,11 +572,32 @@ void Location::filterPositionCandidates(const std::vector<AnchorPositionTagDista
 
 bool Location::selectBestMatchingCandidate(const std::vector<AnchorPositionTagDistance> & inputAnchorPositionAndTagDistances,
                                            const std::vector<LatLong> & positionCandidates,
-                                           LatLong & bestMatchingCandidate) {
+                                           LatLong & bestMatchingCandidate,
+                                           const LatLong & inputPreviousPosition) {
+    // with min. 2 position candidates *and* a valid previous position
+    if (isValid(inputPreviousPosition) && positionCandidates.size() >= 2) {
+        // choose the 1 candidate nearest to previous position
+        LatLong nearestCandidate = {NAN, NAN};
+        double nearestDistance = UWB_MAX_REACH_METER;
+        for (const LatLong & candidate : positionCandidates) {
+            const double dist = getHaversineDistance(candidate, inputPreviousPosition);
+            if (dist < nearestDistance) {
+                nearestCandidate = candidate;
+                nearestDistance = dist;
+            }
+        }
+        if (isValid(nearestCandidate)) {
+            bestMatchingCandidate.latitude = nearestCandidate.latitude;
+            bestMatchingCandidate.longitude = nearestCandidate.longitude;
+            return true;
+        }
+    }
+
     // need at least 2 anchors and at least 1 candidate
     if (inputAnchorPositionAndTagDistances.size() < 2 || positionCandidates.empty())
         return false;
-    // if only 1 candidate, this is the best we have
+
+        // if only 1 candidate, this is the best we have
     if (positionCandidates.size() == 1) {
         if (std::isnan(positionCandidates[0].latitude) || std::isnan(positionCandidates[0].longitude)) {
             // NAN is not a position candidate
