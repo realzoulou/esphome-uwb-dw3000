@@ -27,7 +27,7 @@ wifi:
 #####################################################
 uwb:
   role: anchor # role 'anchor' or 'tag'
-  device_id: 0xA1
+  uwb_dev_id: 0xA1
   latitude: 48.1234567   # optional: WGS 84 latitude of the anchor device
   longitude: 11.1234567  # optional: WGS 84 longitude of the anchor device
   # turn LEDs off after [ms] from startup, default: 0 = keeps LEDs on
@@ -40,7 +40,7 @@ sensor:
   - platform: uwb
     distance:
       id: tag_dist
-      device_id: 0x02
+      uwb_dev_id: 0x02
       name: "distance tag"
   # Latitude, Longitude of anchor position, reported every 30s
   - platform: uwb

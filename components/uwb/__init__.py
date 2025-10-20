@@ -35,7 +35,7 @@ CONF_UWB_ID = "uwb_id"
 uwb_ns = cg.esphome_ns.namespace("uwb")
 UWB_COMPONENT = uwb_ns.class_("UwbComponent", cg.Component)
 
-CONF_UWB_DEVICE_ID = "device_id"
+CONF_UWB_DEVICE_ID = "uwb_dev_id"
 CONF_UWB_ROLE = "role"
 CONF_UWB_ROLE_ANCHOR = "anchor"
 CONF_UWB_ROLE_TAG = "tag"

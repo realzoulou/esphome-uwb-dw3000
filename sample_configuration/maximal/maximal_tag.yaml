@@ -27,16 +27,16 @@ wifi:
 #####################################################
 uwb:
   role: tag
-  device_id: 0x02   # unique ID of this device
+  uwb_dev_id: 0x02   # unique ID of this device
   # For role=tag, a list of anchors is required:
   #  1 anchor: only distance between tag and anchor is produced.
   #  2+ anchors are needed for producing a 2D location.
   #     More anchors will result in better location precision.
   anchors:
-    - device_id: 0xA1        # unique ID of an anchor device
+    - uwb_dev_id: 0xA1        # unique ID of an anchor device
       latitude: 48.1234567   # WGS 84 latitude of the anchor device
       longitude: 11.1234567  # WGS 84 longitude of the anchor device
-    - device_id: 0xA3        # unique ID of another anchor device
+    - uwb_dev_id: 0xA3        # unique ID of another anchor device
       latitude: 48.1234568   # WGS 84 latitude of the anchor device
       longitude: 11.1234568  # WGS 84 longitude of the anchor device
   # --- optional ---
@@ -74,12 +74,12 @@ sensor:
   - platform: uwb
     distance:
       id: anchorA1
-      device_id: 0xA1
+      uwb_dev_id: 0xA1
       name: "distance anchor A1"
   - platform: uwb
     distance:
       id: anchorA3
-      device_id: 0xA3
+      uwb_dev_id: 0xA3
       name: "distance anchor A3"
   # voltage of DW3000 IC, *NOT* supply voltage to whole device
   - platform: uwb

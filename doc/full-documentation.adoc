@@ -14,12 +14,12 @@ The maximal possible ESPHome YAML can be found in folder xref:../sample_configur
 # Example maximum tag ESPHome configuration
 uwb:
   role: tag
-  device_id: 0x02
+  uwb_dev_id: 0x02
   anchors:
-    - device_id: 0xA1
+    - uwb_dev_id: 0xA1
       latitude: 48.1234567
       longitude: 11.1234567
-    - device_id: 0xA2
+    - uwb_dev_id: 0xA2
       latitude: 48.1234568
       longitude: 11.1234568
   ranging_interval_ms: 3000
@@ -30,9 +30,9 @@ uwb:
   antenna_delay: 16385
 ----
 * **role (Required)**: `tag`
-* **device_id (Required)**: A unique hexadecimal in range 0x00...0xFE
+* **uwb_dev_id (Required)**: A unique hexadecimal in range 0x00...0xFE
 * **anchors (Required)**: A **list** of anchor devices. Minimum 1 anchor is required. 2+ anchors are needed for producing a 2D location. More anchors will result in better location precision. Each of the anchors must be defined with:
-** **device_id (Required)**: anchor unique hexadecimal in range 0x00...0xFE
+** **uwb_dev_id (Required)**: anchor unique hexadecimal in range 0x00...0xFE
 ** **latitude (Required)**: anchor WGS 84 latitude
 ** **longitude (Required)**: anchor WGS 84 longitude
 * **ranging_interval_ms (Optional)**: Do ranging with all anchors and report position and distances every __ranging_interval_ms__ milliseconds. Min: 1000, Default: 5000
@@ -48,8 +48,8 @@ uwb:
 * **longitude**: WGS 84 longitude of tag
 * **error_estimate**: Position error estimate in meter
 * **anchors_in_use**: How many anchors were used in calculation
-* **distance**: Distance of tag to the anchor with given `device_id`
-** **device_id (Required)**
+* **distance**: Distance of tag to the anchor with given `uwb_dev_id`
+** **uwb_dev_id (Required)**
 * **voltage**: Voltage of DW3000 IC, *NOT* supply voltage to whole device
 * **temperature**: Temperature of DW3000 IC, *NOT* ambient temperature of whole device
 * **antenna_calibration_progress**: Antenna delay calibration progress in percent
@@ -75,12 +75,12 @@ sensor:
   - platform: uwb
     distance:
       id: anchorA1
-      device_id: 0xA1
+      uwb_dev_id: 0xA1
       name: "distance anchor A1"
   - platform: uwb
     distance:
       id: anchorA2
-      device_id: 0xA2
+      uwb_dev_id: 0xA2
       name: "distance anchor A2"
   - platform: uwb
     voltage:
@@ -167,7 +167,7 @@ text_sensor:
 ----
 uwb:
   role: anchor # role 'anchor' or 'tag'
-  device_id: 0xA1
+  uwb_dev_id: 0xA1
   latitude: 48.1234567   # optional: WGS 84 latitude of the anchor device
   longitude: 11.1234567  # optional: WGS 84 longitude of the anchor device
   led_off_after_ms: 60000 # 60 s
@@ -175,7 +175,7 @@ uwb:
 ----
 
 * **role (Required)**: `anchor`
-* **device_id (Required)**: A unique hexadecimal in range 0x00...0xFE
+* **uwb_dev_id (Required)**: A unique hexadecimal in range 0x00...0xFE
 * **latitude (Optional)**: anchor WGS 84 latitude
 * **longitude (Optional)**: anchor WGS 84 longitude
 * **led_off_after_ms (Optional)**: Turn LEDs off after __led_off_after_ms__ from startup. Default: 0 = keeps LEDs on
@@ -183,8 +183,8 @@ uwb:
 
 === Sensors provided by `platform uwb`
 
-* **distance**: Distance from anchor to tag with given `device_id`
-** **device_id (Required)**
+* **distance**: Distance from anchor to tag with given `uwb_dev_id`
+** **uwb_dev_id (Required)**
 * **voltage**: Voltage of DW3000 IC, *NOT* supply voltage to whole device
 * **temperature**: Temperature of DW3000 IC, *NOT* ambient temperature of whole device
 
@@ -196,7 +196,7 @@ sensor:
   - platform: uwb
     distance:
       id: tag_dist
-      device_id: 0x02
+      uwb_dev_id: 0x02
       name: "distance tag"
   # Latitude, Longitude of anchor position, reported every 30s
   - platform: uwb

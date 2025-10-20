@@ -27,4 +27,4 @@ wifi:
 #####################################################
 uwb:
   role: anchor
-  device_id: 0xA1 # unique ID of this device
+  uwb_dev_id: 0xA1 # unique ID of this device
