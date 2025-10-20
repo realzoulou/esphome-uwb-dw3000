@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-# pylint: disable=line-too-long, invalid-name, missing-function-docstring, missing-module-docstring, too-many-branches
+# pylint: disable=line-too-long, invalid-name, missing-function-docstring, missing-module-docstring, too-many-branches, pointless-statement
 
 import re
 
@@ -52,11 +52,11 @@ UWB_ROLE = {
     CONF_UWB_ROLE_ANCHOR: eUwbRole.UWB_ROLE_ANCHOR,
     CONF_UWB_ROLE_TAG:    eUwbRole.UWB_ROLE_TAG
 }
-MIN_DISTANCE_CHANGE_DEFAULT : float = uwb_ns.MIN_DISTANCE_CHANGE_DEFAULT
-MAX_SPEED_DEFAULT           : float = uwb_ns.MAX_SPEED_DEFAULT
-RANGING_INTERVAL_DEFAULT    : float = uwb_ns.RANGING_INTERVAL_TIME_DEFAULT
-ANCHOR_AWAY_DURATION_DEFAULT: float = uwb_ns.MAX_AGE_ANCHOR_DISTANCE_DEFAULT
-ANT_DELAY_DEFAULT           : int   = uwb_ns.ANT_DLY_DEFAULT
+MIN_DISTANCE_CHANGE_DEFAULT : float = uwb_ns.MIN_DISTANCE_CHANGE_DEFAULT # pyright: ignore[reportAssignmentType]
+MAX_SPEED_DEFAULT           : float = uwb_ns.MAX_SPEED_DEFAULT # pyright: ignore[reportAssignmentType]
+RANGING_INTERVAL_DEFAULT    : float = uwb_ns.RANGING_INTERVAL_TIME_DEFAULT # pyright: ignore[reportAssignmentType]
+ANCHOR_AWAY_DURATION_DEFAULT: float = uwb_ns.MAX_AGE_ANCHOR_DISTANCE_DEFAULT # pyright: ignore[reportAssignmentType]
+ANT_DELAY_DEFAULT           : int   = uwb_ns.ANT_DLY_DEFAULT # pyright: ignore[reportAssignmentType]
 
 # BEGIN: parse_latlon and LAT_LON_REGEX copied from esphome/components/sun/__init__.py
 # Parses sexagesimal values like 22°57′7″S
@@ -130,7 +130,7 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_UWB_ANT_DELAY): cv.int_range(min=1,max=32767),
     }
 ).extend(cv.COMPONENT_SCHEMA)
-cv.only_with_arduino # pylint: disable=pointless-statement
+cv.only_with_arduino
 
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
@@ -147,14 +147,14 @@ async def to_code(config):
         if ledOffDuration := config[CONF_UWB_LED_OFF_AFTER]:
             cg.add(var.setLedsOffAfter(ledOffDuration))
     except KeyError:
-        True # pylint: disable=pointless-statement
+        True # pyright: ignore[reportUnusedExpression]
 
     # optional key: CONF_UWB_ANT_DELAY
     try:
         if ant_delay := config[CONF_UWB_ANT_DELAY]:
             cg.add(var.setAntennaDelay(ant_delay))
     except KeyError:
-        True # pylint: disable=pointless-statement
+        True # pyright: ignore[reportUnusedExpression]
 
     if role == CONF_UWB_ROLE_TAG:
         minDistanceChange = MIN_DISTANCE_CHANGE_DEFAULT
@@ -166,22 +166,22 @@ async def to_code(config):
             if config[CONF_TAG_MIN_DISTANCE_CHANGE]:
                 minDistanceChange = config[CONF_TAG_MIN_DISTANCE_CHANGE]
         except KeyError:
-            True # pylint: disable=pointless-statement
+            True # pyright: ignore[reportUnusedExpression]
         try:
             if config[CONF_TAG_MAX_SPEED]:
                 maxSpeed = config[CONF_TAG_MAX_SPEED]
         except KeyError:
-            True # pylint: disable=pointless-statement
+            True # pyright: ignore[reportUnusedExpression]
         try:
             if ranging_interval := config[CONF_TAG_RANGING_INTERVAL]:
                 cg.add(var.setRangingInterval(ranging_interval))
         except KeyError:
-            True # pylint: disable=pointless-statement
+            True # pyright: ignore[reportUnusedExpression]
         try:
             if anchor_away_duration := config[CONF_TAG_ANCHOR_AWAY_DURATION]:
                 cg.add(var.setMaxAgeAnchorDistance(anchor_away_duration))
         except KeyError:
-            True # pylint: disable=pointless-statement
+            True # pyright: ignore[reportUnusedExpression]
 
         for anchor in config[CONF_TAG_ANCHORS]:
             cg.add(var.addAnchor(anchor[CONF_UWB_DEVICE_ID], anchor[CONF_LATITUDE], anchor[CONF_LONGITUDE],
@@ -194,16 +194,16 @@ async def to_code(config):
             if latitude and longitude:
                 cg.add(var.setAnchorPosition(latitude, longitude))
         except KeyError:
-            True # pylint: disable=pointless-statement
+            True # pyright: ignore[reportUnusedExpression]
 
     # ----- General compiler settings
-    # treat warnings as error, abort compilation on the first error, check printf format and arguments
+    # treat warnings as error, abort compilation on first error, check printf format and arguments
     cg.add_build_flag("-Werror -Wfatal-errors -Wformat=2")
+    # relax some warnings from being treated as errors due to esphome code
+    cg.add_build_flag("-Wno-error=format-nonliteral -Wno-error=format-y2k")
+    cg.add_build_flag("-Wno-error=cpp")
     # optimize for speed
     cg.add_build_flag("-O2")
-    # src/esphome/core/time.cpp: In member function 'size_t esphome::ESPTime::strftime(char*, size_t, const char*)':
-    # src/esphome/core/time.cpp:20:54: error: format not a string literal, format string not checked [-Werror=format-nonliteral]
-    cg.add_build_flag("-Wno-format-nonliteral")
     # sanitizers
     #cg.add_build_flag("-fsanitize=undefined -fno-sanitize=shift-base")
     cg.add_build_flag("-fstack-protector-all")
