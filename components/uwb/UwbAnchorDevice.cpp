@@ -166,7 +166,7 @@ void UwbAnchorDevice::prepareWaitRecvInitial() {
     dwt_setrxtimeout(0);
     if (dwt_rxenable(DWT_START_RX_IMMEDIATE) == DWT_ERROR) {
         const uint32_t status_reg = dwt_read32bitreg(SYS_STATUS_ID);
-        ESP_LOGE(TAG, "dwt_rxenable failed: SYS_STATUS: 0x%08lx", status_reg);
+        ESP_LOGE(TAG, "dwt_rxenable failed: SYS_STATUS: 0x%08" PRIx32 , status_reg);
     } else {
         setMyState(MYSTATE_WAIT_RECV_INITIAL);
     }
